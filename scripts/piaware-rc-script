@@ -1,0 +1,68 @@
+#!/bin/bash
+
+### BEGIN INIT INFO
+# Provides:          piaware
+# Required-Start:    $network $remote_fs $syslog $time
+# Required-Stop:     $network $remote_fs $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Communicate ADS-B data to FlightAware
+# Description:       piaware is a way to connect a homebrew Raspberry Pi-based
+#                    ADS-B receiver running dump1090 over a TLS connection to
+#                    forward ADS-B data to FlightAware
+### END INIT INFO
+
+. /lib/lsb/init-functions
+
+DAEMON=/usr/bin/piaware
+PIDFILE=/var/run/piaware.pid
+
+test -x $DAEMON || exit 5
+
+LOCKFILE=/var/lock/piaware
+
+start() {
+    log_daemon_msg "Starting piaware server" "piaware"
+# --quiet
+    start-stop-daemon --start --oknodo --background --pidfile $PIDFILE --exec $DAEMON -- -p $PIDFILE
+    status=$?
+    log_end_msg $status
+    return
+}
+
+stop() {
+    log_daemon_msg "Stopping piaware server" "piaware"
+    start-stop-daemon --stop --quiet --oknodo --pidfile $PIDFILE
+    log_end_msg $?
+    rm -f $PIDFILE
+    return
+}
+
+status() {
+	piaware-config -status
+}
+
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    status)
+	status
+        ;;
+    restart|force-reload)
+        stop && sleep 2 && start
+        ;;
+    reload)
+	exit 3
+	;;
+    status)
+	status_of_proc $DAEMON "piaware server"
+	;;
+    *)
+	echo "Usage: $0 {start|stop|restart|try-restart|force-reload|status}"
+	exit 2
+	;;
+esac
