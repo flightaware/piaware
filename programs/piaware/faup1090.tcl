@@ -58,6 +58,9 @@ proc close_faup1090_socket {} {
     }
 }
 
+#
+# close_faup1090_socket_and_reopen - pretty self-explanatory
+#
 proc close_faup1090_socket_and_reopen {} {
 	close_faup1090_socket
 
@@ -189,11 +192,33 @@ proc is_faup1090_running {} {
 }
 
 #
+# faup1090_messages_being_received_check - by faup1090_running_periodic_check
+#  to see if we have received messages in the last few minutes
+#
+proc faup1090_messages_being_received_check {} {
+	if {[info exists ::priorFaupMessagesReceived]} {
+		set secondsSinceLast [expr {[clock seconds] - $::priorFaupClock}]
+		if {$secondsSinceLast < 300} {
+			return
+		}
+		set nNewMessagesReceived [expr {$::::nfaupMessagesReceived - $::priorFaupMessagesReceived}]
+		if {$nNewMessagesReceived == 0} {
+			logger "no new messages received in $secondsSinceLast seconds, possibly restarting faup1090 and definitely reconnecting..."
+			stop_faup1090_close_faup1090_socket_and_reopen
+		}
+	}
+	set ::priorFaupMessagesReceived $::nfaupMessagesReceived
+	set ::priorFaupClock [clock seconds]
+}
+
+#
 # faup1090_running_periodic_check - periodically check to see if faup1090 is
 #  running and if it is not, start it up again
 #
 proc faup1090_running_periodic_check {} {
 	after 60000 faup1090_running_periodic_check
+
+	faup1090_messages_being_received_check
 
 	if {[is_faup1090_running]} {
 		#logger "faup1090_running_periodic_check: faup1090 is running"
@@ -219,6 +244,13 @@ proc faup1090_running_periodic_check {} {
 	logger "faup1090_running_periodic_check: starting faup1090"
 	start_faup1090
 }
+
+proc stop_faup1090_close_faup1090_socket_and_reopen {} {
+	stop_faup1090
+
+	close_faup1090_socket_and_reopen
+}
+
 
 #
 # traffic_report - log a traffic report of messages received from dump1090
