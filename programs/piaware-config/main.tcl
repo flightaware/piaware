@@ -25,8 +25,6 @@ set pidFile "/var/run/piaware.pid"
 # main - the main program
 #
 proc main {{argv ""}} {
-	user_check
-
 	set options {
 		{user.arg "" "specify the user name of a valid FlightAware account"}
 		{password "interactively specify the password of the FlightAware account"}
@@ -52,6 +50,8 @@ proc main {{argv ""}} {
 		puts stderr [::cmdline::usage $options]
 		exit 1
 	}
+
+	user_check
 
 	load_adept_config
 	process_parameters ::params

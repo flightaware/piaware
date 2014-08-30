@@ -97,24 +97,19 @@ proc process_netstat_socket_line {line} {
     lassign $line proto recvq sendq localAddress foreignAddress state pidProg
     lassign [split $pidProg "/"] pid prog
 
+    if {$localAddress == "*:30005" && $state == "LISTEN"} {
+	set ::netstatus(program_30005) $prog
+	set ::netstatus(status_30005) 1
+    }
+
+    if {$localAddress == "*:10001" && $state == "LISTEN"} {
+	set ::netstatus(program_10001) $prog
+	set ::netstatus(status_10001) 1
+    }
+
+
     switch $prog {
-	"dump1090" {
-	    set ::running(dump1090) 1
-	    if {$localAddress == "*:30005" && $state == "LISTEN"} {
-		set ::netstatus(dump1090_30005) 1
-	    }
-
-	    if {$localAddress == "*:10001" && $state == "LISTEN"} {
-		set ::netstatus(dump1090_10001) 1
-	    }
-	}
-
 	"faup1090" {
-	    set ::running(faup1090) 1
-	    if {$localAddress == "*:10001" && $state == "LISTEN"} {
-		set ::netstatus(faup1090_10001) 1
-	    }
-
 	    if {$foreignAddress == "localhost:30005" && $state == "ESTABLISHED"} {
 		set ::netstatus(faup1090_30005) 1
 	    }
@@ -133,13 +128,16 @@ proc process_netstat_socket_line {line} {
     }
 }
 
+#
+# inspect_sockets_with_netstat - run netstat and make a report
+#
 proc inspect_sockets_with_netstat {} {
     set ::running(dump1090) 0
     set ::running(faup1090) 0
     set ::running(piaware) 0
-    set ::netstatus(dump1090_30005) 0
-    set ::netstatus(dump1090_10001) 0
-    set ::netstatus(faup1090_10001) 0
+    set ::netstatus(status_30005) 0
+    set ::netstatus(status_10001) 0
+    set ::netstatus(faup1090_30005) 0
     set ::netstatus(piaware_10001) 0
     set ::netstatus(piaware_1200) 0
 
@@ -152,16 +150,23 @@ proc inspect_sockets_with_netstat {} {
     }
 }
 
+#
+# subst_is_or_is_not - substitute "is" or "is not" into a %s in string
+#  based on if value is true or false
+#
 proc subst_is_or_is_not {string value} {
     if {$value} {
 	set value "is"
     } else {
-	set value "is not"
+	set value "is NOT"
     }
 
     return [format $string $value]
 }
 
+#
+# netstat_report - parse netstat output and report
+#
 proc netstat_report {} {
     if {[id user] != "root"} {
 	puts "run 'sudo $::argv0' to get a more detailed report"
@@ -170,27 +175,22 @@ proc netstat_report {} {
 
     inspect_sockets_with_netstat
 
-    if {$::running(dump1090)} {
-	puts "[subst_is_or_is_not "dump1090 %s accepting connections on port 30005." $::netstatus(dump1090_30005)]"
+    foreach port "30005 10001" {
+	set statusvar "status_$port"
+	set programvar "program_$port"
 
-    }
-
-    set port10001program unknown
-
-    if {$::netstatus(dump1090_10001)} {
-	puts "dump1090 is accepting connections on port 10001, must be FA version"
-	set port10001program dump1090
-    } else {
-	if {$::running(faup1090)} {
-	    puts "[subst_is_or_is_not "faup1090 %s connected to dump1090 on port 30005." $::netstatus(faup1090_30005)]"
-	    if {$::netstatus(faup1090_10001)} {
-		puts "faup1090 is accepting connections on port 10001"
-		set port10001program faup1090
-	    }
+	if {!$::netstatus($statusvar)} {
+	    puts "no program appears to be listening for connections on port $port."
+	} else {
+	    puts "$::netstatus($programvar) is listening for connections on port $port."
 	}
     }
 
-    puts "[subst_is_or_is_not "piaware %s connected to $port10001program on port 10001." $::netstatus(piaware_10001)]"
+    if {$::netstatus(faup1090_30005)} {
+	puts "faup1090 is connected to port 30005"
+    }
+
+    puts "[subst_is_or_is_not "piaware %s connected to port 10001." $::netstatus(piaware_10001)]"
 
     puts "[subst_is_or_is_not "piaware %s connected to FlightAware." $::netstatus(piaware_1200)]"
 }

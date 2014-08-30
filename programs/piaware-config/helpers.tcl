@@ -10,25 +10,28 @@
 proc process_parameters {_params} {
     upvar $_params params
 
-    if {$params(user) != ""} {
-		set_adept_config user $params(user)
-		save_adept_config
-    }
+	set saveAdeptConfig 0
 
+	# process password special by morphing it into either
+	# a password or an empty string so it will be like
+	# the other variables
     if {$params(password)} {
-		if {![info exists ::adeptConfig(user)]} {
-			set userString ""
-		} else {
-			set userString "$::adeptConfig(user)'s "
+		set params(password) [get_password]
+    } else {
+		set params(password) ""
+	}
+
+	foreach param "user password" {
+		if {$params($param) != ""} {
+			set_adept_config $param $params($param)
+			set saveAdeptConfig 1
 		}
-		exec stty -echo echonl <@stdin
-		puts -nonewline stdout "please enter flightaware user ${userString}password: "
-		flush stdout
-		gets stdin line
-		exec stty echo -echonl <@stdin
-		set_adept_config password $line
+	}
+
+	# if a config variable was set, save the adept config
+	if {$saveAdeptConfig} {
 		save_adept_config
-    }
+	}
 
     if {$params(start)} {
 		start_piaware
@@ -45,6 +48,24 @@ proc process_parameters {_params} {
     if {$params(status)} {
 		piaware_status
     }
+}
+
+#
+# get_password - read a password with not showing it even though i'm not
+#  too sure not showing it helps
+#
+proc get_password {} {
+	if {![info exists ::adeptConfig(user)]} {
+		set userString ""
+	} else {
+		set userString "$::adeptConfig(user)'s "
+	}
+	exec stty -echo echonl <@stdin
+	puts -nonewline stdout "please enter flightaware user ${userString}password: "
+	flush stdout
+	gets stdin line
+	exec stty echo -echonl <@stdin
+	return $line
 }
 
 #

@@ -12,14 +12,11 @@ package require fa_adept_config
 #package require BSD
 package require Tclx
 package require cmdline
+package require tls
 
 if {![info exists ::launchdir]} {
     set ::launchdir "."
 }
-
-package require tls
-package require Tclx
-package require fa_adept_config
 
 source $::launchdir/config.tcl
 source $::launchdir/helpers.tcl
@@ -51,16 +48,15 @@ proc main {{argv ""}} {
 	user_check
 
 	#::tcllauncher::daemonize
+	# NB does not work due to thread/fork interaction, can be solved with
+	# improvements in tcllauncher
+	# we are instead launching from the /etc/init.d/ script
 if 0 {
 	set pid [fork]
 	if {$pid != 0} {
 		exit 0
 	}
 }
-
-	# attempt to kill any extant copies of faup1090
-	system "killall faup1090"
-	sleep 1
 
 	setup_signals
 
@@ -73,15 +69,21 @@ if 0 {
 
 	greetings
 
-	user_check
-	get_user_and_password
+	# attempt to kill any extant copies of faup1090
+	if {[is_process_running faup1090]} {
+		system "killall faup1090"
+		sleep 1
+	}
+
+	load_adept_config_and_setup
 	confirm_nonblank_user_and_password_or_die
 
+	inspect_sockets_with_netstat
+
     setup_adept_client
+    setup_fa_style_adsb_client
 
-    setup_faup1090_client
-
-	faup1090_running_periodic_check
+	periodically_check_adsb_traffic
 
 	periodically_send_health_information
 

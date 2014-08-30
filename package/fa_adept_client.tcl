@@ -82,7 +82,7 @@ namespace eval ::fa_adept {
 			-ssl3 0 \
 			-tls1 1 \
 			$host $port]} catchResult] == 1} {
-			logger "error opening socket to adept server at $host/$port: $catchResult"
+			logger "got '$catchResult' to adept server at $host/$port, will try again soon..."
 			return 0
 		}
 
@@ -95,7 +95,7 @@ namespace eval ::fa_adept {
 		# we can get errors from this.  catch them and return failure
 		# if one occurs.
 		if {[catch {::tls::handshake $sock} catchResult] == 1} {
-			logger "error during tls handshake: $catchResult"
+			logger "error during tls handshake: $catchResult, will try again soon..."
 			return 0
 		}
 
@@ -274,7 +274,7 @@ namespace eval ::fa_adept {
 		# we got a response, convert it to an array and send it to the
 		# response handler
 		#
-		if {[catch {array set response [split $line "\t"]} == 1} {
+		if {[catch {array set response [split $line "\t"]}] == 1} {
 			logger "malformed message from server ('$line'), ignoring..."
 			return
 		}
@@ -366,25 +366,33 @@ namespace eval ::fa_adept {
 		if {![info exists row(interval)]} {
 			set row(interval) 300
 		}
-		set afterMS [expr {round($row(interval) * 1000 * 1.1)}]
+		set afterMS [expr {round($row(interval) * 1000 * 1.2)}]
 
 		# cancel the current alive timeout timer if it exists
 		if {![info exists aliveTimerID]} {
-			logger "server is sending alive messages, we will expect them"
+			logger "handle_alive_message: server is sending alive messages, we will expect them"
 		} else {
+			logger "handle_alive_message: alive message received from FlightAware"
 			cancel_alive_timer
 		}
 
 		# schedule alive_timeout to run in the future
 		set aliveTimerID [after $afterMS [list $this alive_timeout]]
+		#logger "handle_alive_message: alive timer ID is $aliveTimerID"
 	}
 
 	#
 	# cancel_alive_timer - cancel the alive timer if it exists
 	#
-	proc cancel_alive_timer {} {
-		if {[info exists aliveTimerID]} {
-			catch {after cancel $aliveTimerID}
+	method cancel_alive_timer {} {
+		if {![info exists aliveTimerID]} {
+			#logger "cancel_alive_timer: no extant timer ID, doing nothing..."
+		} else {
+			if {[catch {after cancel $aliveTimerID} catchResult] == 1} {
+				#logger "cancel_alive_timer: cancel failed: $catchResult"
+			} else {
+				#logger "cancel_alive_timer: canceled $aliveTimerID"
+			}
 			unset aliveTimerID
 		}
 	}
@@ -441,6 +449,14 @@ namespace eval ::fa_adept {
 
 		if {[info exists ::piawareVersion]} {
 			set message(piaware_version) $::piawareVersion
+		}
+
+		if {[info exists ::netstatus(program_30005)]} {
+			set message(adsbprogram) $::netstatus(program_30005)
+		}
+
+		if {[info exists ::netstatus(program_10001)]} {
+			set message(transprogram) $::netstatus(program_10001)
 		}
 
 		set macFile /sys/class/net/eth0/address

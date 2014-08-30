@@ -8,38 +8,50 @@
 set ::faup1090ConnectRetryInterval 10
 
 #
-# connect_faup1090 - setup a client socket that connects to faup1090
+set ::lastAdsbClock 0
+set ::lastConnectAttempt 0
+#
+# connect_fa_style_adsb_port - setup a client socket that connects to faup1090
 #  fa "baked" port 10001
 #
-proc connect_faup1090 {} {
-	if {![is_dump1090_running]} {
-		logger "connect_faup1090: dump1090 isn't running"
-		after 60000 connect_faup1090
+proc connect_fa_style_adsb_port {} {
+	set ::lastConnectAttempt [clock seconds]
+
+	inspect_sockets_with_netstat
+
+	if {![is_adsb_program_running]} {
+		logger "connect_fa_style_adsb_port: no ADS-B data program is serving on port 30005, next check in 60s"
+		after 60000 connect_fa_style_adsb_port
 		return
 	}
 
-	logger "connect_faup1090: dump1090 is running"
+	logger "connect_fa_style_adsb_port: ADS-B data program '$::netstatus(program_30005)' is listening on port 30005, so far so good"
 
-	if {![is_faup1090_running]} {
-		logger "connect_faup1090: faup1090 isn't running but i'll try connecting anyway in case you're running FA dump1090"
-		#return
+	if {[info exists ::netstatus(status_10001)] && $::netstatus(status_10001)} {
+		logger "connect_fa_style_adsb_port: i see $::netstatus(program_10001) serving on port 10001"
+		set serverProgram $::netstatus(program_10001)
+	} else {
+		logger "connect_fa_style_adsb_port: i see nothing serving on port 10001, starting faup1090..."
+		start_faup1090
+		set serverProgram "faup1090"
 	}
 
+	logger "connect_fa_style_adsb_port: connecting to $serverProgram on port $::faup1090Port..."
     if {[catch {socket 127.0.0.1 $::faup1090Port} ::faup1090Socket] == 1} {
 		if {[lindex $::errorCode 0] == "POSIX" && [lindex $::errorCode 1] == "ECONNREFUSED"} {
-			logger "connection refused on faup1090 / dump090 port 10001, retrying in ${::faup1090ConnectRetryInterval}s..."
+			logger "connect_fa_style_adsb_port: connection refused on $serverProgram port 10001, retrying in ${::faup1090ConnectRetryInterval}s..."
 		} else {
-			logger "error opening connection to faup1090 / FA dump1090: $::faup1090Socket, retrying in ${::faup1090ConnectRetryInterval}s..."
+			logger "connect_fa_style_adsb_port: error opening connection to $serverProgram : $::faup1090Socket, retrying in ${::faup1090ConnectRetryInterval}s..."
 		}
 		unset ::faup1090Socket
-		after [expr {$::faup1090ConnectRetryInterval * 1000}] connect_faup1090
+		after [expr {$::faup1090ConnectRetryInterval * 1000}] connect_fa_style_adsb_port
 		set ::faup1090ConnectRetryInterval 60
 		return
     }
 
 	fconfigure $::faup1090Socket -buffering line -translation binary -blocking 0
     fileevent $::faup1090Socket readable faup1090_data_available
-    logger "$::argv0 is connected to faup1090 / FA dump1090"
+    logger "connect_fa_style_adsb_port: $::argv0 is connected to $serverProgram on port $::faup1090Port"
 	set ::connected1090 1
 }
 
@@ -64,7 +76,13 @@ proc close_faup1090_socket {} {
 proc close_faup1090_socket_and_reopen {} {
 	close_faup1090_socket
 
-	after 60000 connect_faup1090
+	if {[clock seconds] - $::lastConnectAttempt > 60} {
+		after idle connect_fa_style_adsb_port
+		return
+	}
+
+	logger "close_faup1090_socket_and_reopen: connecting in 60s..."
+	after 60000 connect_fa_style_adsb_port
 }
 
 #
@@ -95,13 +113,14 @@ proc faup1090_data_available {} {
 		if {$::presumed1090} {
 			logger "piaware is receiving messages from the FA version of dump1090!"
 		} else {
-			logger "faup1090 is decoding messages from dump1090 and piaware is receiving them!"
+			logger "faup1090 is decoding messages from $::adeptConfig(adsbprogram) and piaware is receiving them!"
 		}
 	}
 
     #puts "faup1090 data: $line"
 	# if logged into flightaware adept, send the data
 	send_if_logged_in $line
+	set ::lastAdsbClock [clock seconds]
 }
 
 #
@@ -125,14 +144,14 @@ proc send_line {line} {
 }
 
 #
-# setup_faup1090_client - client-side setup
+# setup_fa_style_adsb_client - client-side setup
 #
-proc setup_faup1090_client {} {
+proc setup_fa_style_adsb_client {} {
 	set ::connected1090 0
 	set ::presumed1090 0
 	set ::nfaupMessagesReceived 0
 	set ::nMessagesSent 0
-    connect_faup1090
+    connect_fa_style_adsb_port
 }
 
 #
@@ -140,6 +159,7 @@ proc setup_faup1090_client {} {
 #
 proc stop_faup1090 {} {
 	if {![info exists ::faup1090Pid]} {
+		logger "stop_faup1090: no need to stop faup1090, it's not running"
 		return
 	}
 
@@ -160,8 +180,8 @@ proc stop_faup1090 {} {
 # start_faup1090 - start faup1090, killing it if it is already running
 #
 proc start_faup1090 {} {
-	logger "start_faup1090: starting faup1090"
 	set ::faup1090Pid [exec /usr/bin/faup1090 &]
+	logger "start_faup1090: started faup1090 (pid $::faup1090Pid)"
 	sleep 3
 }
 
@@ -183,12 +203,15 @@ proc is_faup1090_running {} {
 				unset ::faup1090Pid
 				return 0
 			} else {
-				logger "reaped some non-faup1090 process??? $catchResult"
+				#logger "reaped non-faup1090 process $catchResult (looking for $::faup1090Pid)"
 			}
 		}
 	}
 
-	return [is_pid_running $::faup1090Pid]
+	if {[is_pid_running $::faup1090Pid]} {
+		return $::faup1090Pid
+	}
+	return 0
 }
 
 #
@@ -196,52 +219,57 @@ proc is_faup1090_running {} {
 #  to see if we have received messages in the last few minutes
 #
 proc faup1090_messages_being_received_check {} {
+	if {!$::connected1090} {
+		# we are saying keep going, not that it is really ok
+		return 1
+	}
+
 	if {[info exists ::priorFaupMessagesReceived]} {
 		set secondsSinceLast [expr {[clock seconds] - $::priorFaupClock}]
 		if {$secondsSinceLast < 300} {
-			return
+			return 1
 		}
 		set nNewMessagesReceived [expr {$::::nfaupMessagesReceived - $::priorFaupMessagesReceived}]
 		if {$nNewMessagesReceived == 0} {
 			logger "no new messages received in $secondsSinceLast seconds, possibly restarting faup1090 and definitely reconnecting..."
 			stop_faup1090_close_faup1090_socket_and_reopen
+			return 0
 		}
 	}
 	set ::priorFaupMessagesReceived $::nfaupMessagesReceived
 	set ::priorFaupClock [clock seconds]
+	return 1
 }
 
 #
-# faup1090_running_periodic_check - periodically check to see if faup1090 is
+# periodically_check_adsb_traffic - periodically check to see if faup1090 is
 #  running and if it is not, start it up again
 #
-proc faup1090_running_periodic_check {} {
-	after 60000 faup1090_running_periodic_check
+proc periodically_check_adsb_traffic {} {
+	after 300000 periodically_check_adsb_traffic
 
-	faup1090_messages_being_received_check
+	if {![faup1090_messages_being_received_check]} {
+		return
+	}
 
 	if {[is_faup1090_running]} {
-		#logger "faup1090_running_periodic_check: faup1090 is running"
+		#logger "periodically_check_adsb_traffic: faup1090 is running"
 		return
 	}
 
-	if {![is_dump1090_running]} {
-		logger "dump1090 does not appear to be running, next check in 60s"
-		logger "please invoke 'ps ax | grep dump1090' to check for yourself."
+	inspect_sockets_with_netstat
+
+	if {![is_adsb_program_running]} {
+		logger "periodically_check_adsb_traffic: no ads-b producer appears to be listening for connections on port 30005, next check in 5m"
 		return
 	}
 
-	# if we are connected to dump1090 but faup1090 isn't running then they
-	# are probably running our version of dump1090
-	if {$::connected1090} {
-		if {!$::presumed1090} {
-			logger "i presume you are running the FA version of dump1090 because i am connected to port 10001 yet faup1090 isn't running"
-			set ::presumed1090 1
-		}
+	if {$::netstatus(status_10001)} {
+		logger "periodically_check_adsb_traffic: $::netstatus(program_10001) is listening for connections on FA-style port 10001"
 		return
 	}
 
-	logger "faup1090_running_periodic_check: starting faup1090"
+	logger "periodically_check_adsb_traffic: starting faup1090 to translate 30005 beast to 10001 flightaware"
 	start_faup1090
 }
 
@@ -253,11 +281,20 @@ proc stop_faup1090_close_faup1090_socket_and_reopen {} {
 
 
 #
-# traffic_report - log a traffic report of messages received from dump1090
-#   and messages sent to FlightAware
+# traffic_report - log a traffic report of messages received from the adsb
+#   program and messages sent to FlightAware
 #
 proc traffic_report {} {
-	logger "$::nfaupMessagesReceived msgs recv'd from dump1090; $::nMessagesSent msgs sent to FlightAware"
+	if {[info exists netstatus(program_10001)]} {
+		if {$::netstatus(program_30005) == $::netstatus(program_10001)} {
+			set who "$::netstatus(program_30005)"
+		} else {
+			set who "$::netstatus(program_30005) via $::netstatus(program_10001)"
+		}
+	} else {
+		set who "not-connected-yet"
+	}
+	logger "$::nfaupMessagesReceived msgs recv'd from $who; $::nMessagesSent msgs sent to FlightAware"
 }
 
 #

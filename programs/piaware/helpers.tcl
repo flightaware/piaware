@@ -43,32 +43,9 @@ proc setup_adept_client {} {
 }
 
 #
-# get_user_and_password - try to get the user and password from environment
-#  variables and then try to get it from the user config file
+# load_adept_config_and_setup - load config and massage if necessary
 #
-proc get_user_and_password {} {
-	if {[info exists ::env(FLIGHTAWARE_USER)] && [info exists ::env(FLIGHTAWARE_PASSWORD)]} {
-		set success 1
-		if {$::env(FLIGHTAWARE_USER) == ""} {
-			logger "FLIGHTAWARE_USER environment variable is empty"
-			set success 0
-		}
-
-		if {$::env(FLIGHTAWARE_PASSWORD) == ""} {
-			logger "FLIGHTAWARE_PASSWORD environment variable is empty"
-			set success 0
-		}
-
-		if {!$success} {
-			return 0
-		}
-
-		set ::flightaware_user $::env(FLIGHTAWARE_USER)
-		set ::flightaware_password $::env(FLIGHTAWARE_PASSWORD)
-
-		return 1
-	}
-
+proc load_adept_config_and_setup {} {
 	load_adept_config
 
 	if {[info exists ::adeptConfig(user)]} {

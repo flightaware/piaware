@@ -49,10 +49,17 @@ proc get_uptime {} {
 }
 
 #
-# is_dump1090_running - return 1 if dump1090 is running, else 0
+# is_adsb_program_running - return 1 if the adsb program (probably dump1090)
+# is running, else 0
 #
-proc is_dump1090_running {} {
-	return [is_process_running dump1090]
+proc is_adsb_program_running {} {
+	# NB our intention is to go exclusively to the ::netstatus check
+	# but we are falling back for now until we're sure it's all cool
+	if {[info exists ::netstatus(status_30005)]} {
+		return $::netstatus(status_30005)
+	}
+
+	return 0
 }
 
 #
@@ -61,9 +68,17 @@ proc is_dump1090_running {} {
 proc construct_health_array {_row} {
     upvar $_row row
     catch {array set row [filesystem_usage]}
-	catch {set row(dump1090_run) [is_dump_1090_running]}
+	catch {set row(adsbprogram_runing) [is_adsb_program_running]}
     catch {set row(cputemp) [cpu_temperature]}
     catch {set row(uptime) [get_uptime]}
+
+	if {[info exists ::netstatus(program_30005)]} {
+		set row(adsbprogram) $::netstatus(program_30005)
+	}
+
+	if {[info exists ::netstatus(program_10001)]} {
+		set row(transprogram) $::netstatus(program_10001)
+	}
 
 	set row(type) health
 
