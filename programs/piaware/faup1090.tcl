@@ -20,28 +20,28 @@ proc connect_fa_style_adsb_port {} {
 	inspect_sockets_with_netstat
 
 	if {![is_adsb_program_running]} {
-		logger "connect_fa_style_adsb_port: no ADS-B data program is serving on port 30005, next check in 60s"
+		logger "no ADS-B data program is serving on port 30005, next check in 60s"
 		after 60000 connect_fa_style_adsb_port
 		return
 	}
 
-	logger "connect_fa_style_adsb_port: ADS-B data program '$::netstatus(program_30005)' is listening on port 30005, so far so good"
+	logger "ADS-B data program '$::netstatus(program_30005)' is listening on port 30005, so far so good"
 
 	if {[info exists ::netstatus(status_10001)] && $::netstatus(status_10001)} {
-		logger "connect_fa_style_adsb_port: i see $::netstatus(program_10001) serving on port 10001"
+		logger "i see $::netstatus(program_10001) serving on port 10001"
 		set serverProgram $::netstatus(program_10001)
 	} else {
-		logger "connect_fa_style_adsb_port: i see nothing serving on port 10001, starting faup1090..."
+		logger "i see nothing serving on port 10001, starting faup1090..."
 		start_faup1090
 		set serverProgram "faup1090"
 	}
 
-	logger "connect_fa_style_adsb_port: connecting to $serverProgram on port $::faup1090Port..."
+	logger "connecting to $serverProgram on port $::faup1090Port..."
     if {[catch {socket 127.0.0.1 $::faup1090Port} ::faup1090Socket] == 1} {
 		if {[lindex $::errorCode 0] == "POSIX" && [lindex $::errorCode 1] == "ECONNREFUSED"} {
-			logger "connect_fa_style_adsb_port: connection refused on $serverProgram port 10001, retrying in ${::faup1090ConnectRetryInterval}s..."
+			logger "connection refused on $serverProgram port 10001, retrying in ${::faup1090ConnectRetryInterval}s..."
 		} else {
-			logger "connect_fa_style_adsb_port: error opening connection to $serverProgram : $::faup1090Socket, retrying in ${::faup1090ConnectRetryInterval}s..."
+			logger "error opening connection to $serverProgram : $::faup1090Socket, retrying in ${::faup1090ConnectRetryInterval}s..."
 		}
 		unset ::faup1090Socket
 		after [expr {$::faup1090ConnectRetryInterval * 1000}] connect_fa_style_adsb_port
@@ -51,7 +51,7 @@ proc connect_fa_style_adsb_port {} {
 
 	fconfigure $::faup1090Socket -buffering line -translation binary -blocking 0
     fileevent $::faup1090Socket readable faup1090_data_available
-    logger "connect_fa_style_adsb_port: $::argv0 is connected to $serverProgram on port $::faup1090Port"
+    logger "$::argv0 is connected to $serverProgram on port $::faup1090Port"
 	set ::connected1090 1
 }
 
@@ -110,11 +110,7 @@ proc faup1090_data_available {} {
 
 	incr ::nfaupMessagesReceived
 	if {$::nfaupMessagesReceived == 1} {
-		if {$::presumed1090} {
-			logger "piaware is receiving messages from the FA version of dump1090!"
-		} else {
-			logger "faup1090 is decoding messages from $::adeptConfig(adsbprogram) and piaware is receiving them!"
-		}
+		logger "piaware received a message from the ADS-B source!"
 	}
 
     #puts "faup1090 data: $line"
