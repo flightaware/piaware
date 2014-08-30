@@ -269,7 +269,7 @@ proc stop_faup1090_close_faup1090_socket_and_reopen {} {
 #   program and messages sent to FlightAware
 #
 proc traffic_report {} {
-	if {[info exists netstatus(program_10001)]} {
+	if {[info exists ::netstatus(program_10001)]} {
 		if {$::netstatus(program_30005) == $::netstatus(program_10001)} {
 			set who "$::netstatus(program_30005)"
 		} else {
