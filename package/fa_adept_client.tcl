@@ -372,7 +372,7 @@ namespace eval ::fa_adept {
 		if {![info exists aliveTimerID]} {
 			logger "handle_alive_message: server is sending alive messages, we will expect them"
 		} else {
-			logger "handle_alive_message: alive message received from FlightAware"
+			#logger "handle_alive_message: alive message received from FlightAware"
 			cancel_alive_timer
 		}
 
