@@ -201,8 +201,20 @@ proc netstat_report {} {
 #
 proc reap_any_dead_children {} {
     # try to reap any dead children
-    while {[catch {wait -nohang} catchResult] != 1} {
-        logger "is_faup_running: reaped child $catchResult"
+    while {true} {
+	if {[catch {wait -nohang} catchResult] == 1} {
+	    # got an error, probably no children
+	    return
+	}
+
+	# didn't get an error
+	if {$catchResult == ""} {
+	    # and it didn't return anything, we have extant children but
+	    # none have exited (or died from a signal) right now
+	    return
+	}
+
+	logger  "reaped child $catchResult"
     }
 }
 
