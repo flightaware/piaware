@@ -148,6 +148,7 @@ proc inspect_sockets_with_netstat {} {
     while {[gets $fp line] >= 0} {
 	process_netstat_socket_line $line
     }
+    close $fp
 }
 
 #
@@ -193,6 +194,16 @@ proc netstat_report {} {
     puts "[subst_is_or_is_not "piaware %s connected to port 10001." $::netstatus(piaware_10001)]"
 
     puts "[subst_is_or_is_not "piaware %s connected to FlightAware." $::netstatus(piaware_1200)]"
+}
+
+#
+# reap_any_dead_children - wait without delay until we reap no children
+#
+proc reap_any_dead_children {} {
+    # try to reap any dead children
+    while {[catch {wait -nohang} catchResult] != 1} {
+        logger "is_faup_running: reaped child $catchResult"
+    }
 }
 
 package provide piaware 1.0

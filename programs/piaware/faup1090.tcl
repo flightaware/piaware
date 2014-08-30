@@ -185,27 +185,13 @@ proc start_faup1090 {} {
 	sleep 3
 }
 
-#
 # is_faup1090_running - return the pid of faup1090 if it is running, else 0
 #
 proc is_faup1090_running {} {
+	reap_any_dead_children
+
 	if {![info exists ::faup1090Pid]} {
 		return 0
-	}
-
-	# try to reap any dead children
-	if {[catch {wait -nohang} catchResult] == 1} {
-		# probably no children
-	} else {
-		if {$catchResult != ""} {
-			if {[lindex $catchResult 0] == $::faup1090Pid} {
-				logger "is_faup_running: faup1090 process exited: $catchResult"
-				unset ::faup1090Pid
-				return 0
-			} else {
-				#logger "reaped non-faup1090 process $catchResult (looking for $::faup1090Pid)"
-			}
-		}
 	}
 
 	if {[is_pid_running $::faup1090Pid]} {
@@ -247,6 +233,8 @@ proc faup1090_messages_being_received_check {} {
 #
 proc periodically_check_adsb_traffic {} {
 	after 300000 periodically_check_adsb_traffic
+
+	reap_any_dead_children
 
 	if {![faup1090_messages_being_received_check]} {
 		return
