@@ -218,4 +218,22 @@ proc reap_any_dead_children {} {
     }
 }
 
+#
+# get_local_ethernet_ip_addresss - figure out the ethernet port's IP address
+#
+# note - does not cache, returns empty string if the machine doesn't
+#  have one
+#
+proc get_local_ethernet_ip_addresss {} {
+    set fp [open "|ip address show dev eth0"]
+    while {[gets $fp line] >= 0} {
+        if {[regexp {inet ([^/]*)} $line dummy ip]} {
+            close $fp
+            return $ip
+        }
+    }
+    close $fp
+    return ""
+}
+
 package provide piaware 1.0

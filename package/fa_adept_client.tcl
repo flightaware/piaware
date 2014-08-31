@@ -466,6 +466,8 @@ namespace eval ::fa_adept {
 			close $fp
 		}
 
+		catch {set row(local_ip) [get_local_ethernet_ip_addresss]}
+
 		send_array message
 	}
 
