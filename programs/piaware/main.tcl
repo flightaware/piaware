@@ -86,8 +86,7 @@ if 0 {
 
 	periodically_check_adsb_traffic
 
-	periodically_send_health_information
-
+	after 30000 periodically_send_health_information
 	after 60000 periodically_issue_a_traffic_report
 
     catch {vwait die}
