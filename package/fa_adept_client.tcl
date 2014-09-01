@@ -492,6 +492,7 @@ namespace eval ::fa_adept {
 			puts stderr "software failed to determine MAC address of the device.  cannot proceed without it."
 			exit 6
 		}
+		return $mac
 	}
 
     #
