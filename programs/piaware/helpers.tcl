@@ -102,6 +102,32 @@ proc log_stdout_stderr_to_file {} {
 }
 
 #
+# switch_logfile - close and rename the log file and open a new one
+#
+proc switch_logfile {} {
+	logger "switching log files"
+	file rename -force -- /tmp/piaware.out /tmp/piaware.out.yesterday
+	log_stdout_stderr_to_file
+}
+
+#
+# schedule_logfile_switch - schedule a logfile switch in the appropriate number
+#  of milliseconds that it's at midnight
+#
+proc schedule_logfile_switch {} {
+	set secsPerDay 86400
+	set now [clock seconds]
+	set clockAtNextMidnight [expr {(((($now + 60) / $secsPerDay) + 1) * $secsPerDay) - 1}]
+	set secondsUntilMidnight [expr {$clockAtNextMidnight - $now}]
+	after [expr {$secondsUntilMidnight * 1000}] schedule_logfile_switch_and_switch_logfile
+}
+
+proc schedule_logfile_switch_and_switch_logfile {} {
+	schedule_logfile_switch
+	switch_logfile
+}
+
+#
 # create_pidfile - create a pidfile for this process if possible if so
 #   configured
 #

@@ -65,6 +65,7 @@ if 0 {
 	# log to a file unless configured for debug
 	if {!$::params(debug)} {
 		log_stdout_stderr_to_file
+		schedule_logfile_switch
 	}
 
 	greetings
