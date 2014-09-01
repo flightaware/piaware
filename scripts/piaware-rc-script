@@ -24,7 +24,7 @@ LOCKFILE=/var/lock/piaware
 start() {
     log_daemon_msg "Starting piaware server" "piaware"
 # --quiet
-    start-stop-daemon --start --oknodo --background --pidfile $PIDFILE --exec $DAEMON -- -p $PIDFILE
+    /sbin/start-stop-daemon --start --oknodo --background --pidfile $PIDFILE --exec $DAEMON -- -p $PIDFILE
     status=$?
     log_end_msg $status
     return
@@ -32,14 +32,14 @@ start() {
 
 stop() {
     log_daemon_msg "Stopping piaware server" "piaware"
-    start-stop-daemon --stop --quiet --oknodo --pidfile $PIDFILE
+    /sbin/start-stop-daemon --stop --quiet --oknodo --pidfile $PIDFILE
     log_end_msg $?
     rm -f $PIDFILE
     return
 }
 
 status() {
-	piaware-config -status
+	/usr/bin/piaware-config -status
 }
 
 case "$1" in
