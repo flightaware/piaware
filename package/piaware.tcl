@@ -219,12 +219,12 @@ proc reap_any_dead_children {} {
 }
 
 #
-# get_local_device_ip_addresss - figure out the specified device's IP address
+# get_local_device_ip_address - figure out the specified device's IP address
 #
 # note - does not cache, returns empty string if the machine doesn't
 #  have one
 #
-proc get_local_device_ip_addresss {dev} {
+proc get_local_device_ip_address {dev} {
     set fp [open "|ip address show dev $dev"]
     while {[gets $fp line] >= 0} {
         if {[regexp {inet ([^/]*)} $line dummy ip]} {
@@ -237,19 +237,19 @@ proc get_local_device_ip_addresss {dev} {
 }
 
 #
-# get_local_ethernet_ip_addresss - figure out the ethernet port's IP address
+# get_local_ethernet_ip_address - figure out the ethernet port's IP address
 #
-proc get_local_ethernet_ip_addresss {} {
+proc get_local_ethernet_ip_address {} {
     return [get_local_device_ip_address eth0]
 }
 
 #
-# get_default_gateway_and_interface - assign the default gateway and interface
-#  to the passed-in variables and return 1 if successful in determining,
-#  else return 0
+# get_default_gateway_interface_and_ip - assign the default gateway and 
+#  interface to the passed-in variables and return 1 if successful in
+# determining, else return 0
 #
-proc get_default_gateway_and_interface {_gateway _iface} {
-    upvar $_gateway gateway $_iface iface
+proc get_default_gateway_interface_and_ip {_gateway _iface _ip} {
+    upvar $_gateway gateway $_iface iface $_ip ip
 
     set fp [open "|netstat -rn"]
     gets $fp
@@ -261,12 +261,12 @@ proc get_default_gateway_and_interface {_gateway _iface} {
 	}
 	if {$dest == "0.0.0.0"} {
 	    close $fp
+	    set ip [get_local_device_ip_address $iface]
 	    return 1
 	}
     }
     close $fp
     return 0
 }
-
 
 package provide piaware 1.0

@@ -71,7 +71,6 @@ proc construct_health_array {_row} {
 	catch {set row(adsbprogram_running) [is_adsb_program_running]}
     catch {set row(cputemp) [cpu_temperature]}
     catch {set row(uptime) [get_uptime]}
-	catch {set row(local_ip) [get_local_ethernet_ip_addresss]}
 
 	if {[info exists ::netstatus(program_30005)]} {
 		set row(adsbprogram) $::netstatus(program_30005)
@@ -79,6 +78,11 @@ proc construct_health_array {_row} {
 
 	if {[info exists ::netstatus(program_10001)]} {
 		set row(transprogram) $::netstatus(program_10001)
+	}
+
+	if {[get_default_gateway_interface_and_ip gateway iface ip]} {
+		set row(local_ip) $ip
+		set row(local_iface) $iface
 	}
 
 	set row(type) health
