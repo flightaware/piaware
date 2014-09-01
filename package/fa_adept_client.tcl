@@ -462,8 +462,8 @@ namespace eval ::fa_adept {
 		set message(mac) [get_mac_address_or_quit]
 
 		if {[get_default_gateway_and_interface gateway iface]} {
-			catch {set row(local_ip) [get_local_device_ip_address $iface]}
-			set row(ip_iface) $iface
+			catch {set message(local_ip) [get_local_device_ip_address $iface]}
+			set message(local_iface) $iface
 		}
 
 		send_array message
