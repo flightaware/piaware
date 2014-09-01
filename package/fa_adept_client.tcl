@@ -459,16 +459,39 @@ namespace eval ::fa_adept {
 			set message(transprogram) $::netstatus(program_10001)
 		}
 
-		set macFile /sys/class/net/eth0/address
-		if {[file readable $macFile]} {
-			set fp [open $macFile]
-			gets $fp message(mac)
-			close $fp
-		}
+		set message(mac) [get_mac_address_or_quit]
 
 		catch {set row(local_ip) [get_local_ethernet_ip_addresss]}
 
 		send_array message
+	}
+
+	#
+	# get_mac_address - return the mac address of eth0 as a unique handle
+	#  to this device
+	#
+	method get_mac_address {} {
+		set macFile /sys/class/net/eth0/address
+		if {![file readable $macFile]} {
+			set mac ""
+		} else {
+			set fp [open $macFile]
+			gets $fp mac
+			close $fp
+		}
+		return $mac
+	}
+
+	#
+	# get_mac_address_or_quit - return the mac address of eth0 or if unable
+	#  to, emit a message to stderr and exit
+	#
+	method get_mac_address_or_quit {} {
+		set mac [get_mac_address]
+		if {$mac == ""} {
+			puts stderr "software failed to determine MAC address of the device.  cannot proceed without it."
+			exit 6
+		}
 	}
 
     #
