@@ -6,7 +6,7 @@ The basic aim of the piaware package is to forward data read from an ADS-B recei
 It does this using a program, piaware, aided by some support programs.
 
 * piaware - establishes an encrypted session to FlightAware and forwards data
-* faup1090 - run by piaware to connect to dump1090 and translate between its formats and FlightAware's
+* faup1090 - run by piaware to connect to dump1090 or some other program producing beast-style ADS-B data and translate between its format and FlightAware's
 * piaware-config - used to configure piaware like with a FlightAware username and password
 * piaware-status - used to check the status of piaware
 
@@ -40,7 +40,7 @@ This will set the user to "username" and prompt for the password.  These are the
 piaware-status program
 ---
 
-piaware-status will examine your system and try to figure out what's going on.  It will report on whether dump1090, faup1090 and piaware are running or not and it will see if dump1090 is producing data and whether or not piaware is connected to FlightAware.
+piaware-status will examine your system and try to figure out what's going on.  It will report on whether dump1090, faup1090 and piaware are running or not and it will identify what program, if any, is producing data on port 30005 and whether or not piaware is connected to FlightAware.
 
 log file
 ---
@@ -86,4 +86,73 @@ and removed by doing a
 
     update-rc.d piaware remove
 
+Building and installing Piaware from source
+---
+Notes from a recent install on Debian
+* install Debian without desktop or whatever, pretty much everything else
+* use ISO image if from Parallels
+* in Parallels I let it take all of the disk
+
+At first sudo isn't even there, so I did a su to become superuser (could have logged in as root instead) and did
+
+```
+apt-get update
+apt-get install sudo
+```
+
+While su'ed add myself to group sudo in /etc/group and edited the line in /etc/sudoers for group sudo to be
+
+```
+%sudo	ALL=(ALL) NOPASSWD: ALL
+```
+
+...which allowed me to run sudo without entering my password.
+
+This seems to be the default configuration on Raspbian.
+
+Next install various packages.  If they are already installed, as on Raspbian
+many are, that's fine.
+
+```
+sudo apt-get install tcl8.5-dev tclx8.4-dev itcl3-dev tcl-tls tcllib automake cmake tcl-tclreadline telnet git gcc make
+```
+
+If you want to develop, you might want to add some manual pages and whatnot...
+
+```
+sudo apt-get install tcl8.5-doc tclx8.4-doc itcl3-doc
+```
+
+Clone the tcllauncher git repo from https://github.com/flightaware/tcllauncher
+and build...
+
+```
+git clone https://github.com/flightaware/tcllauncher.git
+cd tcllauncher
+autoconf
+./configure --with-tcl=/usr/lib/tcl8.5
+make
+sudo make install
+```
+
+Clone and install the piaware git repo from
+https://github.com/flightaware/piaware
+
+```
+git clone https://github.com/flightaware/piaware.git
+cd piaware
+sudo make install
+```
+
+Make piaware start and stop when the system boots and shuts down
+
+```
+sudo update-rc.d piaware defaults
+```
+
+Stop piaware from stopping and starting when the system boots and shuts down
+
+```
+  sudo update-rc.d piaware remove
+```
 
