@@ -159,11 +159,14 @@ proc stop_faup1090 {} {
 		return
 	}
 
+	logger "sending a hangup signal (SIGHUP) to faup1090 (process $::faup1090Pid) to shut it down..."
+
 	if {[catch {kill HUP $::faup1090Pid} catchResult] == 1} {
-		logger "kill HUP on faup1090 pid $::faup1090Pid failed: $catchResult, continuing..."
+		logger "sending signal to faup process $::faup1090Pid failed: $catchResult, continuing..."
 		unset ::faup1090Pid
 		return
 	}
+
 	set pid [is_faup1090_running]
 	if {$pid != 0} {
 		logger "stopping faup1090 (pid $pid)"

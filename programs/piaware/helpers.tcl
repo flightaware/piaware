@@ -122,6 +122,10 @@ proc schedule_logfile_switch {} {
 	after [expr {$secondsUntilMidnight * 1000}] schedule_logfile_switch_and_switch_logfile
 }
 
+#
+# schedule_logfile_switch_and_switch_logfile - schedule the next logfile
+#  switch and perform the current logfile switch
+#
 proc schedule_logfile_switch_and_switch_logfile {} {
 	schedule_logfile_switch
 	switch_logfile
@@ -172,7 +176,7 @@ proc setup_signals {} {
 # shutdown - shutdown signal handler
 #
 proc shutdown {{reason ""}} {
-	logger "shutdown signal $reason received, shutting down..."
+	logger "$::argv0 received shutdown signal '$reason', shutting down..."
 	cleanup_and_exit
 }
 

@@ -214,7 +214,37 @@ proc reap_any_dead_children {} {
 	    return
 	}
 
-	logger  "reaped child $catchResult"
+	lassign $catchResult pid type code
+
+	switch $type {
+	    "EXIT" {
+		switch $code {
+		    default {
+			logger "the system told us that process $pid exited due to some general error"
+		    }
+		    98 {
+			logger "the system confirmed that process $pid exited.  the exit status of $code tells us that faup1090 couldn't open the listening port because something else already has it open"
+		    }
+
+		    0 {
+			logger "the system told us that process $pid exited cleanly"
+		    }
+		}
+		logger "the system confirmed that process $pid exited with an exit status of $code"
+	    }
+
+	    "SIG" {
+		if {$code == "SIGHUP"} {
+		    logger "the system confirmed that process $pid exited after receiving a hangup signal"
+		} else {
+		    logger "this is a little unexpected: the system told us that process $pid exited after receiving a $code signal"
+		}
+	    }
+
+	    default {
+		logger "the system told us one of our child processes exited but i didn't understand what it said: $catchResult"
+	    }
+	}
     }
 }
 
