@@ -9,7 +9,7 @@
 
 set serverRetryIntervalSeconds 60
 
-set piawareVersion 1.10
+set piawareVersion 1.11
 
 set faup1090Port 10001
 
