@@ -250,6 +250,7 @@ namespace eval ::fa_adept {
     method server_data_available {} {
 		# if end of file on the socket, close the socket and attempt to reopen
 		if {[eof $sock]} {
+			reap_any_dead_children
 			logger "lost connection to FlightAware, reconnecting..."
 			close_socket_and_reopen
 			return
@@ -422,6 +423,8 @@ namespace eval ::fa_adept {
 			catch {close $sock}
 			unset sock
 		}
+
+		reap_any_dead_children
     }
 
     #

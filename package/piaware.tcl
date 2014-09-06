@@ -214,6 +214,8 @@ proc reap_any_dead_children {} {
 	    return
 	}
 
+	#logger "reaped child $catchResult"
+
 	lassign $catchResult pid type code
 
 	switch $type {

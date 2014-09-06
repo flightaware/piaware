@@ -176,7 +176,7 @@ proc setup_signals {} {
 # shutdown - shutdown signal handler
 #
 proc shutdown {{reason ""}} {
-	logger "$::argv0 received shutdown signal '$reason', shutting down..."
+	logger "$::argv0 is shutting down because it received a shutdown signal ($reason) from the system..."
 	cleanup_and_exit
 }
 

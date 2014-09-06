@@ -110,6 +110,7 @@ proc faup1090_data_available {} {
     }
 
 	incr ::nfaupMessagesReceived
+	incr ::nfaupMessagesThisPeriod
 	if {$::nfaupMessagesReceived == 1} {
 		logger "piaware received a message from the ADS-B source!"
 	}
@@ -284,15 +285,27 @@ proc traffic_report {} {
 			set who "$::netstatus(program_30005) via $::netstatus(program_10001)"
 		}
 	} else {
-		set who "not-connected-yet"
+		set who "(not currently connected to an adsb source)"
 	}
-	logger "$::nfaupMessagesReceived msgs recv'd from $who; $::nMessagesSent msgs sent to FlightAware"
+
+	set periodString ""
+	if {[info exists ::faupMessagesPeriodStartClock]} {
+		set minutesThisPeriod [expr {round(([clock seconds] - $::faupMessagesPeriodStartClock) / 60.0)}]
+		set periodString " ($::nfaupMessagesThisPeriod in last ${minutesThisPeriod}m)"
+	}
+	set ::faupMessagesPeriodStartClock [clock seconds]
+	set ::nfaupMessagesThisPeriod 0
+
+	logger "$::nfaupMessagesReceived msgs recv'd from $who$periodString; $::nMessagesSent msgs sent to FlightAware"
+
 }
 
 #
 # periodically_issue_a_traffic_report - issue a traffic report every so often
 #
 proc periodically_issue_a_traffic_report {} {
+	# for testing
+	#after 60000 periodically_issue_a_traffic_report
 	after 300000 periodically_issue_a_traffic_report
 
 	traffic_report
