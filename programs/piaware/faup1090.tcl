@@ -208,12 +208,12 @@ proc faup1090_messages_being_received_check {} {
 
 	if {[info exists ::priorFaupMessagesReceived]} {
 		set secondsSinceLast [expr {[clock seconds] - $::priorFaupClock}]
-		if {$secondsSinceLast < 300} {
+		if {$secondsSinceLast < 3600} {
 			return 1
 		}
 		set nNewMessagesReceived [expr {$::::nfaupMessagesReceived - $::priorFaupMessagesReceived}]
 		if {$nNewMessagesReceived == 0} {
-			logger "no new messages received in $secondsSinceLast seconds, possibly restarting faup1090 and definitely reconnecting..."
+			logger "no new messages received in $secondsSinceLast seconds, it might just be that there haven't been any aircraft nearby but I'm going to possibly restart faup1090 and definitely reconnect, just in case there's a problem with the current connection..."
 			stop_faup1090_close_faup1090_socket_and_reopen
 			return 0
 		}
