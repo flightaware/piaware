@@ -1,5 +1,6 @@
-piaware (1.11) stable; urgency=medium
+piaware 1.11
 ---
+Sat,  6 Sep 2014 17:13:29 +0000
 
 * Piaware now provides (hopefully) much more understandable log messages.
 For instance, while the prior message might have been
@@ -12,17 +13,17 @@ The new message is
   how many messages you are getting without having to do arithmetic in your 
   head.
     
-  * When piaware is asked by the system to shutdown, its log messages now says
-  that in a more clear way.
+* When piaware is asked by the system to shutdown, its log messages now says
+that in a more clear way.
     
-  * cryptic "not-connected-yet" logged in some cases as a message source
-  replaced by the hopefully less cryptic
-  "(not currently connected to an adsb source)", which may be true when
-  we have been connected but are no longer.
+* cryptic "not-connected-yet" logged in some cases as a message source
+replaced by the hopefully less cryptic
+"(not currently connected to an adsb source)", which may be true when
+we have been connected but are no longer.
 
-  * we now log when we send a hangup signal and what process we are sending it to
+* we now log when we send a hangup signal and what process we are sending it to
     
-  * Raise time limit before reconnecting for no msgs
+* Raise time limit before reconnecting for no msgs
     
     Previously after five minutes if it hadn't received any messages piaware
     would kill and restart faup1090 and reconnect to it in order to get it
@@ -40,90 +41,90 @@ The new message is
     restart faup1090 and definitely reconnect, just in case there's a problem 
     with the current connection..."
 
- -- FlightAware Developers <adsb-devs@flightaware.com>  Sat,  6 Sep 2014 17:13:29 +0000
 
-piaware (1.10) stable; urgency=medium
+piaware 1.10
+---
+6 Sep 2014 05:27:58 +0000
 
-  * At midnight UTC, renames /tmp/piaware.out to /tmp/piaware.out.yesterday
-  and starts a new /tmp/piaware.out
+* At midnight UTC, renames /tmp/piaware.out to /tmp/piaware.out.yesterday
+and starts a new /tmp/piaware.out
 
-  * Local IP address is sent in login and health messages.  With server-side
-  software that has yet to be written it'll provide a way for people to 
-  figure out the local IP that their Pi is on.
+* Local IP address is sent in login and health messages.  With server-side
+software that has yet to be written it'll provide a way for people to 
+figure out the local IP that their Pi is on.
 
-  * Bug fixed where it would log not-connected-yet when it was connected.
+* Bug fixed where it would log not-connected-yet when it was connected.
 
-  * The /etc/init.d/piaware script now references the full path to
-  start-stop-daemon and piaware-config, making PiAware work with
-  DarkBasic Minimal Rasbarian and being a better practice, anyway.
-  (Hat Tip to FlightAware user PeterHR for the report.)
+* The /etc/init.d/piaware script now references the full path to
+start-stop-daemon and piaware-config, making PiAware work with
+DarkBasic Minimal Rasbarian and being a better practice, anyway.
+(Hat Tip to FlightAware user PeterHR for the report.)
 
-  * Periodic alive messages from the server are no longer logged after
-  the first one is received.
+* Periodic alive messages from the server are no longer logged after
 
- -- FlightAware Developers <adsb-devs@flightaware.com>  Sat,  6 Sep 2014 05:27:58 +0000
 
-piaware (1.9) stable; urgency=medium
+piaware 1.9
+---
+Sat, 30 Aug 2014 14:15:54 +0000
 
-  * piaware now figures out whatever program is serving beast data on
-  port 30005 and is cool with it
+* piaware now figures out whatever program is serving beast data on
+port 30005 and is cool with it
 
-  * new piaware-status program to inspect and report on the running state 
-  of the piaware toolchain
+* new piaware-status program to inspect and report on the running state 
+of the piaware toolchain
 
-  * piaware will now disconnect and reconnect from the ADS-B source and 
-  restart faup1090 if messages aren't received for a while
+* piaware will now disconnect and reconnect from the ADS-B source and 
+restart faup1090 if messages aren't received for a while
 
-  * piaware now receives "alive" messages from the server (release 1.9 and
-  above) and will disconnect and reconnect after a timeout if one is not 
-  received
+* piaware now receives "alive" messages from the server (release 1.9 and
+above) and will disconnect and reconnect after a timeout if one is not 
+received
 
-  * piaware server now disconnects if it hasn't received anything from piaware 
-  for quite a while
+* piaware server now disconnects if it hasn't received anything from piaware 
+for quite a while
 
-  * piaware server now tells piaware when it is going down before it 
-  intentionally disconnects
+* piaware server now tells piaware when it is going down before it 
+intentionally disconnects
 
- -- FlightAware Developers <adsb-devs@flightaware.com>  Sat, 30 Aug 2014 14:15:54 +0000
+piaware 1.8
+---
+30 Aug 2014 18:38:07 +0000
 
-piaware (1.8) stable; urgency=medium
+* Fix traceback in piaware traffic report when no traffic has occurred.
 
-  * Fix traceback in piaware traffic report when no traffic has occurred.
+* Fix traceback in connect retry code when piaware has trouble connecting
+to FlightAware
 
-  * Fix traceback in connect retry code when piaware has trouble connecting
-  to FlightAware
+piaware 1.7-1
+---
+Thu, 21 Aug 2014 05:49:14 +0000
 
- -- FlightAware Developers <adsb-devs@flightaware.com>  Sat, 30 Aug 2014 18:38:07 +0000
+* Remove the Tk toolkit as a dependency.
 
-piaware (1.7-1) unstable; urgency=low
+* Login failures are now successfully reported back to piaware and logged
+in /tmp/piaware.out.
 
-  * Remove the Tk toolkit as a dependency.
+* Piaware will exit after a login failure as manual intervention to change
+the user name and/or password is probably required.
 
-  * Login failures are now successfully reported back to piaware and logged
-  in /tmp/piaware.out.
+* Piaware now starts receiving data sooner after startup, typically within
+about ten seconds.
 
-  * Piaware will exit after a login failure as manual intervention to change
-  the user name and/or password is probably required.
+* Fix bug in keep_trying_to_connect that would cause it not to.
 
-  * Piaware now starts receiving data sooner after startup, typically within
-  about ten seconds.
+* When piaware is trying to reconnect to FlightAware after losing its server
+conenction, its log messages are much more clear / descriptive.
 
-  * Fix bug in keep_trying_to_connect that would cause it not to.
+* Failure of piaware to initially connect to FlightAware within ten seconds
+resulted in piaware terminating.  Failure of piaware to reconnect
+after losing a connection could result in a stuck piaware
+that was running but wouldn't reconnect or forward messages.  
+Piaware now retries connections after connection failures both at startup
+and after it has successfully connected.
 
-  * When piaware is trying to reconnect to FlightAware after losing its server
-  conenction, its log messages are much more clear / descriptive.
+* Piaware now logs in one log message the number of messages received from
+dump1090 and the number of messages sent to FlightAware, one minute after
+startup and every five minutes thereafter.  Previously it logged for
+each thousand messages received and thousand messages sent the frequency
+of which could be highly variable based on location and time of day.
 
-  * Failure of piaware to initially connect to FlightAware within ten seconds
-  resulted in piaware terminating.  Failure of piaware to reconnect
-  after losing a connection could result in a stuck piaware
-  that was running but wouldn't reconnect or forward messages.  
-  Piaware now retries connections after connection failures both at startup
-  and after it has successfully connected.
-
-  * Piaware now logs in one log message the number of messages received from
-  dump1090 and the number of messages sent to FlightAware, one minute after
-  startup and every five minutes thereafter.  Previously it logged for
-  each thousand messages received and thousand messages sent the frequency
-  of which could be highly variable based on location and time of day.
-
- -- FlightAware Developers <adsb-devs@flightaware.com>  Thu, 21 Aug 2014 05:49:14 +0000
