@@ -264,7 +264,9 @@ proc get_local_device_ip_address {dev} {
             return $ip
         }
     }
-    close $fp
+    # didn't find it, command might not have worked, make sure trying to
+    # close it doesn't cause a traceback
+    catch {close $fp}
     return ""
 }
 
