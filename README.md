@@ -135,6 +135,28 @@ make
 sudo make install
 ```
 
+http://sourceforge.net/projects/libusb/
+./configure --prefix=/usr
+make
+sudo make install
+
+sudo apt-get install pkg-config
+
+git clone git://git.osmocom.org/rtl-sdr.git
+cd rtl-sdr
+mkdir build
+cd build
+cmake -DCMAKE_INSTALL_PREFIX:PATH=/usr .
+make
+sudo make install
+
+clone dump1090_mr from github
+git clone git@github.com:flightaware/dump1090_mr.git
+cd dump1090_mr
+make
+sudo make install
+
+
 Clone and install the piaware git repo from
 https://github.com/flightaware/piaware
 

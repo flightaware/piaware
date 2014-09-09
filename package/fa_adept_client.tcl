@@ -38,7 +38,7 @@ namespace eval ::fa_adept {
     }
 
     #
-    # tls_callback
+    # tls_callback - routine called back during TLS negotiation
     #
     method tls_callback {args} {
 		logger "tls_callback: $args"
@@ -621,9 +621,7 @@ proc ca_crt_file {} {
     return [file dir $path]/ca.crt
 }
 
-
 } ;# namespace fa_adept
-
 
 package provide fa_adept_client 0.0
 

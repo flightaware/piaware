@@ -169,11 +169,6 @@ proc subst_is_or_is_not {string value} {
 # netstat_report - parse netstat output and report
 #
 proc netstat_report {} {
-    if {[id user] != "root"} {
-	puts "run 'sudo $::argv0' to get a more detailed report"
-	return
-    }
-
     inspect_sockets_with_netstat
 
     foreach port "30005 10001" {
@@ -267,6 +262,9 @@ proc get_local_device_ip_address {dev} {
     # didn't find it, command might not have worked, make sure trying to
     # close it doesn't cause a traceback
     catch {close $fp}
+    if {$dev == "eth0"} {
+	warn_once "failed to get mac address for this computer. piaware will not work properly without it! are you running piaware on something other than a raspberry pi? piaware may need to be modified"
+    }
     return ""
 }
 
@@ -301,6 +299,18 @@ proc get_default_gateway_interface_and_ip {_gateway _iface _ip} {
     }
     close $fp
     return 0
+}
+
+#
+# warn_once - issue a warning message but only once
+#
+proc warn_once {message args} {
+    if {[info exists ::warnOnceWarnings($message)]} {
+	return
+    }
+    set ::warnOnceWarnings($message) ""
+
+    logger "WARNING $message"
 }
 
 package provide piaware 1.0

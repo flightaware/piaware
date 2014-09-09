@@ -4,7 +4,7 @@
 # Copyright (C) 2014 FlightAware LLC, All Rights Reserved
 #
 
-# initially retry after this long
+# initially retry after this many seconds
 set ::faup1090ConnectRetryInterval 10
 
 #
