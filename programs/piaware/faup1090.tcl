@@ -6,6 +6,7 @@
 
 # initially retry after this many seconds
 set ::faup1090ConnectRetryInterval 10
+set ::nfaupMessagesThisPeriod 0
 
 #
 set ::lastAdsbClock 0
@@ -182,7 +183,7 @@ proc stop_faup1090 {} {
 #
 proc start_faup1090 {} {
 	set ::faup1090Pid [exec /usr/bin/faup1090 &]
-	logger "start_faup1090: started faup1090 (pid $::faup1090Pid)"
+	logger "started faup1090 (process ID $::faup1090Pid)"
 	sleep 3
 }
 
@@ -249,16 +250,21 @@ proc periodically_check_adsb_traffic {} {
 	inspect_sockets_with_netstat
 
 	if {![is_adsb_program_running]} {
-		logger "periodically_check_adsb_traffic: no ads-b producer appears to be listening for connections on port 30005, next check in 5m"
+		logger "no ads-b producer (dump1090, modesmixer, etc) appears to be running or is not listening for connections on port 30005, next check in 5m"
 		return
 	}
 
 	if {$::netstatus(status_10001)} {
-		logger "periodically_check_adsb_traffic: $::netstatus(program_10001) is listening for connections on FA-style port 10001"
+		if {$::nfaupMessagesThisPeriod == 0} {
+			# report what program is providing data on port 10001 but only
+			# if there hasn't been recent traffic, just to keep the noise
+			# down
+			logger "$::netstatus(program_10001) is listening for connections on FA-style port 10001"
+		}
 		return
 	}
 
-	logger "periodically_check_adsb_traffic: starting faup1090 to translate 30005 beast to 10001 flightaware"
+	logger "starting faup1090 to translate 30005 beast to 10001 flightaware"
 	start_faup1090
 }
 
