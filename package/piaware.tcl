@@ -255,7 +255,7 @@ proc get_local_device_ip_address {dev} {
     set fp [open "|ip address show dev $dev"]
     while {[gets $fp line] >= 0} {
         if {[regexp {inet ([^/]*)} $line dummy ip]} {
-            close $fp
+            catch {close $fp}
             return $ip
         }
     }
