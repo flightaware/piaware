@@ -8,15 +8,19 @@ and caused a fair bit of confusion.  Sorry.
 * When piaware is up and successfully receiving and forwarding messages it
 should now log only the every-five-minutes traffic summary.
 
-* If piaware can't determine the local machine's MAC address then it aborts
-at startup.  This is only relevant to people running PiAware on something
-other than a Raspberry Pi running Raspbian as other versions of Linux may
-not provide the expected method piaware uses to figure that out.
-
 * Any failure to determine the local IP address should no longer cause problems.
 
 * A few log messages shortened by having them not identify the function that
-issued them
+issued them.
+
+* The net-tools package is now a prerequisite for PiAware.  This comes
+installed by default on Raspberry Pi / Raspbian but may help people trying
+to get PiAware working on other versions of Linux.
+
+* If piaware can't determine the local machine's MAC address then it aborts
+at startup.  This should only be relevant to people running PiAware on something
+other than Raspberry Pi / Raspbian as other versions of Linux may
+not provide the expected method piaware uses to figure that out.
 
 piaware 1.11
 ---
