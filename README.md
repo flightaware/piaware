@@ -178,3 +178,10 @@ Stop piaware from stopping and starting when the system boots and shuts down
   sudo update-rc.d piaware remove
 ```
 
+Overview of PiAware pieces
+---
+FlightAware's dump1090 is exactly the same as Malcolm Robb’s except for the code added to provide messages as filtered key-value pairs on port 10001.  All the command-line switches and capabilities should be there with only the addition of the —net-fatsv-port and the —no-rtlsdr-ok switches we created. 
+
+faup1090 is a version of dump1090 that only has the ability to connect to the binary beast output port of dump1090 or another program capable of putting out that format such as modesmixer, and provides the filtered key-value pairs on port 10001.
+
+In summary, FlightAware's dump1090 is standard dump1090 with the added port 10001 and running FlightAware's dump1090 is slightly more efficient than running faup1090.
