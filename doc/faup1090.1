@@ -29,49 +29,65 @@
 .Dt PIAWARE 1
 .Os
 .Sh NAME
-.Nm piaware-config
-.Nd configure piaware account information and whatnot
+.Nm faup1090
+.Nd translate "beast" binary ADS-B format to FlightAware format
 .Sh SYNOPSIS
-.Nm piaware-config
+.Nm faup1090
 .Bk -words
-.Op Fl user Ar FlightAware_UserName
-.Op Fl password
-.Op Fl start
-.Op Fl stop
-.Op Fl restart
-.Op Fl status
-.Op Fl help
+.Op Fl -net-fatsv-port Ar port
+.Op Fl -net-bo-ipaddr Ar address
+.Op Fl -net-bo-port Ar port
+.Op Fl -lat Ar stationLatitude
+.Op Fl -lon Ar stationLongitude
+.Op Fl -quiet
+.Op Fl -help
 .Ek
 .Sh DESCRIPTION
 The
 .Nm
-utility is used to configure and control PiAware.  The main use is
+program is used by piaware to translate between "beast" binary format,
+typically produced by dump1090, and the coalesced, filtered format that
+piaware uses to backhaul ADS-B data efficiently to FlightAware.
+
+.Nm
+attempts to connect to dump1090 or a similar program capable of producing
+beast format.  By default it connects to the local host, TCP port 30005
+and begins to listen for ADS-B messages.
+
+.Nm
+listens for connections on the FlightAware "TSV" output port, which
+by default is TCP port 10001, and it will coalesce and filter the messages
+it receives from dump1090 (or equivalent) and send them to every program
+that is connected to the port.
+
 to set the FlightAware user name and password that PiAware will use
 to login to FlightAware in order to upload ADS-B data there.
 .Pp
 Options:
 .Bl -tag -width Ds
-.It Fl user Ar FlightAware_UserName
-Specifies the user name or email address of the FlightAware account piaware will login as
-.It Fl password
+.It Fl -net-fatsv-port Ar port
+Specifies the FlightAware TSV output port (default: 10001).
+.It Fl -net-bo-ipaddr Ar address
+Specifies the IPv4 address that
 .Nm
-will request the password interactively.
-.It Fl start
-Attempts to start piaware.  (This is a synonym for /etc/init.d/piaware start)
-.It Fl stop
-Attempts to stop piaware.
-.It Fl restart
-Attempts to restart piaware.
-.It Fl status
-Emit a brief report on the status of piaware.
-.It Fl help
-Emit a brief summary of piaware usage options.
-.Ed
-.Sh EXAMPLES
-Define that piaware will login as user \fIkunkee\fR and specify the password interactively:
-.Pp
-.Dl $ piaware-config -user kunkee -password
+will connect to for Beast output.
+.It Fl -net-bo-port Ar port
+Specifies the Beast output port 
+.Nm
+will connect to
+(default 30005).
+.It Fl -lat Ar stationLatitude
+Specifies the latitude of the ADS-B receiver.
+.It Fl -lat Ar stationLongitude
+Specifies the longitude of the ADS-B receiver.
+.It Fl -quiet
+Operate quietly, like don't write any normal stuff to stdout or whatever.
+.It Fl -help
+Produce a help message and exit.
+
+Piaware currently uses and expects faup1090 on the default addresses and ports.
 .Sh SEE ALSO
 .Xr piaware 1 ,
+.Xr piaware-config 1 ,
 .Xr piaware-status 1 ,
 .Xr faup1090 1
