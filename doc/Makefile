@@ -13,5 +13,5 @@ install:
 	@echo ---- installing docs
 	cp $(MANPAGES) $(DOCDIR)
 	@echo --- compressing docs
-	cd $(DOCDIR); gzip -9 $(MANPAGES)
+	cd $(DOCDIR); gzip --force -9 $(MANPAGES)
 
