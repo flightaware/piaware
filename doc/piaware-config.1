@@ -1,0 +1,76 @@
+.\"
+.\" Copyright (c) 2014 FlightAware LLC
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"
+.Dd September 24, 2014
+.Dt PIAWARE 1
+.Os
+.Sh NAME
+.Nm piaware-config
+.Nd configure piaware account information and whatnot
+.Sh SYNOPSIS
+.Nm piaware-config
+.Bk -words
+.Op Fl user Ar FlightAware_UserName
+.Op Fl password
+.Op Fl start
+.Op Fl stop
+.Op Fl restart
+.Op Fl status
+.Op Fl help
+.Ek
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to configure and control PiAware.  The main use is
+to set the FlightAware user name and password that PiAware will use
+to login to FlightAware in order to upload ADS-B data there.
+.Pp
+Options:
+.Bl -tag -width Ds
+.It Fl user Ar FlightAware_UserName
+Specifies the user name or email address of the FlightAware account piaware will login as
+.It Fl password
+.Nm
+will request the password interactively.
+.It Fl start
+Attempts to start piaware.  (This is a synonym for /etc/init.d/piaware start)
+.It Fl stop
+Attempts to stop piaware.
+.It Fl restart
+Attempts to restart piaware.
+.It Fl status
+Emit a brief report on the status of piaware.
+.It Fl help
+Emit a brief summary of piaware usage options.
+.Ed
+.Sh EXAMPLES
+Define that piaware will login as user \fIkunkee\fR and specify the password interactively:
+.Pp
+.Dl $ piaware-config -user kunkee -password
+.Sh SEE ALSO
+.Xr piaware 1 ,
+.Xr piaware-status 1
