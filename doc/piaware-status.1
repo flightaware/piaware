@@ -32,28 +32,29 @@
 .Nm piaware-status
 .Nd Check the current status of piaware
 .Sh SYNOPSIS
+.Bk -words
 .Nm piaware-status
 .Ek
 .Sh DESCRIPTION
 .Nm
 tries to figure out the current status of piaware on the local system.
-
+.Pp
 It checks and reports on the running status of dump1090, faup1090 and piaware.
-
+.Pp
 It looks to see what program is accepting connections on port 30005, the
 one piaware looks for "beast" binary ADS-B messages from, and what
 if anything is listening for connections on port 10001, which will
 normally be faup1090 but may be dump1090 or something else.
-
+.Pp
 It looks to see and reports on whether or not piaware is connected to
 FlightAware.
-
+.Pp
 Finally
 .Nm
 connects itself to ports 10001 and 30005 and listens for a few seconds
 and reports whether the ADS-B program (and possibly the translator)
 is producing data.
-
+.Pp
 .Sh SEE ALSO
 .Xr piaware 1 ,
 .Xr piaware-config 1 ,

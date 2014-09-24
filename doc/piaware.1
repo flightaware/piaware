@@ -42,36 +42,35 @@
 .Nm
 forwards ADS-B messages to FlightAware over an encrypted, compressed
 Internet connection.
-
+.Pp
 .Nm
 established an encrypted, compressed TLS connection with FligthAware and logs 
 in using a FlightAware user name and password.
 At the same time it tries to
 connect to a program on the local computer providing ADS-B messages in 
 "beast" binary format, typically \fBdump1090\fR.
-
+.Pp
 It then filters and coalesces those messages and forwards them over the
 TLS connection where they contribute to the accuracy of FlightAware's
 flight tracking.
-
+.Pp
 (People who forward ADS-B messages to FlightAware automatically qualify for
 a free upgrade to an Enterprise Account.  For more information please visit
 http://flightaware.com/adsb/piaware/)
-
+.Pp
 On startup piaware attempts to connect to port 10001 to obtain the filtered,
 coalesced ADS-B messages.  If the machine is running the FlightAware-modified
 version of dump1090 (https://github.com/flightaware/dump1090_mr) then it
 will obtain those messages directly.
-
+.Pp
 If the site is not running FA-modified dump1090 or is running a different
 ADS-B provider program such as modesmixer then piaware will start a helper
 program called faup1090 to translate between beast format and FlightAware
 format.
-
+.Pp
 If installed from the Debian package, piaware will automatically start up at system boot time.
-
+.Pp
 Since other programs such as dump1090 may not have started yet, piaware will wait until something is there to provide ADS-B data.  Also piaware will automatically reconnect if that program stops and is started again and it will also periodically try to reconnect to FlightAware in the event that contact is lost.
-
 .Pp
 Options:
 .Bl -tag -width Ds
@@ -83,7 +82,7 @@ If this option is selected
 will log to stdout rather than to /tmp/piaware.out.
 .It Fl help
 Emit a brief summary of piaware usage options.
-.Ed
+.El
 .Sh EXAMPLES
 Run piaware from the command line with debug enabled:
 .Pp

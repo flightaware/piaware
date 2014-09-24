@@ -48,18 +48,18 @@ The
 program is used by piaware to translate between "beast" binary format,
 typically produced by dump1090, and the coalesced, filtered format that
 piaware uses to backhaul ADS-B data efficiently to FlightAware.
-
+.Pp
 .Nm
 attempts to connect to dump1090 or a similar program capable of producing
 beast format.  By default it connects to the local host, TCP port 30005
 and begins to listen for ADS-B messages.
-
+.Pp
 .Nm
 listens for connections on the FlightAware "TSV" output port, which
 by default is TCP port 10001, and it will coalesce and filter the messages
 it receives from dump1090 (or equivalent) and send them to every program
 that is connected to the port.
-
+.Pp
 to set the FlightAware user name and password that PiAware will use
 to login to FlightAware in order to upload ADS-B data there.
 .Pp
@@ -84,8 +84,9 @@ Specifies the longitude of the ADS-B receiver.
 Operate quietly, like don't write any normal stuff to stdout or whatever.
 .It Fl -help
 Produce a help message and exit.
-
+.Pp
 Piaware currently uses and expects faup1090 on the default addresses and ports.
+.El
 .Sh SEE ALSO
 .Xr piaware 1 ,
 .Xr piaware-config 1 ,
