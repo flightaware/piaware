@@ -444,9 +444,16 @@ namespace eval ::fa_adept {
 		if {![is_connected]} {
 			error "tried to login while not connected"
 		}
+
 		set message(type) login
-		set message(user) $::flightaware_user
-		set message(password) $::flightaware_password
+
+		if {[info exists ::flightaware_user]} {
+			set message(user) $::flightaware_user
+		}
+
+		if {[info exists ::flightaware_password]} {
+			set message(password) $::flightaware_password
+		}
 
 		catch {set message(uname) [exec /bin/uname --all]}
 
