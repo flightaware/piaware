@@ -324,6 +324,14 @@ namespace eval ::fa_adept {
 
 		if {$row(status) == "ok"} {
 			set loggedIn 1
+
+			# if the login response contained a user, that's what we're
+			# logged in as even if it's not what we might've said or
+			# more likely we didn't say
+			if {[info exists row(user)]} {
+				set ::flightaware_user $row(user)
+			}
+
 			logger "logged in to FlightAware as user $::flightaware_user"
 			cancel_connect_timer
 		} else {
