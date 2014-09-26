@@ -1,4 +1,4 @@
-Piaware
+PiAware
 ===
 
 The basic aim of the piaware package is to forward data read from an ADS-B receiver to FlightAware.
@@ -45,13 +45,12 @@ piaware-status will examine your system and try to figure out what's going on.  
 log file
 ---
 
-piaware logs to the file /tmp/piaware.out
+piaware logs to the file **/tmp/piaware.out**.  At the end of each GMT day that file is renamed to **/tmp/piaware.out.yesterday** and a new piaware.out is started.
 
 fa_adept_client package
 ---
 
-The fa_adept_client package provieds a class library for being an aviation
-data exchange protocol (ADEPT) client.
+The fa_adept_client package provieds a class library for being a FlightAware aviation data exchange protocol (ADEPT) client.
 
 fa_adept_config package
 ---
@@ -184,4 +183,4 @@ FlightAware's dump1090 is exactly the same as Malcolm Robb’s except for the co
 
 faup1090 is a version of dump1090 that only has the ability to connect to the binary beast output port of dump1090 or another program capable of putting out that format such as modesmixer, and provides the filtered key-value pairs on port 10001.
 
-In summary, FlightAware's dump1090 is standard dump1090 with the added port 10001 and running FlightAware's dump1090 is slightly more efficient than running faup1090.
+In summary, FlightAware's dump1090 is standard dump1090 with the added port 10001 stuff and running FlightAware's dump1090 is slightly more efficient than running standard dump1090 and piaware running faup1090 to translate.
