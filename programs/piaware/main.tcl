@@ -47,6 +47,8 @@ proc main {{argv ""}} {
 
 	user_check
 
+	load_piaware_config
+
 	#::tcllauncher::daemonize
 	# NB does not work due to thread/fork interaction, can be solved with
 	# improvements in tcllauncher

@@ -455,19 +455,13 @@ namespace eval ::fa_adept {
 
 		set message(type) login
 
-		if {[info exists ::flightaware_user]} {
-			set message(user) $::flightaware_user
-		}
-
-		if {[info exists ::flightaware_password]} {
-			set message(password) $::flightaware_password
+		foreach var "user password piaware_version image_type" globalVar "::flightaware_user ::flightaware_password ::piawareVersion ::imageType" {
+			if {[info exists $globalVar]} {
+				set message($var) [set $globalVar]
+			}
 		}
 
 		catch {set message(uname) [exec /bin/uname --all]}
-
-		if {[info exists ::piawareVersion]} {
-			set message(piaware_version) $::piawareVersion
-		}
 
 		if {[info exists ::netstatus(program_30005)]} {
 			set message(adsbprogram) $::netstatus(program_30005)

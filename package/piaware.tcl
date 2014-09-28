@@ -1,8 +1,21 @@
-
+#
+# piaware package - Copyright (C 2014 FlightAware LLC
+#
+# Berkeley license
+#
 
 set piawarePidFile /var/run/piaware.pid
+set piawareConfgFile /etc/piaware
 
 #
+# load_piaware_config - load the piaware config file.  don't stop if it
+#  doesn't exist
+#
+proc load_piaware_config {} {
+    if {[catch [list uplevel #0 source $::piawareConfigFile]] == 1} {
+    }
+}
+
 # is_pid_running - return 1 if the specified process ID is running, else 0
 #
 proc is_pid_running {pid} {
