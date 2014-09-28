@@ -1,3 +1,20 @@
+piaware 1.13-1
+---
+
+* piaware can now login without a FlightAware user's username and password having been pre-configured on the Raspberry Pi.
+
+* Stop shipping librtlsdr as faup1090 doesn't need it.
+
+* Properly install non-executable files without executable bit set.
+
+* piaware package is now digitally signed with a FlightAware developers key.
+
+* Almost all Debian package "lintian" complaints have been fixed.
+
+* Fix typo in faup1090 lost-connection message (thanks to github user saiarcot895).
+
+* All programs installed by piaware (piaware, piaware-config, piaware-status and faup1090) now have manual pages.
+
 piaware 1.12
 ---
 Fri, 19 Sep 2014 15:17:09 +0000
