@@ -13,5 +13,6 @@ Here's a summary of the changes from the default version of Raspbian.
 * The /tmp filesystem is configured to run out of RAM to reduce I/O to the SD card.
 * The filesystem check program is configured to try to fix any problems without asking the user to confirm.
 * Higher USB current limit on Raspberry Pi Model B Plus is enabled.
+* Swapping to the SD card is disabled.  Although this saves wear on the SD card, if the system runs out of memory it will crash.
 
  
