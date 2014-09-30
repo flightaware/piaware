@@ -93,7 +93,7 @@ proc close_faup1090_socket_and_reopen {} {
 proc faup1090_data_available {} {
 	# if eof, cleanly close the faup1090 socket
     if {[eof $::faup1090Socket]} {
-		logger "lost connection to faup109, disconnecting..."
+		logger "lost connection to faup1090, disconnecting..."
 		close_faup1090_socket_and_reopen
 		return
     }
