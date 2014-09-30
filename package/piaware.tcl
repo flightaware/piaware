@@ -5,7 +5,7 @@
 #
 
 set piawarePidFile /var/run/piaware.pid
-set piawareConfgFile /etc/piaware
+set piawareConfigFile /etc/piaware
 
 #
 # load_piaware_config - load the piaware config file.  don't stop if it
