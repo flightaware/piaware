@@ -139,7 +139,7 @@ sudo make install
 Build the RTL-SDR support libraries and build and install dump1090.
 
 If you want to build the FlightAware variant, please check out
-visi://github.com/flightaware/dump1090_mr#building
+visit https://github.com/flightaware/dump1090_mr#building
 
 ### Build PiAware
 
