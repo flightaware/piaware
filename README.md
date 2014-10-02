@@ -134,27 +134,14 @@ make
 sudo make install
 ```
 
-http://sourceforge.net/projects/libusb/
-./configure --prefix=/usr
-make
-sudo make install
+### Build and install dump1090
 
-sudo apt-get install pkg-config
+Build the RTL-SDR support libraries and build and install dump1090.
 
-git clone git://git.osmocom.org/rtl-sdr.git
-cd rtl-sdr
-mkdir build
-cd build
-cmake -DCMAKE_INSTALL_PREFIX:PATH=/usr .
-make
-sudo make install
+If you want to build the FlightAware variant, please check out
+visi://github.com/flightaware/dump1090_mr#building
 
-clone dump1090_mr from github
-git clone git@github.com:flightaware/dump1090_mr.git
-cd dump1090_mr
-make
-sudo make install
-
+### Build PiAware
 
 Clone and install the piaware git repo from
 https://github.com/flightaware/piaware
