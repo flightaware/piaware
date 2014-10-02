@@ -30,4 +30,12 @@ cat <<EOF >/tmp/no-rtl.conf
  sudo reboot
 
 === Obtain, build and install dump1090 ===
-This is for the FlightAware version.  The main difference is that the FA version of dump1090 can emit "FlightAware" format directly, avoiding piaware having to run the faup1090 translation program.  Other than that it's the same as dump1090 from Malcolm Robb.  Anyway...
+This is for the FlightAware version.  The main difference is that the FA version of dump1090 can emit "FlightAware" format directly, avoiding piaware having to run the faup1090 translation program.  Other than that it's the same as dump1090 from Malcolm Robb.
+
+Should you want to build the FlightAware version, please follow the build/install instructions at https://github.com/flightaware/dump1090_mr/blob/master/README.md#building
+
+=== Obtain, build and install piaware ===
+
+Follow the instructions for building and installing PiAware from source at https://github.com/flightaware/piaware#building-and-installing-piaware-from-source
+
+
