@@ -37,6 +37,8 @@ The main use will be
 
 This will set the user to "username" and prompt for the password.  These are then saved in a config file that piaware finds when it starts.
 
+Note that as of PiAware 1.13 it is no longer necessary to set a username and password, although if you do it will still work.  If PiAware is not pre-configured then the server will generally be able to associate the PiAware host with your FlightAware account automatically by looking at your FlightAware web session and the IP address your pi is coming from.  If it can't then there's a process for claiming a PiAware receiver as belonging to you.  For more information please check out [PiAware build instructions](https://flightaware.com/adsb/piaware/build) at FlightAware.
+
 piaware-status program
 ---
 
@@ -122,8 +124,7 @@ If you want to develop, you might want to add some manual pages and whatnot...
 sudo apt-get install tcl8.5-doc tclx8.4-doc itcl3-doc
 ```
 
-Clone the tcllauncher git repo from https://github.com/flightaware/tcllauncher
-and build...
+Clone the tcllauncher git repo from the [tcllauncher git repo](https://github.com/flightaware/tcllauncher) and build...
 
 ```
 git clone https://github.com/flightaware/tcllauncher.git
@@ -138,13 +139,12 @@ sudo make install
 
 Build the RTL-SDR support libraries and build and install dump1090.
 
-If you want to build the FlightAware variant, please check out
-visit https://github.com/flightaware/dump1090_mr#building
+If you want to build the FlightAware variant, please follow our build
+instructions in the [dump1090_mr repository](https://github.com/flightaware/dump1090_mr#building) at github.
 
 ### Build PiAware
 
-Clone and install the piaware git repo from
-https://github.com/flightaware/piaware
+Clone and install the piaware git repo from [FlightAware's piaware repository](https://github.com/flightaware/piaware):
 
 ```
 git clone https://github.com/flightaware/piaware.git
@@ -152,17 +152,25 @@ cd piaware
 sudo make install
 ```
 
-Make piaware start and stop when the system boots and shuts down
+Make piaware start and stop when the system boots and shuts down:
 
 ```
 sudo update-rc.d piaware defaults
 ```
 
-Stop piaware from stopping and starting when the system boots and shuts down
+Stop piaware from stopping and starting when the system boots and shuts down:
 
 ```
   sudo update-rc.d piaware remove
 ```
+
+Start piaware manually
+
+```
+/etc/init.d/piaware start
+```
+
+Please see the section on [/etc/init.d/piaware](https://github.com/flightaware/piaware#etcinitdpiaware) earlier in this document for details.
 
 Overview of PiAware pieces
 ---
