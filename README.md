@@ -89,6 +89,9 @@ and removed by doing a
 
 Building and installing Piaware from source
 ---
+
+Before installing piaware you need to install the RTL-SDR libraries and dump1090and stuff.  We've created some [instructions](https://github.com/flightaware/piaware/wiki/Building-and-installing-PiAware-from-source) for that in the piaware wiki at github.
+
 Notes from a recent install on Debian
 * install Debian without desktop or whatever, pretty much everything else
 * use ISO image if from Parallels
