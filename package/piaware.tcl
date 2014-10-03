@@ -11,8 +11,43 @@ set piawareConfigFile /etc/piaware
 # load_piaware_config - load the piaware config file.  don't stop if it
 #  doesn't exist
 #
+# return 1 if it loaded cleanly, 0 if it had a problem or didn't exist
+#
 proc load_piaware_config {} {
     if {[catch [list uplevel #0 source $::piawareConfigFile]] == 1} {
+	return 0
+    }
+    return 1
+}
+
+#
+# query_piaware_pkg - return the version of the piaware package if it was
+#   installed as a package, else return an empty string
+#
+proc query_piaware_pkg {} {
+    set fp [open "|dpkg-query --show piaware* 2>/dev/null"]
+    gets $fp line
+    if {[catch {close $fp}] == 1} {
+	return ""
+    }
+    if {![regexp {\t(.*)} $line dummy version]} {
+	return ""
+    }
+    return $version
+}
+
+#
+# load_piaware_config_and_stuff - invoke load_piaware_config and if it
+#   doesn't define imageType then see if the piaware package is installed
+#   and if it is then set imageType to package
+#
+proc load_piaware_config_and_stuff {} {
+    load_piaware_config
+    if {![info exists ::imageType]} {
+	set packageVersion [query_piaware_package]
+	if {$packageVersion != ""} {
+	    set ::imageType "package"
+	}
     }
 }
 
