@@ -44,7 +44,7 @@ proc query_piaware_pkg {} {
 proc load_piaware_config_and_stuff {} {
     load_piaware_config
     if {![info exists ::imageType]} {
-	set packageVersion [query_piaware_package]
+	set packageVersion [query_piaware_pkg]
 	if {$packageVersion != ""} {
 	    set ::imageType "package"
 	}
