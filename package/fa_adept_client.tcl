@@ -215,7 +215,7 @@ namespace eval ::fa_adept {
 
 		# validate the signer
 		if {$issuer(O) != "DigiCert Inc"} {
-			set raeason "issuer O is not 'DigiCert Inc'"
+			set reason "issuer O is not 'DigiCert Inc'"
 			return 0
 		}
 
