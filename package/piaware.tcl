@@ -21,19 +21,29 @@ proc load_piaware_config {} {
 }
 
 #
-# query_piaware_pkg - return the version of the piaware package if it was
-#   installed as a package, else return an empty string
+# query_piaware_pkg - Figure out piaware package name and version
 #
-proc query_piaware_pkg {} {
-    set fp [open "|dpkg-query --show piaware* 2>/dev/null"]
+# Find a package that has piaware in the name.  There will about for sure
+# be only one.
+#
+# Parse out the name and version into passed-in variables and return
+#  1 if successful or 0 if unsuccessful
+#
+proc query_piaware_pkg {_packageName _packageVersion} {
+    upvar $_packageName packageName $_packageVersion packageVersion
+
+    set fp [open "|dpkg-query --show *piaware* 2>/dev/null"]
     gets $fp line
+
     if {[catch {close $fp}] == 1} {
-	return ""
+	return 0
     }
-    if {![regexp {\t(.*)} $line dummy version]} {
-	return ""
+
+    if {![regexp {([^\t]*)\t(.*)} $line dummy packageName packageVersion]} {
+	return 0
     }
-    return $version
+
+    return 1
 }
 
 #
@@ -43,10 +53,10 @@ proc query_piaware_pkg {} {
 #
 proc load_piaware_config_and_stuff {} {
     load_piaware_config
+
     if {![info exists ::imageType]} {
-	set packageVersion [query_piaware_pkg]
-	if {$packageVersion != ""} {
-	    set ::imageType "package"
+	if {[query_piaware_pkg packageName packageVersion]} {
+	    set ::imageType "${packageName}_package"
 	}
     }
 }
