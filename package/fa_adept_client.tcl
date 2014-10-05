@@ -235,7 +235,7 @@ namespace eval ::fa_adept {
     method crack_certificate_fields {string _array} {
 		upvar $_array array
 
-		foreach pair [split $string ","] {
+		foreach pair [split $string ",/"] {
 			lassign [split $pair "="] key value
 			set array($key) $value
 		}
