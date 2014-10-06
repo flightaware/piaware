@@ -1,0 +1,93 @@
+.\"
+.\" Copyright (c) 2014 FlightAware LLC
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"
+.Dd September 24, 2014
+.Dt PIAWARE 1
+.Os
+.Sh NAME
+.Nm piaware
+.Nd forward ADS-B messages to FlightAware
+.Sh SYNOPSIS
+.Nm piaware
+.Bk -words
+.Op Fl p Ar pid_file
+.Op Fl debug
+.Op Fl help
+.Ek
+.Sh DESCRIPTION
+.Nm
+forwards ADS-B messages to FlightAware over an encrypted, compressed
+Internet connection.
+.Pp
+.Nm
+established an encrypted, compressed TLS connection with FligthAware and logs 
+in using a FlightAware user name and password.
+At the same time it tries to
+connect to a program on the local computer providing ADS-B messages in 
+"beast" binary format, typically \fBdump1090\fR.
+.Pp
+It then filters and coalesces those messages and forwards them over the
+TLS connection where they contribute to the accuracy of FlightAware's
+flight tracking.
+.Pp
+(People who forward ADS-B messages to FlightAware automatically qualify for
+a free upgrade to an Enterprise Account.  For more information please visit
+http://flightaware.com/adsb/piaware/)
+.Pp
+On startup piaware attempts to connect to port 10001 to obtain the filtered,
+coalesced ADS-B messages.  If the machine is running the FlightAware-modified
+version of dump1090 (https://github.com/flightaware/dump1090_mr) then it
+will obtain those messages directly.
+.Pp
+If the site is not running FA-modified dump1090 or is running a different
+ADS-B provider program such as modesmixer then piaware will start a helper
+program called faup1090 to translate between beast format and FlightAware
+format.
+.Pp
+If installed from the Debian package, piaware will automatically start up at system boot time.
+.Pp
+Since other programs such as dump1090 may not have started yet, piaware will wait until something is there to provide ADS-B data.  Also piaware will automatically reconnect if that program stops and is started again and it will also periodically try to reconnect to FlightAware in the event that contact is lost.
+.Pp
+Options:
+.Bl -tag -width Ds
+.It Fl p Ar pid_file
+Specifies the path of a file to store the process ID of the program so it can ensure that a second copy isn't accidentally started and whatnot.  This is used by the /etc/init.d/piaware script and would not normally be used from the command line.
+.It Fl debug
+If this option is selected
+.Nm
+will log to stdout rather than to /tmp/piaware.out.
+.It Fl help
+Emit a brief summary of piaware usage options.
+.El
+.Sh EXAMPLES
+Run piaware from the command line with debug enabled:
+.Pp
+.Dl $ piaware -debug
+.Sh SEE ALSO
+.Xr piaware-config 1 ,
+.Xr piaware-status 1 ,
+.Xr faup1090

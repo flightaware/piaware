@@ -1,0 +1,94 @@
+.\"
+.\" Copyright (c) 2014 FlightAware LLC
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"
+.Dd September 24, 2014
+.Dt PIAWARE 1
+.Os
+.Sh NAME
+.Nm faup1090
+.Nd translate "beast" binary ADS-B format to FlightAware format
+.Sh SYNOPSIS
+.Nm faup1090
+.Bk -words
+.Op Fl -net-fatsv-port Ar port
+.Op Fl -net-bo-ipaddr Ar address
+.Op Fl -net-bo-port Ar port
+.Op Fl -lat Ar stationLatitude
+.Op Fl -lon Ar stationLongitude
+.Op Fl -quiet
+.Op Fl -help
+.Ek
+.Sh DESCRIPTION
+The
+.Nm
+program is used by piaware to translate between "beast" binary format,
+typically produced by dump1090, and the coalesced, filtered format that
+piaware uses to backhaul ADS-B data efficiently to FlightAware.
+.Pp
+.Nm
+attempts to connect to dump1090 or a similar program capable of producing
+beast format.  By default it connects to the local host, TCP port 30005
+and begins to listen for ADS-B messages.
+.Pp
+.Nm
+listens for connections on the FlightAware "TSV" output port, which
+by default is TCP port 10001, and it will coalesce and filter the messages
+it receives from dump1090 (or equivalent) and send them to every program
+that is connected to the port.
+.Pp
+to set the FlightAware user name and password that PiAware will use
+to login to FlightAware in order to upload ADS-B data there.
+.Pp
+Options:
+.Bl -tag -width Ds
+.It Fl -net-fatsv-port Ar port
+Specifies the FlightAware TSV output port (default: 10001).
+.It Fl -net-bo-ipaddr Ar address
+Specifies the IPv4 address that
+.Nm
+will connect to for Beast output.
+.It Fl -net-bo-port Ar port
+Specifies the Beast output port 
+.Nm
+will connect to
+(default 30005).
+.It Fl -lat Ar stationLatitude
+Specifies the latitude of the ADS-B receiver.
+.It Fl -lat Ar stationLongitude
+Specifies the longitude of the ADS-B receiver.
+.It Fl -quiet
+Operate quietly, like don't write any normal stuff to stdout or whatever.
+.It Fl -help
+Produce a help message and exit.
+.Pp
+Piaware currently uses and expects faup1090 on the default addresses and ports.
+.El
+.Sh SEE ALSO
+.Xr piaware 1 ,
+.Xr piaware-config 1 ,
+.Xr piaware-status 1 ,
+.Xr faup1090 1
