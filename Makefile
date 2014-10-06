@@ -13,6 +13,4 @@ install:
 	install scripts/piaware-rc-script /etc/init.d/piaware
 	$(MAKE) -C doc install
 
-install-server:
-	cd programs/fa_adept_server;make install
 
