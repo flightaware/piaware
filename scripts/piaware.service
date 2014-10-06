@@ -1,0 +1,20 @@
+# piaware uploader service for systemd
+# install in /etc/systemd/system
+
+[Unit]
+Description=Flight Aware uploader
+Requires=dump1090.service
+# network-online target may need to be enabled via:
+# systemctl enable NetworkManager-wait-online.service
+# or:
+# systemctl enable systemd-networkd-wait-online.service
+Wants=network-online.target
+After=dump1090.service network-online.target
+
+[Service]
+ExecStart=/usr/bin/piaware -debug
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=default.target
