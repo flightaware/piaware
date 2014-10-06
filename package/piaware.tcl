@@ -32,7 +32,10 @@ proc load_piaware_config {} {
 proc query_piaware_pkg {_packageName _packageVersion} {
     upvar $_packageName packageName $_packageVersion packageVersion
 
-    set fp [open "|dpkg-query --show *piaware* 2>/dev/null"]
+    if {[catch {set fp [open "|dpkg-query --show *piaware* 2>/dev/null"]} ] } {
+        logger "Failed to run dpkg-query!"
+        return 0
+    }
     gets $fp line
 
     if {[catch {close $fp}] == 1} {
