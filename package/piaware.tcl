@@ -371,4 +371,34 @@ proc warn_once {message args} {
     logger "WARNING $message"
 }
 
+#
+# upgrade_raspbian - upgrade raspbian to the latest packages, kernel,
+#  libraries, boot files and whatnot
+#
+proc upgrade_raspbian {} {
+    logger "*** attempting to upgrade raspbian to the latest"
+    logger "doing apt-get update..."
+    set exitStatus [system "apt-get --yes update"]
+    if {$exitStatus != 0} {
+	logger "got exit status $exitStatus, aborting..."
+	return 0
+    }
+
+    logger "doing apt-get upgrade..."
+    set exitStatus [system "apt-get --yes upgrade"]
+    if {$exitStatus != 0} {
+	logger "got exit status $exitStatus, aborting..."
+	return 0
+    }
+    logger "doing rpi-update..."
+    set exitStatus [system "rpi-update"]
+    if {$exitStatus != 0} {
+	logger "got exit status $exitStatus, aborting..."
+	return 0
+    }
+
+    system "/sbin/reboot"
+    return 1
+}
+
 package provide piaware 1.0
