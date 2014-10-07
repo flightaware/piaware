@@ -1,0 +1,38 @@
+== Use a UPS ==
+If possible, run your Raspberry Pi off of some kind of uninterruptible power supply (UPS).  Your Pi is a full-blown UNIX system of the Linux variety, and it trades off performance for a certain possibility of losing data (and possibly suffering filesystem corruption) in the event of a crash.  SD cards are pretty amazing but when we run an operating system on them we are really asking them to do a lot for us.  If an SD card is writing when power is lost, the entire card can be corrupted and require reformatting with the SD card association formatter.
+
+== Make sure you are running current or near current operating system and packages ==
+Run your Raspberry Pi on a fairly recent version of the operating system.  The heartbleed bug for OpenSSL was serious, for instance.  Also later versions of Raspbian are known to suffer fewer SD card corruption problems due to firmware and software improvements.  Under Raspbian you can upgrade your installed packages, system kernel, boot files and such with
+
+ sudo apt-get update
+ sudo apt-get upgrade
+ sudo rpi-update
+ sudo reboot
+
+This usually works pretty well, but it is possible that it will slag your Raspberry Pi, i.e. render your SD card unbootable.  That's the main risk, so if you have anything important on your Pi that you're developing or whatever, you really ought to be regularly backing up your work off-device, syncing to an off-device source code control system such as github.com or code.google.com, or whatever.
+
+== Keep your PiAware install up to date ==
+
+Soon piaware will be a normal apt-style package and it will be much easier to update.  For now you need to visit FlightAware and download the latest version of the Debian package and install it according to instructions there.
+
+== Use a reasonably high-quality SD card ==
+
+There is a lot of variation in quality from one SD card vendor to another.  "No name" SD cards can be of inferior quality and cause frustrating crashes and hangs that can be difficult to debug.  We stick with major vendors such as Sandisk, Toshiba, and Sony.  Lately we've been going 100% with Sandisk.
+
+== If you're doing work on your Pi, get a fast SD card ==
+
+While the 700 MHz ARM processor is far slower than the processor you might find in a desktop computer, the speed of the SD card makes a big difference in the performance of the machine, especially interactive performance.
+
+The tradeoff, of course, is that the price of the card goes up with the performance.  Nonetheless if you are using the box interactively, like developing software, cutting releases, anything like that, you will notice a big difference if you use something like the Sandisk Extreme Pro card.
+
+== Expand your filesystem to use the entire card ==
+
+By default Raspbian only uses about 3 gigabytes of your SD card, no matter how large the card is.  If you run 'sudo raspi-config' and choose option 1, you can expand the filesystem to fill the card.  There are other approaches where you can have multiple operating systems on a card and stuff like that, but if you're not doing that, it's probably best to expand the filesystem to fill the card.
+
+We're not 100% sure about this but we figure that with more blocks on the free list writes will be distributed more evenly across the blocks of card, causing it to wear more evenly and hopefully being more reliable.
+
+== Monitor your device for anomalies through FlightAware ==
+
+Every few minutes PiAware forwards some very basic health information about your Pi to FlightAware.  This is stuff like CPU temperature, SD card percentage of storage in use, version of PiAware currently running, and so forth.  No more than once a week you should get an anomaly report email covering in one message all your PiAware hosts (which is probably one, but some people have many) and explaining things that are going on and stuff you can do to fix it.
+
+

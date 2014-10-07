@@ -1,0 +1,41 @@
+=== Upgrade Raspberry Pi software to the latest ===
+ sudo apt-get update
+ sudo apt-get upgrade
+ sudo rpi-update
+If rpi-update reported that it downloaded firmware and said you need to reboot for it to take effect, reboot:
+ sudo reboot
+
+=== Obtain, build and install the RTL-SDR libraries ===
+This is the software that can talk to the software defined radio in the RTL-SDR dongle...
+ sudo apt-get install git git-core cmake libusb-1.0-0-dev build-essential
+ mkdir src
+ cd src
+ git clone git://git.osmocom.org/rtl-sdr.git
+ cd rtl-sdr
+ mkdir build
+ cd build
+ cmake ../ -DINSTALL_UDEV_RULES=ON
+ make
+ sudo make install
+ sudo ldconfig
+ sudo cp rtl-sdr.rules /etc/udev/rules.d
+Keep the system from thinking that the RTL-SDR dongle is for watching TV...
+cat <<EOF >/tmp/no-rtl.conf
+ blacklist dvb_usb_rtl28xxu
+ blacklist rtl2832
+ blacklist rtl2830
+ EOF
+ sudo mv /tmp/no-rtl.conf /etc/modprobe.d/
+
+ sudo reboot
+
+=== Obtain, build and install dump1090 ===
+This is for the FlightAware version.  The main difference is that the FA version of dump1090 can emit "FlightAware" format directly, avoiding piaware having to run the faup1090 translation program.  Other than that it's the same as dump1090 from Malcolm Robb.
+
+Should you want to build the FlightAware version, please follow the build/install instructions at https://github.com/flightaware/dump1090_mr/blob/master/README.md#building
+
+=== Obtain, build and install piaware ===
+
+Follow the instructions for building and installing PiAware from source at https://github.com/flightaware/piaware#building-and-installing-piaware-from-source
+
+
