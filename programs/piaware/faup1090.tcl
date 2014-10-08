@@ -206,6 +206,13 @@ proc is_faup1090_running {} {
 # faup1090_messages_being_received_check - by faup1090_running_periodic_check
 #  to see if we have received messages in the last few minutes
 #
+#  return 1 if it's up or enough time hasn't elapsed that we should do
+#  something about it
+#
+#  return 0 if we've not received any messages for quite a while and we
+#  attempted to restart (0 return indicates don't proceed with
+#  other checks)
+#
 proc faup1090_messages_being_received_check {} {
 	if {!$::connected1090} {
 		# we are saying keep going, not that it is really ok
@@ -230,29 +237,53 @@ proc faup1090_messages_being_received_check {} {
 }
 
 #
-# periodically_check_adsb_traffic - periodically check to see if faup1090 is
-#  running and if it is not, start it up again
+# periodically_check_adsb_traffic - periodically perform checks to see if
+# we are receiving data and possibly start/restart faup1090
+#
+# also issue a traffic report
 #
 proc periodically_check_adsb_traffic {} {
 	after 300000 periodically_check_adsb_traffic
 
+	check_adsb_traffic
+
+	after 30000 traffic_report
+}
+
+#
+# check_adsb_traffic - see if ads-b messages are being received.
+#
+# see if messages are being received, what's feeding if they are, make
+# sure faup1090 is up if we're using it, start/restart if necessary
+#
+proc check_adsb_traffic {} {
 	reap_any_dead_children
 
+	# perform the messages-being-received check and don't go on if
+	# it tells us not to
 	if {![faup1090_messages_being_received_check]} {
 		return
 	}
 
+	#
+	# if faup1090 is running, we're done
+	#
 	if {[is_faup1090_running]} {
 		#logger "periodically_check_adsb_traffic: faup1090 is running"
 		return
 	}
 
+	# see what's hooked up to what
 	inspect_sockets_with_netstat
 
+	# if nothing's there to feed us, we're done
 	if {![is_adsb_program_running]} {
 		logger "no ads-b producer (dump1090, modesmixer, etc) appears to be running or is not listening for connections on port 30005, next check in 5m"
 		return
 	}
+
+	# if something's there to feed us, we're done, but report what's hooked
+	# up if we haven't received any ADS-B messages this period
 
 	if {$::netstatus(status_10001)} {
 		if {$::nfaupMessagesThisPeriod == 0} {
@@ -264,10 +295,16 @@ proc periodically_check_adsb_traffic {} {
 		return
 	}
 
+	# nothing's feeding us, try to start faup1090
 	logger "starting faup1090 to translate 30005 beast to 10001 flightaware"
 	start_faup1090
 }
 
+#
+# stop_faup1090_close_faup1090_socket_and_reopen - can you guess?
+#
+#  stop faup1090, close the faup1090 socket, and then reopen the socket
+#
 proc stop_faup1090_close_faup1090_socket_and_reopen {} {
 	stop_faup1090
 
@@ -304,17 +341,6 @@ proc traffic_report {} {
 
 	logger "$::nfaupMessagesReceived msgs recv'd from $who$periodString; $::nMessagesSent msgs sent to FlightAware"
 
-}
-
-#
-# periodically_issue_a_traffic_report - issue a traffic report every so often
-#
-proc periodically_issue_a_traffic_report {} {
-	# for testing
-	#after 60000 periodically_issue_a_traffic_report
-	after 300000 periodically_issue_a_traffic_report
-
-	traffic_report
 }
 
 # vim: set ts=4 sw=4 sts=4 noet :

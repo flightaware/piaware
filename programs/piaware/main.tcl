@@ -62,8 +62,8 @@ if 0 {
 
 	setup_signals
 
-	create_pidfile 
-  
+	create_pidfile
+ 
 	# log to a file unless configured for debug
 	if {!$::params(debug)} {
 		log_stdout_stderr_to_file
@@ -89,7 +89,6 @@ if 0 {
 	periodically_check_adsb_traffic
 
 	after 30000 periodically_send_health_information
-	after 60000 periodically_issue_a_traffic_report
 
     catch {vwait die}
 
