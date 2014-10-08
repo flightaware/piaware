@@ -379,9 +379,9 @@ namespace eval ::fa_adept {
 
 		# cancel the current alive timeout timer if it exists
 		if {![info exists aliveTimerID]} {
-			logger "handle_alive_message: server is sending alive messages, we will expect them"
+			logger "server is sending alive messages; we will expect them"
 		} else {
-			#logger "handle_alive_message: alive message received from FlightAware"
+			#logger "alive message received from FlightAware"
 			cancel_alive_timer
 		}
 
