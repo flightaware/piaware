@@ -17,11 +17,11 @@ install:
 	$(MAKE) -C doc install
 
 # conditionally install init services
-ifdef SYSTEMD
-	install scripts/piaware.service $(SYSTEMD)
-else
 ifdef SYSVINIT
 	install scripts/piaware-rc-script $(SYSVINIT)piaware
+else
+ifdef SYSTEMD
+	install scripts/piaware.service $(SYSTEMD)
 else
 	@echo "No init service found"
 endif
