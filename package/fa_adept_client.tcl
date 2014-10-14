@@ -1,9 +1,10 @@
 #
-# fa_adept_client - Itcl class for connecting to an Open Aviation Data
-# Exchange Protocol service
+# fa_adept_client - Itcl class for connecting to and communicating with
+#  an Open Aviation Data Exchange Protocol service
 #
 # Copyright (C) 2014 FlightAware LLC, All Rights Reserved
 #
+# open source in accordance with the Berkeley license
 #
 
 package require tls
@@ -13,7 +14,8 @@ namespace eval ::fa_adept {
 
 ::itcl::class AdeptClient {
     public variable sock
-    public variable host eyes.flightaware.com
+    public variable host
+    public variable hosts [list eyes.flightaware.com 70.42.6.203]
     public variable port 1200
     public variable connectRetryIntervalSeconds 60
     public variable connected 0
@@ -22,6 +24,7 @@ namespace eval ::fa_adept {
 	protected variable writabilityCheckAfterID
     protected variable connectTimerID
 	protected variable aliveTimerID
+	protected variable nextHostIndex 0
 
     constructor {args} {
 		configure {*}$args
@@ -29,13 +32,24 @@ namespace eval ::fa_adept {
 		schedule_writability_check
     }
 
-
     #
     # logger - log a message
     #
     method logger {text} {
 		puts stderr "[clock format [clock seconds] -format "%D %T" -gmt 1] $text"
     }
+
+	#
+	# next_host - return the next host in the list of hosts
+	#
+	method next_host {} {
+		set host [lindex $hosts $nextHostIndex]
+		incr nextHostIndex
+		if {$nextHostIndex >= [llength $hosts]} {
+			set nextHostIndex 0
+		}
+		return $host
+	}
 
     #
     # tls_callback - routine called back during TLS negotiation
@@ -65,6 +79,7 @@ namespace eval ::fa_adept {
 		# event timer if there is one
 		close_socket
 		cancel_connect_timer
+		next_host
 
 		# schedule a new connect attempt in the future
 		# if we succeed to connect and login, we'll cancel this
