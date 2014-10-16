@@ -226,7 +226,8 @@ proc faup1090_messages_being_received_check {} {
 		}
 		set nNewMessagesReceived [expr {$::::nfaupMessagesReceived - $::priorFaupMessagesReceived}]
 		if {$nNewMessagesReceived == 0} {
-			logger "no new messages received in $secondsSinceLast seconds, it might just be that there haven't been any aircraft nearby but I'm going to possibly restart faup1090 and definitely reconnect, just in case there's a problem with the current connection..."
+			logger "no new messages received in $secondsSinceLast seconds, it might just be that there haven't been any aircraft nearby but I'm going to possibly restart dump1090 and faup1090 and definitely reconnect, just in case..."
+			attempt_dump1090_restart
 			stop_faup1090_close_faup1090_socket_and_reopen
 			return 0
 		}
@@ -311,6 +312,38 @@ proc stop_faup1090_close_faup1090_socket_and_reopen {} {
 	close_faup1090_socket_and_reopen
 }
 
+#
+# attempt_dump1090_restart - restart dump1090 if we can figure out how to
+#
+proc attempt_dump1090_restart {} {
+	set scripts [glob -nocomplain /etc/init.d/*dump1090*]
+	if {[llength $scripts] == 0} {
+		logger "can't restart dump1090, no dump1090 script in /etc/init.d"
+		return
+	}
+
+	if {[llength $scripts] > 1} {
+		foreach script $scripts {
+			if {[string match "fadump1090*" $script]} {
+				set scripts $script
+				break
+			}
+		}
+		if {[llength $scripts] > 1} {
+			set scripts [lindex $scripts 0]
+		}
+		logger "warning, more than one dump1090 script in /etc/init.d, proceeding with '$script'..."
+	}
+
+	logger "attempting to restart dump1090 using '$script restart'..."
+	set exitStatus [system $script]
+
+	if {$exitStatus == 0} {
+		logger "dump1090 restart appears to have been successful"
+	} else {
+		logger "got exit status $exitStatus while trying to restart dump1090"
+	}
+}
 
 #
 # traffic_report - log a traffic report of messages received from the adsb
