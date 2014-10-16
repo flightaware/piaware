@@ -1,7 +1,7 @@
 
 LIB=/usr/lib/fa_adept_packages
 
-TCLSH=tclsh8.5
+TCLSH=$(shell which tclsh || which tclsh8.5 || which tclsh8.6)
 
 FILES=fa_adept_config.tcl fa_adept_client.tcl piaware.tcl ca/DigiCertCA.crt
 
