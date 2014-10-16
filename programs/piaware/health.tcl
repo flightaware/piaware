@@ -96,7 +96,7 @@ proc construct_health_array {_row} {
 #  health information and forward it
 #
 proc periodically_send_health_information {} {
-    after 300000 periodically_send_health_information
+    after [expr {$::sendHealthInformationIntervalSeconds * 1000}] periodically_send_health_information
 
 	if {![adept is_logged_in]} {
 		return
