@@ -375,6 +375,29 @@ proc warn_once {message args} {
 }
 
 #
+# reboot - reboot
+#
+proc reboot {} {
+    logger "rebooting..."
+    system "/sbin/reboot"
+}
+
+#
+# update_operating_system_and_packages 
+#
+# * upgrade raspbian
+#
+# * upgrade piaware
+#
+# * reboot
+#
+proc update_operating_system_and_packages {} {
+    upgrade_raspbian
+    upgrade_piaware
+    reboot
+}
+
+#
 # upgrade_raspbian - upgrade raspbian to the latest packages, kernel,
 #  libraries, boot files and whatnot
 #
@@ -400,8 +423,48 @@ proc upgrade_raspbian {} {
 	return 0
     }
 
-    system "/sbin/reboot"
     return 1
+}
+
+#
+# upgrade_piaware - fetch file information about the latest version of piaware
+#
+# check it for reasonability
+#
+# compare it to the version we're running and if it's not current, update
+# the current site
+#
+proc upgrade_piaware {} {
+    if {[catch {set fp [open "|wget --output-document=- https://flightaware.com/adsb/piaware/files/latest"]} catchResult] == 1} {
+	logger "unable to upgrade piaware: got '$catchResult' trying to fetch the name of the latest version"
+	return 0
+    }
+
+    set version [gets $fp line]
+    close $fp
+
+    if {[string first / $version] >= 0} {
+	logger "unable to upgrade piaware: illegal character in version '$version'"
+	return 0
+    }
+
+    if {[string match "*$piawareVersion*" $version]} {
+	logger "already running the latest version of piaware"
+	return 0
+    }
+
+    set url https://flightaware.com/adsb/piaware/files/$version
+    logger "fetching latest piaware version from $url"
+
+    set outputFile /tmp/$version
+    set exitStatus [system "wget --output-document=$outputFile https://flightaware.com/adsb/piaware/files/$version"]
+    system "sudo dpkg -i $outputFile"
+
+    logger "installing any required dependencies"
+    system "sudo apt-get install -fy"
+
+    return 1
+
 }
 
 package provide piaware 1.0

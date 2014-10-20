@@ -380,6 +380,10 @@ namespace eval ::fa_adept {
 		}
 	}
 
+	#
+	# handle_shutdown_message - handle a message from the server telling us
+	#   that it is shutting down
+	#
 	method handle_shutdown_message {_row} {
 		upvar $_row row
 
@@ -387,6 +391,47 @@ namespace eval ::fa_adept {
 			set row(reason) "unknown"
 		}
 		logger "NOTICE adept server is shutting down.  reason: $row(reason)"
+	}
+
+	#
+	# handle_auto_update_message - handle a message from the server requesting
+	#   that we update the software
+	#
+	method handle_auto_update_message {_row} {
+		logger "auto update (flightaware-initiated) requested by adept server"
+		if {![info exists ::autoUpdate]} {
+			logger "autoUpdate is not configured in /etc/piaware, ignoring the request"
+			return
+		}
+
+		if {!$::autoUpdate} {
+			logger "autoUpdate is configured disabled /etc/piaware, ignoring the request"
+			return
+		}
+
+		logger "performing auto-update"
+		update_operating_system_and_packages
+	}
+
+	#
+	# handle_manual_update_message - handle a message from the server requesting
+	#   that we update the software
+	#
+	method handle_manual_update_message {_row} {
+		logger "manual update (user-initiated) requested by adept server"
+
+		if {![info exists ::manualUpdate]} {
+			logger "manualUpdate is not set in /etc/piaware, ignoring the request"
+			return
+		}
+
+		if {!$::manualupdate} {
+			logger "manualUpdate is configured disabled in /etc/piaware, ignoring the request"
+			return
+		}
+
+		logger "performing manual update"
+		update_operating_system_and_packages
 	}
 
 	#

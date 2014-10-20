@@ -4,6 +4,7 @@
 # Copyright (C) 2014 FlightAware LLC, All Rights Reserved
 #
 
+set configParams [list user password autoUpdate manualUpdate]
 #
 # process_parameters - look at params array and do things 
 #
@@ -21,7 +22,7 @@ proc process_parameters {_params} {
 		set params(password) ""
 	}
 
-	foreach param "user password" {
+	foreach param $::configParams {
 		if {$params($param) != ""} {
 			set_adept_config $param $params($param)
 			set saveAdeptConfig 1
