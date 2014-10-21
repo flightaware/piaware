@@ -549,6 +549,22 @@ namespace eval ::fa_adept {
 		send_array message
 	}
 
+	#
+	# send_log_message - upload log message
+	#
+	#
+	method send_log_message {text} {
+		if {![is_connected]} {
+			return
+		}
+
+		set message(type) log
+		set message(message) $text
+		set message(mac) [get_mac_address_or_quit]
+
+		send_array message
+	}
+
 
 	#
 	# get_mac_address - return the mac address of eth0 as a unique handle

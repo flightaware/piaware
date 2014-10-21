@@ -27,8 +27,8 @@ set pidFile "/var/run/piaware.pid"
 proc main {{argv ""}} {
 	set options {
 		{user.arg "" "specify the user name of a valid FlightAware account"}
-		{autoupdate.arg "" "1 = allow FlightAware to automatically update software on my Pi, 0 = no"}
-		{manualupdate.arg "" "1 = allow me to trigger manual updates through FlightAware, 0 = no"}
+		{autoUpdate.arg "" "1 = allow FlightAware to automatically update software on my Pi, 0 = no"}
+		{manualUpdate.arg "" "1 = allow me to trigger manual updates through FlightAware, 0 = no"}
 		{password "interactively specify the password of the FlightAware account"}
 		{start "attempt to start the ADS-B client"}
 		{stop "attempt to stop the ADS-B client"}

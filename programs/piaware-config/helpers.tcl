@@ -5,6 +5,7 @@
 #
 
 set configParams [list user password autoUpdate manualUpdate]
+set booleanConfigParams [list autoUpdate manualUpdate]
 #
 # process_parameters - look at params array and do things 
 #
@@ -23,6 +24,12 @@ proc process_parameters {_params} {
 	}
 
 	foreach param $::configParams {
+		if {[lsearch $::booleanConfigParams $param] >= 0} {
+			if {![string is boolean $params($param)]} {
+				puts stderr "$param must be 1 or 0 not '$params($param)'"
+			}
+		}
+
 		if {$params($param) != ""} {
 			set_adept_config $param $params($param)
 			set saveAdeptConfig 1
