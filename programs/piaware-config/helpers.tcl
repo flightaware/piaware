@@ -56,6 +56,10 @@ proc process_parameters {_params} {
     if {$params(status)} {
 		piaware_status
     }
+
+	if {$params(show)} {
+		show_piaware_config
+	}
 }
 
 #
@@ -161,6 +165,23 @@ proc piaware_status {} {
 	} else {
 		puts "piaware is not running"
 	}
+}
+
+proc show_piaware_config {} {
+	if {[catch {set fp [open $::adeptConfigFile]} catchResult] == 1} {
+		if {[lindex $::errorCode 1] == "ENOENT"} {
+			puts "piaware config file '$::adeptConfigFile' doesn't exist"
+		} else {
+			puts "error opening piaware config file '$::adeptConfigFile': $catchResult"
+		}
+		return
+	}
+
+	puts "contents of piaware config file '$::adeptConfigFile':"
+	while {[gets $fp line] >= 0} {
+		puts $line
+	}
+	close $fp
 }
 
 # vim: set ts=4 sw=4 sts=4 noet :

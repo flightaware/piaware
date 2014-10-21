@@ -27,13 +27,14 @@ set pidFile "/var/run/piaware.pid"
 proc main {{argv ""}} {
 	set options {
 		{user.arg "" "specify the user name of a valid FlightAware account"}
+		{password "interactively specify the password of the FlightAware account"}
 		{autoUpdate.arg "" "1 = allow FlightAware to automatically update software on my Pi, 0 = no"}
 		{manualUpdate.arg "" "1 = allow me to trigger manual updates through FlightAware, 0 = no"}
-		{password "interactively specify the password of the FlightAware account"}
 		{start "attempt to start the ADS-B client"}
 		{stop "attempt to stop the ADS-B client"}
 		{restart "attempt to restart the ADS-B client"}
 		{status "get the status of the ADS-B client"}
+		{show "show config file"}
 	}
 
 	set usage ": $::argv0 -help|-user|-password|-start|-stop|-status ?args?"
