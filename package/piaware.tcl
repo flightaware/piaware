@@ -398,28 +398,47 @@ proc update_operating_system_and_packages {} {
 }
 
 #
+# run_program_log_output - run command with stderr redirected to stdout and
+#   log all the output of the command
+#
+proc run_program_log_output {command} {
+    logger "*** running command '$command' and logging output"
+
+    if {[catch {set fp [open "|$command 2>&1"]} catchResult] == 1} {
+	logger "*** error attempting to start command: $catchResult"
+	return 0
+    }
+
+    while {[gets $fp line] >= 0} {
+	logger "> $line"
+    }
+
+    if {[catch {close $fp} catchResult] == 1} {
+	logger "*** error closing pipeline to command: $catchResult, continuing..."
+    }
+    return 1
+}
+
+#
 # upgrade_raspbian - upgrade raspbian to the latest packages, kernel,
 #  libraries, boot files and whatnot
 #
 proc upgrade_raspbian {} {
     logger "*** attempting to upgrade raspbian to the latest"
     logger "doing apt-get update..."
-    set exitStatus [system "apt-get --yes update"]
-    if {$exitStatus != 0} {
-	logger "got exit status $exitStatus, aborting..."
+
+    if {![run_program_log_output "apt-get --yes update"]} {
+	logger "aborting..."
 	return 0
     }
 
-    logger "doing apt-get upgrade..."
-    set exitStatus [system "apt-get --yes upgrade"]
-    if {$exitStatus != 0} {
-	logger "got exit status $exitStatus, aborting..."
+    if {![run_program_log_output "apt-get --yes upgrade"]} {
+	logger "aborting..."
 	return 0
     }
-    logger "doing rpi-update..."
-    set exitStatus [system "rpi-update"]
-    if {$exitStatus != 0} {
-	logger "got exit status $exitStatus, aborting..."
+
+    if {![run_program_log_output "rpi-update"]} {
+	logger "aborting..."
 	return 0
     }
 
@@ -458,10 +477,12 @@ proc upgrade_piaware {} {
 
     set outputFile /tmp/$version
     set exitStatus [system "wget --output-document=$outputFile https://flightaware.com/adsb/piaware/files/$version"]
-    system "sudo dpkg -i $outputFile"
+
+    logger "installing piaware..."
+    run_program_log_output "dpkg -i $outputFile"
 
     logger "installing any required dependencies"
-    system "sudo apt-get install -fy"
+    run_program_log_output "apt-get install -fy"
 
     return 1
 
