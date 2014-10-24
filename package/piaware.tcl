@@ -409,7 +409,7 @@ proc run_program_log_output {command} {
 
     unset -nocomplain ::externalProgramFinished
 
-    if {[catch {set fp [open "|$command 2>&1"]} catchResult] == 1} {
+    if {[catch {set fp [open "|$command"]} catchResult] == 1} {
 	logger "*** error attempting to start command: $catchResult"
 	return 0
     }
@@ -497,7 +497,7 @@ proc upgrade_piaware {} {
 	return 0
     }
 
-    if {[string match "*$piawareVersion*" $debianPackageFile]} {
+    if {[string match "*$::piawareVersion*" $debianPackageFile]} {
 	logger "already running the latest version of piaware"
 	return 0
     }
@@ -506,8 +506,7 @@ proc upgrade_piaware {} {
     logger "fetching latest piaware version from $requestUrl"
 
     set outputFile /tmp/$debianPackageFile
-
-    set req [::http::geturl $requestUrl -timeout 15000 -binary 1]
+    set req [::http::geturl $requestUrl -timeout 15000 -binary 1 -strict 0]
 
     set status [::http::status $req]
     set data [::http::data $req]

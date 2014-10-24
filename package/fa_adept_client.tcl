@@ -297,7 +297,7 @@ namespace eval ::fa_adept {
 		}
 
 		if {[catch {handle_response response} catchResult] == 1} {
-			logger "error handling message '$line' from server ($catchResult), continuing..."
+			logger "error handling message '$line' from server ($catchResult), ([string map {\n \\n \t \\t} [string range $::errorInfo 0 1000]]), continuing..."
 		}
     }
 
