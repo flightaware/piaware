@@ -36,7 +36,8 @@ namespace eval ::fa_adept {
     # logger - log a message
     #
     method logger {text} {
-		puts stderr "[clock format [clock seconds] -format "%D %T" -gmt 1] $text"
+		# can also log $this
+		::logger $text
     }
 
 	#
@@ -550,8 +551,7 @@ namespace eval ::fa_adept {
 	}
 
 	#
-	# send_log_message - upload log message
-	#
+	# send_log_message - upload log message if connected
 	#
 	method send_log_message {text} {
 		if {![is_connected]} {
@@ -561,6 +561,12 @@ namespace eval ::fa_adept {
 		set message(type) log
 		set message(message) $text
 		set message(mac) [get_mac_address_or_quit]
+
+		foreach var "user" globalVar "::flightaware_user" {
+			if {[info exists $globalVar]} {
+				set message($var) [set $globalVar]
+			}
+		}
 
 		send_array message
 	}

@@ -11,6 +11,15 @@ package require tls
 #
 proc logger {text} {
 	#::bsd::syslog log info $text
+	log_locally $text
+	adept send_log_message $text
+}
+
+#
+# log_locally - log a message locally
+#
+proc log_locally {text} {
+	#::bsd::syslog log info $text
     puts stderr "[clock format [clock seconds] -format "%D %T" -gmt 1] $text"
 }
 

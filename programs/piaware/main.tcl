@@ -60,11 +60,17 @@ if 0 {
 	}
 }
 
+	# setup adept client early so logger command won't trace back
+	# (this does not initiate a connection, it just creates the object)
+    setup_adept_client
+
+	# arrange for a clean shutdown in the event of certain common signals
 	setup_signals
 
+	# maintain a pidfile so we don't get multiple copies of ourself
 	create_pidfile
  
-	# log to a file unless configured for debug
+	# start logging to a file unless configured for debug
 	if {!$::params(debug)} {
 		log_stdout_stderr_to_file
 		schedule_logfile_switch
@@ -83,7 +89,6 @@ if 0 {
 
 	inspect_sockets_with_netstat
 
-    setup_adept_client
     setup_fa_style_adsb_client
 
 	periodically_check_adsb_traffic
