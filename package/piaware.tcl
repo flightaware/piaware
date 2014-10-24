@@ -404,22 +404,38 @@ proc update_operating_system_and_packages {} {
 proc run_program_log_output {command} {
     logger "*** running command '$command' and logging output"
 
+    unset -nocomplain ::externalProgramFinished
+
     if {[catch {set fp [open "|$command 2>&1"]} catchResult] == 1} {
 	logger "*** error attempting to start command: $catchResult"
 	return 0
     }
 
-    while {[gets $fp line] >= 0} {
-	logger "> $line"
-    }
+    fileevent $fp readable [list external_program_data_available $fp]
 
-    if {[catch {close $fp} catchResult] == 1} {
-	logger "*** error closing pipeline to command: $catchResult, continuing..."
-    } else {
-	logger "command '$command' completed"
-    }
+    vwait ::externalProgramFinished
     return 1
 }
+
+#
+# external_program_data_available
+#
+proc external_program_data_available {fp} {
+    if {[eof $fp]} {
+	if {[catch {close $fp} catchResult] == 1} {
+	    logger "*** error closing pipeline to command: $catchResult, continuing..."
+	}
+	set ::externalProgramFinished 1
+	return
+    }
+
+    if {[gets $fp line] < 0} {
+	return
+    }
+
+    logger "> $line"
+}
+
 
 #
 # upgrade_raspbian - upgrade raspbian to the latest packages, kernel,
