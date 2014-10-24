@@ -395,18 +395,68 @@ namespace eval ::fa_adept {
 	}
 
 	#
+	# update_check - see if the requested update type (manualUpdate or
+	#   autoUpdate) is allowed.
+	#
+	#   you should be able to inspect this and handle_auto_update_message,
+	#   handle_manual_update_message and how they're invoked to assure
+	#   yourself that if there is no autoUpdate or manualUpdate in
+	#   /etc/piaware configured true or by piaware-config configured true,
+	#   the update cannot occur
+	#
+	method update_check {varName} {
+		# if there is no matching update variable in the adept config or
+		# a global variable set by /etc/piaware, bail
+		if {![info exists ::adeptConfig($varName)] && ![info exists ::$varName]} {
+			logger "$varName is not configured in /etc/piaware or by piaware-config"
+			return 0
+		}
+
+		#
+		# if there is a var in the adept config and it's not a boolean or
+		# it's false, bail.
+		#
+		if {[info exists ::adeptConfig($varName)]} {
+			if {![string is boolean $::adeptConfig($varName)]} {
+				logger "$varName in adept config isn't a boolean, bailing on update request"
+				return 0
+			}
+
+			if {!$::adeptConfig($varName)} {
+				return 0
+			} else {
+				# the var is there and set to true, we proceed with the update
+				logger "$varName in adept config is enabled, allowing update"
+				return 1
+			}
+		}
+
+		if {[info exists ::$varName]} {
+			set val [set ::$varName]
+			if {![string is boolean $val]} {
+				logger "$varName in /etc/piaware isn't a boolean, bailing on update request"
+				return 0
+			} else {
+				# the var is there and true, proceed
+				logger "$varName in /etc/piaware is enabled, allowing update"
+				return 1
+			}
+		}
+
+		# this shouldn't happen
+		error "software error in handle_shutdown_message"
+	}
+
+	#
 	# handle_auto_update_message - handle a message from the server requesting
 	#   that we update the software
 	#
 	method handle_auto_update_message {_row} {
-		logger "auto update (flightaware-initiated) requested by adept server"
-		if {![info exists ::autoUpdate]} {
-			logger "autoUpdate is not configured in /etc/piaware, ignoring the request"
-			return
-		}
+		load_piaware_config
 
-		if {!$::autoUpdate} {
-			logger "autoUpdate is configured disabled /etc/piaware, ignoring the request"
+		logger "auto update (flightaware-initiated) requested by adept server"
+
+		if {![update_check autoUpdate]} {
 			return
 		}
 
@@ -419,15 +469,11 @@ namespace eval ::fa_adept {
 	#   that we update the software
 	#
 	method handle_manual_update_message {_row} {
+		load_piaware_config
+
 		logger "manual update (user-initiated) requested by adept server"
 
-		if {![info exists ::manualUpdate]} {
-			logger "manualUpdate is not set in /etc/piaware, ignoring the request"
-			return
-		}
-
-		if {!$::manualupdate} {
-			logger "manualUpdate is configured disabled in /etc/piaware, ignoring the request"
+		if {![update_check manualUpdate]} {
 			return
 		}
 

@@ -9,7 +9,7 @@
 
 set serverRetryIntervalSeconds 60
 
-set piawareVersion 1.15
+set piawareVersion 1.16
 
 set noMessageActionIntervalSeconds 3600
 
