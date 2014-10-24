@@ -4,6 +4,9 @@
 # Berkeley license
 #
 
+package require http
+package require tls
+
 set piawarePidFile /var/run/piaware.pid
 set piawareConfigFile /etc/piaware
 
@@ -463,6 +466,18 @@ proc upgrade_raspbian {} {
 }
 
 #
+# init_http_client
+#
+proc init_http_client {} {
+    if {[info exists ::tlsInitialized]} {
+	return
+    }
+    ::tls::init -ssl2 0 -ssl3 0 -tls1 1
+    ::http::register https 443 ::tls::socket
+    set ::tlsInitialized 1
+}
+
+#
 # upgrade_piaware - fetch file information about the latest version of piaware
 #
 # check it for reasonability
@@ -471,29 +486,42 @@ proc upgrade_raspbian {} {
 # the current site
 #
 proc upgrade_piaware {} {
-    if {[catch {set fp [open "|wget --output-document=- https://flightaware.com/adsb/piaware/files/latest"]} catchResult] == 1} {
-	logger "unable to upgrade piaware: got '$catchResult' trying to fetch the name of the latest version"
+    set debianPackageFile [get_name_of_latest_version_of_piaware_debian_package]
+    if {$debianPackageFile == ""} {
+	logger "unable to upgrade piaware: failed to get name of package file"
 	return 0
     }
 
-    set version [gets $fp line]
-    close $fp
-
-    if {[string first / $version] >= 0} {
-	logger "unable to upgrade piaware: illegal character in version '$version'"
+    if {[string first / $debianPackageFile] >= 0} {
+	logger "unable to upgrade piaware: illegal character in version '$debianPackageFile'"
 	return 0
     }
 
-    if {[string match "*$piawareVersion*" $version]} {
+    if {[string match "*$piawareVersion*" $debianPackageFile]} {
 	logger "already running the latest version of piaware"
 	return 0
     }
 
-    set url https://flightaware.com/adsb/piaware/files/$version
-    logger "fetching latest piaware version from $url"
+    set requestUrl https://flightaware.com/adsb/piaware/files/$debianPackageFile
+    logger "fetching latest piaware version from $requestUrl"
 
-    set outputFile /tmp/$version
-    set exitStatus [system "wget --output-document=$outputFile https://flightaware.com/adsb/piaware/files/$version"]
+    set outputFile /tmp/$debianPackageFile
+
+    set req [::http::geturl $requestUrl -timeout 15000 -binary 1]
+
+    set status [::http::status $req]
+    set data [::http::data $req]
+    ::http::cleanup $req
+
+    if {$status == "ok"} {
+	set ofp [open $outputFile w]
+	fconfigure $ofp -translation binary -encoding binary
+	puts -nonewline $ofp $data
+	close $ofp
+    } else {
+	logger "got status $status trying to fetch piaware"
+	return 0
+    }
 
     logger "installing piaware..."
     run_program_log_output "dpkg -i $outputFile"
@@ -503,6 +531,28 @@ proc upgrade_piaware {} {
 
     return 1
 
+}
+
+#
+# get_name_of_latest_version_of_piaware_debian_package
+#
+proc get_name_of_latest_version_of_piaware_debian_package {} {
+    init_http_client
+
+    set requestUrl "https://flightaware.com/adsb/piaware/files/latest"
+
+    set req [::http::geturl $requestUrl -timeout 15000]
+
+    set status [::http::status $req]
+    set data [::http::data $req]
+    ::http::cleanup $req
+
+    if {$status == "ok"} {
+	return $data
+    } else {
+	logger "got status $status trying to get name of latest version of piaware debian package"
+    }
+    return ""
 }
 
 package provide piaware 1.0
