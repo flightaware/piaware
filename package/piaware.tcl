@@ -33,7 +33,7 @@ proc query_piaware_pkg {_packageName _packageVersion} {
     upvar $_packageName packageName $_packageVersion packageVersion
 
     if {[catch {set fp [open "|dpkg-query --show *piaware* 2>/dev/null"]} ] } {
-        logger "Failed to run dpkg-query!"
+        logger "unable to run dpkg-query! can't determine piaware package info"
         return 0
     }
     gets $fp line
@@ -415,6 +415,8 @@ proc run_program_log_output {command} {
 
     if {[catch {close $fp} catchResult] == 1} {
 	logger "*** error closing pipeline to command: $catchResult, continuing..."
+    } else {
+	logger "command '$command' completed"
     }
     return 1
 }
@@ -425,20 +427,19 @@ proc run_program_log_output {command} {
 #
 proc upgrade_raspbian {} {
     logger "*** attempting to upgrade raspbian to the latest"
-    logger "doing apt-get update..."
 
     if {![run_program_log_output "apt-get --yes update"]} {
-	logger "aborting..."
+	logger "aborting upgrade..."
 	return 0
     }
 
     if {![run_program_log_output "apt-get --yes upgrade"]} {
-	logger "aborting..."
+	logger "aborting upgrade..."
 	return 0
     }
 
     if {![run_program_log_output "rpi-update"]} {
-	logger "aborting..."
+	logger "aborting upgrade..."
 	return 0
     }
 

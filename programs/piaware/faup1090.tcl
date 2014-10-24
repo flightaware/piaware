@@ -113,7 +113,7 @@ proc faup1090_data_available {} {
 	incr ::nfaupMessagesReceived
 	incr ::nfaupMessagesThisPeriod
 	if {$::nfaupMessagesReceived == 1} {
-		logger "piaware received a message from the ADS-B source!"
+		log_locally "piaware received a message from the ADS-B source!"
 	}
 
     #puts "faup1090 data: $line"
@@ -138,7 +138,7 @@ proc send_line {line} {
 	adept send $line
 	incr ::nMessagesSent
 	if {$::nMessagesSent == 7} {
-		logger "piaware has successfully sent several msgs to FlightAware!"
+		log_locally "piaware has successfully sent several msgs to FlightAware!"
 	}
 }
 

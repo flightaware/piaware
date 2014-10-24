@@ -56,7 +56,7 @@ namespace eval ::fa_adept {
     # tls_callback - routine called back during TLS negotiation
     #
     method tls_callback {args} {
-		logger "tls_callback: $args"
+		log_locally "tls_callback: $args"
     }
 
 	#
@@ -98,7 +98,7 @@ namespace eval ::fa_adept {
 			-ssl3 0 \
 			-tls1 1 \
 			$host $port]} catchResult] == 1} {
-			logger "got '$catchResult' to adept server at $host/$port, will try again soon..."
+			log_locally "got '$catchResult' to adept server at $host/$port, will try again soon..."
 			return 0
 		}
 
@@ -111,7 +111,7 @@ namespace eval ::fa_adept {
 		# we can get errors from this.  catch them and return failure
 		# if one occurs.
 		if {[catch {::tls::handshake $sock} catchResult] == 1} {
-			logger "error during tls handshake: $catchResult, will try again soon..."
+			log_locally "error during tls handshake: $catchResult, will try again soon..."
 			return 0
 		}
 
@@ -128,7 +128,7 @@ namespace eval ::fa_adept {
 		# in the session key (sbits) and the cipher used, such
 		# as DHE-RSA-AES256-SHA
 		#logger "TLS local status: [::tls::status -local $sock]"
-		logger "encrypted session established with FlightAware"
+		log_locally "encrypted session established with FlightAware"
 
 		# configure the socket nonblocking line-buffered and
 		# schedule this object's server_data_available method
@@ -240,7 +240,7 @@ namespace eval ::fa_adept {
 			return 0
 		}
 
-		logger "FlightAware server SSL certificate validated"
+		log_locally "FlightAware server SSL certificate validated"
 		return 1
     }
 
@@ -267,7 +267,7 @@ namespace eval ::fa_adept {
 		# if end of file on the socket, close the socket and attempt to reopen
 		if {[eof $sock]} {
 			reap_any_dead_children
-			logger "lost connection to FlightAware, reconnecting..."
+			log_locally "lost connection to FlightAware, reconnecting..."
 			close_socket_and_reopen
 			return
 		}
@@ -275,7 +275,7 @@ namespace eval ::fa_adept {
 		# get a line of data from the socket.  if we get an error, close the
 		# socket and attempt to reopen
 		if {[catch {set size [gets $sock line]} catchResult] == 1} {
-			logger "got '$catchResult' reading FlightAware socket, reconnecting... "
+			log_locally "got '$catchResult' reading FlightAware socket, reconnecting... "
 			close_socket_and_reopen
 		}
 
@@ -356,16 +356,16 @@ namespace eval ::fa_adept {
 				set ::flightaware_user $row(user)
 			}
 
-			logger "logged in to FlightAware as user $::flightaware_user"
+			log_locally "logged in to FlightAware as user $::flightaware_user"
 			cancel_connect_timer
 		} else {
 			# NB do more here, like UI stuff
-			logger "*******************************************"
-			logger "LOGIN FAILED: status '$row(status)': reason '$row(reason)'"
-			logger "please correct this, possibly using piaware-config"
-			logger "to set valid Flightaware user name and password."
-			logger "piaware will now exit."
-			logger "You can start it up again using 'sudo /etc/init.d/piaware start'"
+			log_locally "*******************************************"
+			log_locally "LOGIN FAILED: status '$row(status)': reason '$row(reason)'"
+			log_locally "please correct this, possibly using piaware-config"
+			log_locally "to set valid Flightaware user name and password."
+			log_locally "piaware will now exit."
+			log_locally "You can start it up again using 'sudo /etc/init.d/piaware start'"
 			exit 4
 		}
 	}
@@ -377,7 +377,7 @@ namespace eval ::fa_adept {
 		upvar $_row row
 
 		if {[info exists row(message)]} {
-			logger "NOTICE from adept server: $row(message)"
+			log_locally "NOTICE from adept server: $row(message)"
 		}
 	}
 
@@ -391,7 +391,7 @@ namespace eval ::fa_adept {
 		if {![info exists row(reason)]} {
 			set row(reason) "unknown"
 		}
-		logger "NOTICE adept server is shutting down.  reason: $row(reason)"
+		log_locally "NOTICE adept server is shutting down.  reason: $row(reason)"
 	}
 
 	#
@@ -448,15 +448,15 @@ namespace eval ::fa_adept {
 
 		# cancel the current alive timeout timer if it exists
 		if {![info exists aliveTimerID]} {
-			logger "server is sending alive messages; we will expect them"
+			log_locally "server is sending alive messages; we will expect them"
 		} else {
-			#logger "alive message received from FlightAware"
+			#log_locally "alive message received from FlightAware"
 			cancel_alive_timer
 		}
 
 		# schedule alive_timeout to run in the future
 		set aliveTimerID [after $afterMS [list $this alive_timeout]]
-		#logger "handle_alive_message: alive timer ID is $aliveTimerID"
+		#log_locally "handle_alive_message: alive timer ID is $aliveTimerID"
 	}
 
 	#
@@ -464,12 +464,12 @@ namespace eval ::fa_adept {
 	#
 	method cancel_alive_timer {} {
 		if {![info exists aliveTimerID]} {
-			#logger "cancel_alive_timer: no extant timer ID, doing nothing..."
+			#log_locally "cancel_alive_timer: no extant timer ID, doing nothing..."
 		} else {
 			if {[catch {after cancel $aliveTimerID} catchResult] == 1} {
-				#logger "cancel_alive_timer: cancel failed: $catchResult"
+				#log_locally "cancel_alive_timer: cancel failed: $catchResult"
 			} else {
-				#logger "cancel_alive_timer: canceled $aliveTimerID"
+				#log_locally "cancel_alive_timer: canceled $aliveTimerID"
 			}
 			unset aliveTimerID
 		}
@@ -480,7 +480,7 @@ namespace eval ::fa_adept {
 	#  it goes off
 	#
 	method alive_timeout {} {
-		logger "timed out waiting for alive message from FlightAware, reconnecting..."
+		log_locally "timed out waiting for alive message from FlightAware, reconnecting..."
 		close_socket_and_reopen
 	}
 
@@ -647,7 +647,7 @@ namespace eval ::fa_adept {
     #
     method send {text} {
 		if {[catch {puts $sock $text} catchResult] == 1} {
-			logger "got '$catchResult' writing to FlightAware socket, reconnecting..."
+			log_locally "got '$catchResult' writing to FlightAware socket, reconnecting..."
 			close_socket_and_reopen
 		}
     }
@@ -727,7 +727,7 @@ namespace eval ::fa_adept {
 		}
 
 		if {!$state} {
-			logger "data isn't making it to FlightAware, reconnecting..."
+			log_locally "data isn't making it to FlightAware, reconnecting..."
 			close_socket_and_reopen
 		}
 	}

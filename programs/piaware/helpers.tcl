@@ -27,9 +27,9 @@ proc log_locally {text} {
 # greetings - issue a startup message
 #
 proc greetings {} {
-	logger "****************************************************"
-	logger "piaware version $::piawareVersion is running, process ID [pid]"
-	logger "your system info is: [exec /bin/uname --all]"
+	log_locally "****************************************************"
+	log_locally "piaware version $::piawareVersion is running, process ID [pid]"
+	log_locally "your system info is: [exec /bin/uname --all]"
 }
 
 #
@@ -114,7 +114,7 @@ proc log_stdout_stderr_to_file {} {
 # switch_logfile - close and rename the log file and open a new one
 #
 proc switch_logfile {} {
-	logger "switching log files"
+	log_locally "switching log files"
 	file rename -force -- /tmp/piaware.out /tmp/piaware.out.yesterday
 	log_stdout_stderr_to_file
 }
@@ -150,7 +150,7 @@ proc create_pidfile {} {
 		return
 	}
 
-	logger "creating pidfile $file"
+	log_locally "creating pidfile $file"
 
 	set fp [open $file w]
 	puts $fp [pid]
@@ -166,7 +166,7 @@ proc remove_pidfile {} {
 		return
 	}
 
-	logger "removing pidfile $file"
+	log_locally "removing pidfile $file"
 	if {[catch {file delete $file} catchResult] == 1} {
 		logger "failed to remove pidfile: $catchResult, continuing..."
 	}
