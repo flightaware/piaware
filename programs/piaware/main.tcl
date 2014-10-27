@@ -31,9 +31,10 @@ proc main {{argv ""}} {
         {p.arg "" "specify the name of a file to write our pid in"}
         {serverport.arg "1200" "specify alternate server port (for FA testing)"}
         {debug  "log to stdout rather than the log file"}
+        {v  "emit version information and exit"}
     }
 
-    set usage ": $::argv0 ?-p?"
+    set usage ": $::argv0 ?-p pidfile? ?-v? ?-debug? ?-serverport <port>? "
 
     if {[catch {array set ::params [::cmdline::getoptions argv $options $usage]} catchResult] == 1} {
         puts stderr $catchResult
@@ -44,6 +45,11 @@ proc main {{argv ""}} {
         puts stderr [::cmdline::usage $options]
         exit 1
     }
+
+	if {$::params(v)} {
+		puts stdout "piaware version $::piawareVersion"
+		exit 0
+	}
 
 	user_check
 
