@@ -52,15 +52,10 @@ proc main {{argv ""}} {
 		exit 0
 	}
 
+	setup_faup1090_vars
+
 	# check what user we're running as
 	user_check
-
-	# if they requested a debug port, give them one
-	if {$::params(debugport) != 0} {
-		logger "starting console server on port $::params(debugport) due to -debugport argument to piaware"
-		IpConsole console
-		console setup_server -port $::params(debugport)
-	}
 
 	load_piaware_config_and_stuff
 
@@ -85,9 +80,13 @@ if 0 {
 	# maintain a pidfile so we don't get multiple copies of ourself
 	create_pidfile
 
-	# set the number of messages received so far to 0
-	set_prior_messages_received 0
- 
+	# if they requested a debug port, give them one
+	if {$::params(debugport) != 0} {
+		logger "starting console server on port $::params(debugport) due to -debugport argument to piaware"
+		IpConsole console
+		console setup_server -port $::params(debugport)
+	}
+
 	# start logging to a file unless configured for debug
 	if {!$::params(debug)} {
 		log_stdout_stderr_to_file

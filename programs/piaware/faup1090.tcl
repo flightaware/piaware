@@ -4,13 +4,53 @@
 # Copyright (C) 2014 FlightAware LLC, All Rights Reserved
 #
 
-# initially retry after this many seconds
-set ::faup1090ConnectRetryInterval 10
-set ::nfaupMessagesThisPeriod 0
+#
+# setup_faup1090_vars - setup vars but don't start faup1090
+#
+proc setup_faup1090_vars {} {
+	# initially retry after this many seconds
+	set ::faup1090ConnectRetryInterval 10
+	set ::nfaupMessagesThisPeriod 0
+
+	#
+	set ::lastAdsbClock [clock seconds]
+	set ::lastConnectAttempt 0
+
+	set ::priorFaupMessagesReceived -1
+	set_prior_messages_received 0
+
+	# we didn't really see it but we have to start the time from somewhere
+	# and if we initialize it to 0 that's pretty far in the past, i.e. 1970
+	saw_adsb_producer_program
+}
 
 #
-set ::lastAdsbClock 0
-set ::lastConnectAttempt 0
+# schedule_fa_style_adsb_port_connect_attempt - schedule an attempt to connect
+#  to the fa-style ADS-B port (FA dump1090-provided for FA-faup1090 provided),
+#  canceling the prior one if one was already scheduled
+#
+# support "idle" as an argument to do "after idle" else a number of seconds
+#
+proc schedule_fa_style_adsb_port_connect_attempt {inSeconds} {
+	if {[info exists ::adsbPortConnectTimer]} {
+		after cancel $::adsbPortConnectTimer
+		#logger "canceled prior adsb port connect attempt timer $::adsbPortConnectTimer"
+	}
+
+	if {$inSeconds == "idle"} {
+		set ms "idle"
+		set explain "when idle"
+	} elseif {[string is integer -strict $inSeconds]} {
+		set ms [expr {$inSeconds * 1000}]
+		set explain "in $inSeconds seconds"
+	} else {
+		error "argument must be an integer or 'idle'"
+	}
+
+	set ::adsbPortConnectTimer [after $ms connect_fa_style_adsb_port]
+	#logger "scheduled FA-style ADS-B port connect attempt $explain as timer ID $::adsbPortConnectTimer"
+}
+
 #
 # connect_fa_style_adsb_port - setup a client socket that connects to faup1090
 #  fa "baked" port 10001
@@ -22,8 +62,7 @@ proc connect_fa_style_adsb_port {} {
 
 	if {![is_adsb_program_running]} {
 		logger "no ADS-B data program is serving on port 30005, next check in 60s"
-		set ::connected1090 0
-		after 60000 connect_fa_style_adsb_port
+		schedule_fa_style_adsb_port_connect_attempt 60
 		return
 	}
 
@@ -46,13 +85,13 @@ proc connect_fa_style_adsb_port {} {
 			logger "error opening connection to $serverProgram : $::faup1090Socket, retrying in ${::faup1090ConnectRetryInterval}s..."
 		}
 		unset ::faup1090Socket
-		after [expr {$::faup1090ConnectRetryInterval * 1000}] connect_fa_style_adsb_port
+		schedule_fa_style_adsb_port_connect_attempt $::faup1090ConnectRetryInterval
 		set ::faup1090ConnectRetryInterval 60
 		return
     }
 
 	fconfigure $::faup1090Socket -buffering line -translation binary -blocking 0
-    fileevent $::faup1090Socket readable faup1090_data_available
+    fileevent $::faup1090Socket readable [list faup1090_data_available $::faup1090Socket]
     logger "$::argv0 is connected to $serverProgram on port $::faup1090Port"
 	set ::connected1090 1
 }
@@ -60,48 +99,55 @@ proc connect_fa_style_adsb_port {} {
 #
 # close_faup1090_socket - cleanly close the faup1090 socket
 #
-proc close_faup1090_socket {} {
-    if {[info exists ::faup1090Socket]} {
-		if {[catch {close $::faup1090Socket} catchResult]} {
-			logger "got '$catchResult' closing client socket $::faup1090Socket, continuing"
+proc close_faup1090_socket {{sock ""}} {
+	if {$sock == ""} {
+		if {![info exists ::faup1090Socket]} {
+			logger "close_faup1090_socket called with no socket argument and no faup1090 global socket"
+			return
 		}
+		set sock $::faup1090Socket
+	}
 
-		unset ::faup1090Socket
-		set ::connected1090 0
-		set ::presumed1090 0
-    }
+	if {[catch {close $sock} catchResult]} {
+		logger "got '$catchResult' closing client socket $ock continuing..."
+	}
+
+	unset -nocomplain ::faup1090Socket
+	set ::connected1090 0
+	set ::presumed1090 0
 }
 
 #
 # close_faup1090_socket_and_reopen - pretty self-explanatory
 #
-proc close_faup1090_socket_and_reopen {} {
-	close_faup1090_socket
+proc close_faup1090_socket_and_reopen {{sock ""}} {
+	close_faup1090_socket $sock
 
 	if {[clock seconds] - $::lastConnectAttempt > 60} {
-		after idle connect_fa_style_adsb_port
+		schedule_fa_style_adsb_port_connect_attempt idle
 		return
 	}
 
 	logger "will attempt to connect to faup1090 in 60s..."
-	after 60000 connect_fa_style_adsb_port
+	schedule_fa_style_adsb_port_connect_attempt 60
 }
 
 #
 # faup1090_data_available - callback routine when data is available from the
 #  socket to faup1090
 #
-proc faup1090_data_available {} {
-	# if eof, cleanly close the faup1090 socket
-    if {[eof $::faup1090Socket]} {
-		logger "lost connection to faup1090, disconnecting..."
-		close_faup1090_socket_and_reopen
+proc faup1090_data_available {sock} {
+	# if eof, cleanly close the faup1090 socket and reconnect...
+    if {[eof $sock]} {
+		logger "lost connection to faup1090, reconnecting..."
+		close_faup1090_socket_and_reopen $sock
 		return
     }
 
-    if {[catch {set size [gets $::faup1090Socket line]} catchResult] == 1} {
+	# try to read, if that fails, disconnect and reconnect...
+    if {[catch {set size [gets $sock line]} catchResult] == 1} {
 		logger "faup1090_data_available: got '$catchResult' reading $::faup1090Socket"
-		close_faup1090_socket_and_reopen
+		close_faup1090_socket_and_reopen $sock
 		return
     }
 
@@ -204,7 +250,7 @@ proc is_faup1090_running {} {
 }
 
 #
-# faup1090_messages_being_received_check - by faup1090_running_periodic_check
+# adsb_messages_being_received_check - by faup1090_running_periodic_check
 #  to see if we have received messages in the last few minutes
 #
 #  return 1 if it's up or enough time hasn't elapsed that we should do
@@ -214,24 +260,20 @@ proc is_faup1090_running {} {
 #  attempted to restart (0 return indicates don't proceed with
 #  other checks)
 #
-proc faup1090_messages_being_received_check {} {
-	if {!$::connected1090} {
-		# we are saying keep going, not that it is really ok
+proc adsb_messages_being_received_check {} {
+	set secondsSinceLast [expr {[clock seconds] - $::lastAdsbClock}]
+	if {$secondsSinceLast < $::noMessageActionIntervalSeconds} {
+		if {$secondsSinceLast > 300} {
+			logger "seconds since last message or startup ($secondsSinceLast) less than threshold for action ($::noMessageActionIntervalSeconds), waiting..."
+		}
 		return 1
 	}
-
-	if {[info exists ::priorFaupMessagesReceived]} {
-		set secondsSinceLast [expr {[clock seconds] - $::priorFaupClock}]
-		if {$secondsSinceLast < $::noMessageActionIntervalSeconds} {
-			return 1
-		}
-		set nNewMessagesReceived [expr {$::::nfaupMessagesReceived - $::priorFaupMessagesReceived}]
-		if {$nNewMessagesReceived == 0} {
-			logger "no new messages received in $secondsSinceLast seconds, it might just be that there haven't been any aircraft nearby but I'm going to try to restart dump1090, possibly restart faup1090 and definitely reconnect, just in case..."
-			attempt_dump1090_restart
-			stop_faup1090_close_faup1090_socket_and_reopen
-			return 0
-		}
+	set nNewMessagesReceived [expr {$::::nfaupMessagesReceived - $::priorFaupMessagesReceived}]
+	if {$nNewMessagesReceived == 0} {
+		logger "no new messages received in $secondsSinceLast seconds, it might just be that there haven't been any aircraft nearby but I'm going to try to restart dump1090, possibly restart faup1090 and definitely reconnect, just in case..."
+		attempt_dump1090_restart
+		stop_faup1090_close_faup1090_socket_and_reopen
+		return 0
 	}
 
 	set_prior_messages_received $::nfaupMessagesReceived
@@ -243,8 +285,10 @@ proc faup1090_messages_being_received_check {} {
 #  when we set it
 #
 proc set_prior_messages_received {quantity} {
-	set ::priorFaupMessagesReceived $quantity
-	set ::priorFaupClock [clock seconds]
+	if {$quantity != $::priorFaupMessagesReceived} {
+		set ::priorFaupMessagesReceived $quantity
+		set ::priorFaupClock [clock seconds]
+	}
 }
 
 #
@@ -262,7 +306,7 @@ proc periodically_check_adsb_traffic {} {
 }
 
 #
-# check_adsb_traffic - see if ads-b messages are being received.
+# check_adsb_traffic - see if ADS-B messages are being received.
 #
 # see if messages are being received, what's feeding if they are, make
 # sure faup1090 is up if we're using it, start/restart if necessary
@@ -272,7 +316,7 @@ proc check_adsb_traffic {} {
 
 	# perform the messages-being-received check and don't go on if
 	# it tells us not to
-	if {![faup1090_messages_being_received_check]} {
+	if {![adsb_messages_being_received_check]} {
 		return
 	}
 
@@ -280,7 +324,7 @@ proc check_adsb_traffic {} {
 	# if faup1090 is running, we're done
 	#
 	if {[is_faup1090_running]} {
-		#logger "periodically_check_adsb_traffic: faup1090 is running"
+		#logger "check_adsb_traffic: faup1090 is running"
 		return
 	}
 
@@ -289,7 +333,10 @@ proc check_adsb_traffic {} {
 
 	# if nothing's there to feed us, we're done
 	if {![is_adsb_program_running]} {
-		logger "no ads-b producer (dump1090, modesmixer, etc) appears to be running or is not listening for connections on port 30005, next check in 5m"
+		if {[adsb_producer_force_start_check]} {
+			return
+		}
+		logger "no ADS-B producer (dump1090, modesmixer, etc) appears to be running or is not listening for connections on port 30005, next check in 5m"
 		return
 	}
 
@@ -303,12 +350,39 @@ proc check_adsb_traffic {} {
 			# down
 			logger "$::netstatus(program_10001) is listening for connections on FA-style port 10001"
 		}
+		saw_adsb_producer_program
 		return
 	}
 
 	# nothing's feeding us, try to start faup1090
 	logger "starting faup1090 to translate 30005 beast to 10001 flightaware"
 	start_faup1090
+}
+
+#
+# saw_adsb_producer_program - mark that we saw there is a producer program
+#  running, specifically the current time
+#
+proc saw_adsb_producer_program {} {
+	set ::sawAdsbProducerProgramAtClock [clock seconds]
+}
+
+#
+# adsb_producer_force_start_check - if enough time has elapsed then try
+#  to start the ADS-B producer program (dump1090 probably) and return 1,
+#  else return 0
+#
+proc adsb_producer_force_start_check {} {
+	set secondsSinceSawProgram [expr {[clock seconds] - $::sawAdsbProducerProgramAtClock}]
+	if {$secondsSinceSawProgram >= $::adsbNoProducerStartDelaySeconds} {
+		logger "no ADS-B producer program seen for $secondsSinceSawProgram seconds, trying to start it..."
+		attempt_dump1090_restart start
+		return 1
+	} else {
+		logger "no ADS-B producer program seen for $secondsSinceSawProgram seconds (or since piaware started), will attempt to start it next check after $::adsbNoProducerStartDelaySeconds seconds..."
+	}
+
+	return 0
 }
 
 #
@@ -325,12 +399,12 @@ proc stop_faup1090_close_faup1090_socket_and_reopen {} {
 #
 # attempt_dump1090_restart - restart dump1090 if we can figure out how to
 #
-proc attempt_dump1090_restart {} {
+proc attempt_dump1090_restart {{action restart}} {
 	set scripts [glob -nocomplain /etc/init.d/*dump1090*]
 
 	switch [llength $scripts] {
 		0 {
-			logger "can't restart dump1090, no dump1090 script in /etc/init.d"
+			logger "can't $action dump1090, no dump1090 script in /etc/init.d"
 			return
 		}
 
@@ -352,13 +426,13 @@ proc attempt_dump1090_restart {} {
 		}
 	}
 
-	logger "attempting to restart dump1090 using '$script restart'..."
-	set exitStatus [system "$script restart"]
+	logger "attempting to $action dump1090 using '$script $action'..."
+	set exitStatus [system "$script $action"]
 
 	if {$exitStatus == 0} {
-		logger "dump1090 restart appears to have been successful"
+		logger "dump1090 $action appears to have been successful"
 	} else {
-		logger "got exit status $exitStatus while trying to restart dump1090"
+		logger "got exit status $exitStatus while trying to $action dump1090"
 	}
 }
 
