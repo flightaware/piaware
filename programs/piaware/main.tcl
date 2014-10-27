@@ -75,6 +75,9 @@ if 0 {
 
 	# maintain a pidfile so we don't get multiple copies of ourself
 	create_pidfile
+
+	# set the number of messages received so far to 0
+	set_prior_messages_received 0
  
 	# start logging to a file unless configured for debug
 	if {!$::params(debug)} {

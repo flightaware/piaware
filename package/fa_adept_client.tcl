@@ -471,7 +471,7 @@ namespace eval ::fa_adept {
 	method handle_manual_update_message {_row} {
 		load_piaware_config
 
-		logger "manual update (user-initiated) requested by adept server"
+		logger "manual update (user-initiated via their flightaware control page) requested by adept server"
 
 		if {![update_check manualUpdate]} {
 			return

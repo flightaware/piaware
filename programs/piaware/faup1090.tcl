@@ -22,6 +22,7 @@ proc connect_fa_style_adsb_port {} {
 
 	if {![is_adsb_program_running]} {
 		logger "no ADS-B data program is serving on port 30005, next check in 60s"
+		set ::connected1090 0
 		after 60000 connect_fa_style_adsb_port
 		return
 	}
@@ -232,9 +233,18 @@ proc faup1090_messages_being_received_check {} {
 			return 0
 		}
 	}
-	set ::priorFaupMessagesReceived $::nfaupMessagesReceived
-	set ::priorFaupClock [clock seconds]
+
+	set_prior_messages_received $::nfaupMessagesReceived
 	return 1
+}
+
+#
+# set_prior_messages_received - set the count of prior messages received and
+#  when we set it
+#
+proc set_prior_messages_received {quantity} {
+	set ::priorFaupMessagesReceived $quantity
+	set ::priorFaupClock [clock seconds]
 }
 
 #
