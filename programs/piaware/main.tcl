@@ -48,7 +48,7 @@ proc main {{argv ""}} {
     }
 
 	if {$::params(v)} {
-		puts stdout "piaware version $::piawareVersion"
+		puts stdout "$::piawareVersion"
 		exit 0
 	}
 
