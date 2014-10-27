@@ -590,22 +590,18 @@ catch {::itcl::delete class IpConsole}
         stop_server
     }
 
-    #
-    # log_message - log a message to stderr including the name of the object
-    #   through which log_message is being invoked ($this)
-    #
-    method log_message {message} {
-		puts stderr "$this: $message"
-    }
+	method logger {message} {
+		::logger "(console) $message"
+	}
 
     #
     # handle_connect_request - handle a request to connect to the console
     #  port from a remote client
     #
     method handle_connect_request {socket ip port} {
-		log_message "connect from $socket $ip $port"
+		logger "connect from $socket $ip $port"
 		if {$ip != "127.0.0.1"} {
-			log_message "ip not localhost, ignored"
+			logger "ip not localhost, ignored"
 			close $socket
 			return
 		}
@@ -634,7 +630,7 @@ catch {::itcl::delete class IpConsole}
 		}
 
 		if {[catch {close $sock} catchResult] == 1} {
-		    log_message "error closing $sock: $catchResult (ignored)"
+		    logger "error closing $sock: $catchResult (ignored)"
 		}
 	}
 
@@ -643,7 +639,7 @@ catch {::itcl::delete class IpConsole}
     #
     method handle_remote_request {sock} {
 		if {[eof $sock]} {
-			log_message "EOF on $sock"
+			logger "EOF on $sock"
 			close_client_socket $sock
 			return
 		}
@@ -658,12 +654,14 @@ catch {::itcl::delete class IpConsole}
 				"quit" {
 					puts $sock [list ok goodbye]
 					close_client_socket $sock
+					logger "client disconnected by 'quit' command"
 					return
 				}
 
 				"exit" {
 					puts $sock [list ok "goodbye, use !exit to exit the server"]
 					close_client_socket $sock
+					logger "client disconnected by 'exit' command"
 					return
 				}
 
@@ -699,7 +697,7 @@ catch {::itcl::delete class IpConsole}
 		stop_server
 
 		if {[catch {socket -server [list $this handle_connect_request] $port} serverSocket] == 1} {
-			log_message "Error opening server socket: $port: $serverSocket"
+			logger "Error opening server socket: $port: $serverSocket"
 			return 0
 		}
 		return 1
@@ -711,7 +709,7 @@ catch {::itcl::delete class IpConsole}
     method stop_server {} {
 		if {[info exists serverSock]} {
 			if {[catch {close $serverSock} result] == 1} {
-				log_message "Error closing server socket '$serverSock': $result"
+				logger "Error closing server socket '$serverSock': $result"
 			}
 			unset serverSock
 		}
