@@ -6,6 +6,7 @@
 
 package require http
 package require tls
+package require Itcl
 
 set piawarePidFile /var/run/piaware.pid
 set piawareConfigFile /etc/piaware
