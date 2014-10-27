@@ -31,6 +31,7 @@ proc main {{argv ""}} {
         {p.arg "" "specify the name of a file to write our pid in"}
         {serverport.arg "1200" "specify alternate server port (for FA testing)"}
         {debug  "log to stdout rather than the log file"}
+        {debugport.arg "0" "open a localhost-only port to the tcl interpreter"}
         {v  "emit version information and exit"}
     }
 
@@ -51,7 +52,15 @@ proc main {{argv ""}} {
 		exit 0
 	}
 
+	# check what user we're running as
 	user_check
+
+	# if they requested a debug port, give them one
+	if {$::params(debugport) != 0} {
+		logger "starting console server on port $::params(debugport) due to -debugport argument to piaware"
+		IpConsole console
+		console setup_server -port $::params(debugport)
+	}
 
 	load_piaware_config_and_stuff
 
