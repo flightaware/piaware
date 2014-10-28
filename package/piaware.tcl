@@ -403,6 +403,7 @@ proc reboot {} {
 proc update_operating_system_and_packages {} {
 	logger "updating operating system, packages, kernel, and then rebooting"
     upgrade_raspbian_packages
+    upgrade_dump1090
     upgrade_piaware
 	upgrade_raspbian_kernel
     reboot
@@ -459,7 +460,8 @@ proc run_program_log_output {command} {
 }
 
 #
-# external_program_data_available
+# external_program_data_available - callback routine when data is available
+#  from some external command we are running
 #
 proc external_program_data_available {fp} {
     if {[eof $fp]} {
@@ -500,7 +502,7 @@ proc init_http_client {} {
 proc fetch_url_as_string {url} {
     init_http_client
 
-    set req [::http::geturl $requestUrl -timeout 15000]
+    set req [::http::geturl $url -timeout 15000]
 
     set status [::http::status $req]
     set data [::http::data $req]
@@ -509,69 +511,20 @@ proc fetch_url_as_string {url} {
 	logger "got status $status trying to fetch $url"
 
     if {$status == "ok"} {
-		return $data
+		if {[string index $data end] == "\n"} {
+			return [string range $data 0 end-1]
+		} else {
+			return $data
+		}
     }
     return ""
 }
 
 #
-# get_name_of_latest_version_of_piaware_debian_package
+# fetch_url_as_binary_file - fetch the URL to the file, 1 on success else 0
 #
-proc get_name_of_latest_version_of_piaware_debian_package {} {
-
-    return [fetch_url_as_string "https://flightaware.com/adsb/piaware/files/latest"]
-}
-
-#
-# get_name_of_latest_version_of_dump1090_debian_package
-#
-proc get_name_of_latest_version_of_dump1090_debian_package {} {
-
-    return [fetch_url_as_string "https://flightaware.com/adsb/piaware/files/latest_dump1090"]
-}
-
-#
-# upgrade_piaware - fetch file information about the latest version of piaware
-#
-# check it for reasonability
-#
-# compare it to the version we're running and if it's not current, update
-# the current site
-#
-proc upgrade_piaware {} {
-    set debianPackageFile [get_name_of_latest_version_of_piaware_debian_package]
-    if {$debianPackageFile == ""} {
-		logger "unable to upgrade piaware: failed to get name of package file"
-		return 0
-    }
-
-    if {[string first / $debianPackageFile] >= 0} {
-		logger "unable to upgrade piaware: illegal character in version '$debianPackageFile'"
-		return 0
-    }
-
-    if {[string match "*$::piawareVersion*" $debianPackageFile]} {
-		logger "already running the latest version of piaware"
-		return 0
-    }
-
-	if {![query_dpkg_name_and_version piaware currentPackageName currentPackageVersion]} {
-		logger "unable to query current version of piaware from dpkg"
-		return 0
-	}
-
-	set compare [version_compare $currentPackageVersion $debianPackageFile]
-
-	if {$compare > 0} {
-		logger "current version $currentPackageVersion is newer than requested $debianPackageFile, skipping"
-		return 0
-	}
-
-    set requestUrl https://flightaware.com/adsb/piaware/files/$debianPackageFile
-    logger "fetching latest piaware version from $requestUrl"
-
-    set outputFile /tmp/$debianPackageFile
-    set req [::http::geturl $requestUrl -timeout 15000 -binary 1 -strict 0]
+proc fetch_url_as_binary_file {url outputFile} {
+    set req [::http::geturl $url -timeout 15000 -binary 1 -strict 0]
 
     set status [::http::status $req]
     set data [::http::data $req]
@@ -582,18 +535,109 @@ proc upgrade_piaware {} {
 		fconfigure $ofp -translation binary -encoding binary
 		puts -nonewline $ofp $data
 		close $ofp
-    } else {
-		logger "got status $status trying to fetch piaware"
+		return 1
+	}
+
+	logger "got status $status trying to fetch $url"
+	return 0
+}
+
+
+#
+# upgrade_piaware - fetch file information about the latest version of piaware
+#
+# check it for reasonability
+#
+# compare it to the version we're running and if it's not current, update
+# the current site
+#
+proc upgrade_piaware {} {
+    set debianPackageFile [fetch_url_as_string "https://flightaware.com/adsb/piaware/files/latest"]
+    if {$debianPackageFile == ""} {
+		logger "unable to upgrade piaware: failed to get name of package file"
 		return 0
     }
 
-    logger "installing piaware..."
-    run_program_log_output "dpkg -i $outputFile"
+    if {[string first / $debianPackageFile] >= 0} {
+		logger "unable to upgrade piaware: illegal character in version '$debianPackageFile'"
+		return 0
+    }
+
+    set requestUrl https://flightaware.com/adsb/piaware/files/$debianPackageFile
+	return [upgrade_dpkg_package piaware $requestUrl]
+}
+
+#
+# upgrade_dump1090 - fetch file information about the latest version of dump1090
+#
+# check it for reasonability
+#
+# compare it to the version we're running and if it's not current, update
+# the current site
+#
+proc upgrade_dump1090 {} {
+	logger "upgrade of dump1090 requested"
+
+	if {[glob -nocomplain /etc/init.d/fadump1090.sh] == ""} {
+		logger "you don't appear to have FlightAware's (no /etc/init.d/fadump1090.sh), i'm not going to mess with it"
+		return 0
+	}
+
+    set debianPackageFile [fetch_url_as_string "https://flightaware.com/adsb/piaware/files/latest_dump1090"]
+    if {$debianPackageFile == ""} {
+		logger "unable to upgrade dump1090: failed to get name of package file"
+		return 0
+    }
+
+    if {[string first / $debianPackageFile] >= 0} {
+		logger "unable to upgrade dump1090: illegal character in version '$debianPackageFile'"
+		return 0
+    }
+
+    set requestUrl https://flightaware.com/adsb/piaware/files/$debianPackageFile
+	return [upgrade_dpkg_package dump1090 $requestUrl]
+}
+
+#
+# upgrade_dpkg_package - package name needs to be a legit fragment that could
+#  only match one package, url is where to get it from
+#
+proc upgrade_dpkg_package {name url} {
+	logger "considering upgrading $name from $url..."
+	if {![query_dpkg_name_and_version $name currentPackageName currentPackageVersion]} {
+		logger "unable to query current version of $name from dpkg"
+		return 0
+	}
+
+	set compare [compare_versions_from_packages $currentPackageVersion $url]
+
+	if {$compare > 0} {
+		logger "current version $currentPackageVersion is newer than requested $url, skipping..."
+		return 0
+	}
+
+	if {$name == "piaware"} {
+		if {[compare_versions_from_packages $::piawareVersion $url] > 0} {
+			logger "current version of piaware $::piawareVersion is newer than requested, skipping..."
+			return 0
+		}
+	}
+
+    logger "fetching latest $name version from $url"
+
+	set tmpFile "/tmp/[file tail $url]"
+
+	if {![fetch_url_as_binary_file $url $tmpFile]} {
+		return 0
+	}
+
+    logger "installing $name..."
+    run_program_log_output "dpkg -i $tmpFile"
 
     logger "installing any required dependencies"
     run_program_log_output "apt-get install -fy"
 
-	logger "upgrade complete."
+	logger "upgrade of $name complete."
     return 1
 }
 
@@ -799,20 +843,43 @@ proc version_compare {v1 v2} {
 }
 
 #
+# extract_version_number - extract a version number from a package string or
+#  something... find stuff like 1.15-3 and 1.16
+#
+# if nothing matched, return an empty string
+#
+proc extract_version_number {string} {
+	set expression {([0-9]*\.[0-9]*-[0-9]*)}
+	if {[regexp $expression $string dummy string]} {
+		return $string
+	}
+
+	set expression {([0-9]*\.[0-9]*)}
+	if {[regexp $expression $string dummy string]} {
+		return $string
+	}
+
+	return ""
+}
+
+#
 # compare_versions_from_packages - extract version numbers from two longer
 #   package names and return version_compare of them
 #
 proc compare_versions_from_packages {v1 v2} {
-	set expression {([0-9]*\.[0-9]*-[0-9]*)}
-	if {![regexp $expression $v1 dummy v1]} {
+	set nv1 [extract_version_number $v1]
+	if {$nv1 == ""} {
 		error "can't get a version number out of $v1"
 	}
 
-	if {![regexp $expression $v2 dummy v2]} {
+	set nv2 [extract_version_number $v2]
+	if {$nv2 == ""} {
 		error "can't get a version number out of $v2"
 	}
 
-	return [version_compare $v1 $v2]
+	set result [version_compare $nv1 $nv2]
+	#logger "result of version_compare '$v1' '$v2' is $result"
+	return $result
 }
 
 package provide piaware 1.0

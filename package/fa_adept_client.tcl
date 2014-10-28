@@ -297,7 +297,7 @@ namespace eval ::fa_adept {
 		}
 
 		if {[catch {handle_response response} catchResult] == 1} {
-			logger "error handling message '$line' from server ($catchResult), ([string map {\n \\n \t \\t} [string range $::errorInfo 0 1000]]), continuing..."
+			logger "error handling message '[string map {\n \\n \t \\t} $line]' from server ($catchResult), ([string map {\n \\n \t \\t} [string range $::errorInfo 0 1000]]), continuing..."
 		}
     }
 
@@ -452,6 +452,10 @@ namespace eval ::fa_adept {
 	#   that we update the software
 	#
 	method handle_update_request {type _row} {
+		upvar $_row row
+
+		# force piaware config reload in case user changed config since
+		# we last looked
 		load_piaware_config
 
 		switch $type {
@@ -482,7 +486,7 @@ namespace eval ::fa_adept {
 		logger "performing $type update, action: $row(action)"
 
 		set restartPiaware 0
-		foreach action [split $action " "] {
+		foreach action [split $row(action) " "] {
 			switch $action {
 				"full" {
 					update_operating_system_and_packages
@@ -493,13 +497,24 @@ namespace eval ::fa_adept {
 				}
 
 				"piaware" {
-					upgrade_piaware
+					# only restart piaware if upgrade_piaware said it upgraded
+					# successfully
+					set restartPiaware [upgrade_piaware]
+				}
+
+				"restart_piaware" {
 					set restartPiaware 1
 				}
 
 				"dump1090" {
-					upgrade_dump1090
-					restart_dump1090
+					# try to upgrade dump1090 and if successful, restart it
+					if {[upgrade_dump1090]} {
+						attempt_dump1090_restart
+					}
+				}
+
+				"restart_dump1090" {
+					attempt_dump1090_restart
 				}
 
 				"reboot" {
@@ -507,7 +522,7 @@ namespace eval ::fa_adept {
 				}
 
 				default {
-					logger "unrecognized update action, ignored..."
+					logger "unrecognized update action '$action', ignoring..."
 				}
 			}
 		}
@@ -643,7 +658,7 @@ namespace eval ::fa_adept {
 		}
 
 		set message(type) log
-		set message(message) $text
+		set message(message) [string map {\n \\n \t \\t} $text]
 		set message(mac) [get_mac_address_or_quit]
 
 		foreach var "user" globalVar "::flightaware_user" {
@@ -730,6 +745,9 @@ namespace eval ::fa_adept {
 	#  disconnects and schedules reconnection shortly in the future
     #
     method send {text} {
+		# NB temp
+		#puts "send '$text'"
+
 		if {[catch {puts $sock $text} catchResult] == 1} {
 			log_locally "got '$catchResult' writing to FlightAware socket, reconnecting..."
 			close_socket_and_reopen
