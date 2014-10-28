@@ -103,7 +103,7 @@ proc confirm_nonblank_user_and_password_or_die {} {
 #
 proc log_stdout_stderr_to_file {} {
 	# log to /tmp/piaware.out
-	set fp [open /tmp/piaware.out w]
+	set fp [open /tmp/piaware.out a]
 	fconfigure $fp -buffering line
 	dup $fp stdout
 	dup $fp stderr

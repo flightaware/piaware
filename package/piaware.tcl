@@ -1,5 +1,5 @@
 #
-# piaware package - Copyright (C 2014 FlightAware LLC
+# piaware package - Copyright (C) 2014 FlightAware LLC
 #
 # Berkeley license
 #
@@ -25,19 +25,19 @@ proc load_piaware_config {} {
 }
 
 #
-# query_piaware_pkg - Figure out piaware package name and version
+# query_dpkg_name_and_version - Figure out an installed dpkg package name
+#   and version
 #
-# Find a package that has piaware in the name.  There will about for sure
-# be only one.
+# Find a package that has the requested name in the package name.
 #
 # Parse out the name and version into passed-in variables and return
 #  1 if successful or 0 if unsuccessful
 #
-proc query_piaware_pkg {_packageName _packageVersion} {
+proc query_dpkg_name_and_version {name _packageName _packageVersion} {
     upvar $_packageName packageName $_packageVersion packageVersion
 
-    if {[catch {set fp [open "|dpkg-query --show *piaware* 2>/dev/null"]} ] } {
-        logger "unable to run dpkg-query! can't determine piaware package info"
+    if {[catch {set fp [open "|dpkg-query --show *$name* 2>/dev/null"]} ] } {
+        logger "unable to run dpkg-query! can't determine $name package info"
         return 0
     }
 
@@ -63,7 +63,7 @@ proc load_piaware_config_and_stuff {} {
     load_piaware_config
 
     if {![info exists ::imageType]} {
-		if {[query_piaware_pkg packageName packageVersion]} {
+		if {[query_dpkg_name_and_version piaware packageName packageVersion]} {
 			set ::imageType "${packageName}_package"
 		}
     }
@@ -401,9 +401,41 @@ proc reboot {} {
 # * reboot
 #
 proc update_operating_system_and_packages {} {
-    upgrade_raspbian
+	logger "updating operating system, packages, kernel, and then rebooting"
+    upgrade_raspbian_packages
     upgrade_piaware
+	upgrade_raspbian_kernel
     reboot
+}
+
+#
+# upgrade_raspbian_packages - upgrade raspbian packages to the latest
+#
+proc upgrade_raspbian_packages {} {
+    logger "*** attempting to upgrade raspbian packages to the latest"
+
+    if {![run_program_log_output "apt-get --yes update"]} {
+		logger "aborting upgrade..."
+		return 0
+    }
+
+    if {![run_program_log_output "apt-get --yes upgrade"]} {
+		logger "aborting upgrade..."
+		return 0
+    }
+    return 1
+}
+
+#
+# upgrade_raspbian_kernel - upgrade the raspbian kernel, requires a reboot
+#   to take effect
+#
+proc upgrade_raspbian_kernel {} {
+    logger "*** attempting to upgrade raspbian kernel and boot files to the latest"
+    if {![run_program_log_output "rpi-update"]} {
+		logger "aborting upgrade..."
+		return 0
+    }
 }
 
 #
@@ -445,42 +477,57 @@ proc external_program_data_available {fp} {
     logger "> $line"
 }
 
-
 #
-# upgrade_raspbian - upgrade raspbian to the latest packages, kernel,
-#  libraries, boot files and whatnot
+# init_http_client - initialize the http client library
 #
-proc upgrade_raspbian {} {
-    logger "*** attempting to upgrade raspbian to the latest"
-
-    if {![run_program_log_output "apt-get --yes update"]} {
-		logger "aborting upgrade..."
-		return 0
-    }
-
-    if {![run_program_log_output "apt-get --yes upgrade"]} {
-		logger "aborting upgrade..."
-		return 0
-    }
-
-    if {![run_program_log_output "rpi-update"]} {
-		logger "aborting upgrade..."
-		return 0
-    }
-
-    return 1
-}
-
-#
-# init_http_client
+# can be called multiple times; only does its thing once
 #
 proc init_http_client {} {
     if {[info exists ::tlsInitialized]} {
 		return
     }
+
     ::tls::init -ssl2 0 -ssl3 0 -tls1 1
     ::http::register https 443 ::tls::socket
+
     set ::tlsInitialized 1
+}
+
+#
+# fetch_url_as_string - fetch an http[s] URL and return as a string or
+#   return an empty string if it failed or whatever
+#
+proc fetch_url_as_string {url} {
+    init_http_client
+
+    set req [::http::geturl $requestUrl -timeout 15000]
+
+    set status [::http::status $req]
+    set data [::http::data $req]
+    ::http::cleanup $req
+
+	logger "got status $status trying to fetch $url"
+
+    if {$status == "ok"} {
+		return $data
+    }
+    return ""
+}
+
+#
+# get_name_of_latest_version_of_piaware_debian_package
+#
+proc get_name_of_latest_version_of_piaware_debian_package {} {
+
+    return [fetch_url_as_string "https://flightaware.com/adsb/piaware/files/latest"]
+}
+
+#
+# get_name_of_latest_version_of_dump1090_debian_package
+#
+proc get_name_of_latest_version_of_dump1090_debian_package {} {
+
+    return [fetch_url_as_string "https://flightaware.com/adsb/piaware/files/latest_dump1090"]
 }
 
 #
@@ -508,6 +555,18 @@ proc upgrade_piaware {} {
 		return 0
     }
 
+	if {![query_dpkg_name_and_version piaware currentPackageName currentPackageVersion]} {
+		logger "unable to query current version of piaware from dpkg"
+		return 0
+	}
+
+	set compare [version_compare $currentPackageVersion $debianPackageFile]
+
+	if {$compare > 0} {
+		logger "current version $currentPackageVersion is newer than requested $debianPackageFile, skipping"
+		return 0
+	}
+
     set requestUrl https://flightaware.com/adsb/piaware/files/$debianPackageFile
     logger "fetching latest piaware version from $requestUrl"
 
@@ -534,30 +593,19 @@ proc upgrade_piaware {} {
     logger "installing any required dependencies"
     run_program_log_output "apt-get install -fy"
 
+	logger "upgrade complete."
     return 1
-
 }
 
 #
-# get_name_of_latest_version_of_piaware_debian_package
+# restart_piaware - restart the piaware program, called from the piaware
+# program, so it's a bit tricky
 #
-proc get_name_of_latest_version_of_piaware_debian_package {} {
-    init_http_client
-
-    set requestUrl "https://flightaware.com/adsb/piaware/files/latest"
-
-    set req [::http::geturl $requestUrl -timeout 15000]
-
-    set status [::http::status $req]
-    set data [::http::data $req]
-    ::http::cleanup $req
-
-    if {$status == "ok"} {
-		return $data
-    } else {
-		logger "got status $status trying to get name of latest version of piaware debian package"
-    }
-    return ""
+proc restart_piaware {} {
+	logger "restarting piaware. hopefully i'll be right back..."
+	system "/etc/init.d/piaware restart &"
+	sleep 10
+	logger "piaware failed to die, pid [pid]"
 }
 
 #
@@ -714,6 +762,57 @@ catch {::itcl::delete class IpConsole}
 			unset serverSock
 		}
     }
+}
+
+#
+# version_compare - comapre two piaware versions, treating empty as less
+# than anything nonempty.
+#
+# return -1 if the first is less than the second, 1 if the first is great
+# than the second, and 0 if they are equal
+#
+# unlike comparing floating point numbers, with this 1.10 > 1.9
+#
+# FlightAware dev note - this function is copied from the fa_web library
+#
+proc version_compare {v1 v2} {
+    if {$v1 == $v2} {
+        return 0
+    }
+
+    if {$v1 == "" && $v2 != ""} {
+        return -1
+    }
+
+    if {$v1 != "" && $v2 == ""} {
+        return 1
+    }
+
+    foreach x1 [split $v1 ".-"] x2 [split $v2 ".-"] {
+        if {$x1 < $x2} {
+            return -1
+        } elseif {$x1 > $x2} {
+            return 1
+        }
+    }
+    return 0
+}
+
+#
+# compare_versions_from_packages - extract version numbers from two longer
+#   package names and return version_compare of them
+#
+proc compare_versions_from_packages {v1 v2} {
+	set expression {([0-9]*\.[0-9]*-[0-9]*)}
+	if {![regexp $expression $v1 dummy v1]} {
+		error "can't get a version number out of $v1"
+	}
+
+	if {![regexp $expression $v2 dummy v2]} {
+		error "can't get a version number out of $v2"
+	}
+
+	return [version_compare $v1 $v2]
 }
 
 package provide piaware 1.0

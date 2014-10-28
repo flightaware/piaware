@@ -326,11 +326,11 @@ namespace eval ::fa_adept {
 			}
 
 			"request_auto_update" {
-				handle_auto_update_message row
+				handle_update_request auto row
 			}
 
 			"request_manual_update" {
-				handle_manual_update_message row
+				handle_update_request manual row
 			}
 
 			default {
@@ -448,37 +448,75 @@ namespace eval ::fa_adept {
 	}
 
 	#
-	# handle_auto_update_message - handle a message from the server requesting
+	# handle_update_request - handle a message from the server requesting
 	#   that we update the software
 	#
-	method handle_auto_update_message {_row} {
+	method handle_update_request {type _row} {
 		load_piaware_config
 
-		logger "auto update (flightaware-initiated) requested by adept server"
+		switch $type {
+			"auto" {
+				logger "auto update (flightaware-initiated) requested by adept server"
+			}
 
-		if {![update_check autoUpdate]} {
+			"manual" {
+				logger "manual update (user-initiated via their flightaware control page) requested by adept server"
+			}
+
+			default {
+				logger "update request type must be 'auto' or 'manual', ignored..."
+				return
+			}
+		}
+
+		# see if we are allowed to do this
+		if {![update_check ${type}Update]} {
+			# no
 			return
 		}
 
-		logger "performing auto-update"
-		update_operating_system_and_packages
-	}
-
-	#
-	# handle_manual_update_message - handle a message from the server requesting
-	#   that we update the software
-	#
-	method handle_manual_update_message {_row} {
-		load_piaware_config
-
-		logger "manual update (user-initiated via their flightaware control page) requested by adept server"
-
-		if {![update_check manualUpdate]} {
-			return
+		if {![info exists row(action)]} {
+			error "no action specified in update request"
 		}
 
-		logger "performing manual update"
-		update_operating_system_and_packages
+		logger "performing $type update, action: $row(action)"
+
+		set restartPiaware 0
+		foreach action [split $action " "] {
+			switch $action {
+				"full" {
+					update_operating_system_and_packages
+				}
+
+				"packages" {
+					upgrade_raspbian_packages
+				}
+
+				"piaware" {
+					upgrade_piaware
+					set restartPiaware 1
+				}
+
+				"dump1090" {
+					upgrade_dump1090
+					restart_dump1090
+				}
+
+				"reboot" {
+					reboot
+				}
+
+				default {
+					logger "unrecognized update action, ignored..."
+				}
+			}
+		}
+
+		logger "update request complete"
+
+		if {$restartPiaware} {
+			restart_piaware
+		}
 	}
 
 	#
