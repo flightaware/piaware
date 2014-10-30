@@ -104,6 +104,8 @@ if 0 {
 	load_adept_config_and_setup
 	#confirm_nonblank_user_and_password_or_die
 
+	adept connect
+
 	inspect_sockets_with_netstat
 
     setup_fa_style_adsb_client

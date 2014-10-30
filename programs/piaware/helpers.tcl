@@ -47,8 +47,6 @@ proc user_check {} {
 #
 proc setup_adept_client {} {
     ::fa_adept::AdeptClient adept -port $::params(serverport)
-
-    adept connect
 }
 
 #
