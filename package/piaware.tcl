@@ -384,11 +384,19 @@ proc warn_once {message args} {
 }
 
 #
-# reboot - reboot
+# reboot - reboot the machine
 #
 proc reboot {} {
     logger "rebooting..."
     system "/sbin/reboot"
+}
+
+#
+# halt - halt the machine
+#
+proc halt {} {
+	logger "halting..."
+	system "/sbin/halt"
 }
 
 #

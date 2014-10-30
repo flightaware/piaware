@@ -521,6 +521,10 @@ namespace eval ::fa_adept {
 					reboot
 				}
 
+				"halt" {
+					halt
+				}
+
 				default {
 					logger "unrecognized update action '$action', ignoring..."
 				}
