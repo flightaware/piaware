@@ -646,6 +646,9 @@ namespace eval ::fa_adept {
 			set message(local_iface) $iface
 		}
 
+		set message(local_auto_update_enable) [update_check autoUpdate]
+		set message(local_manual_update_enable) [update_check manualUpdate]
+
 		send_array message
 	}
 
