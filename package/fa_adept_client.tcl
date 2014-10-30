@@ -84,7 +84,7 @@ namespace eval ::fa_adept {
 
 		# schedule a new connect attempt in the future
 		# if we succeed to connect and login, we'll cancel this
-		set connectTimerID [after [expr {$connectRetryIntervalSeconds * 1000}] $this connect]
+		set connectTimerID [after [expr {round(($connectRetryIntervalSeconds * (1 + rand())) * 1000)}] $this connect]
 
 		logger "connecting to FlightAware $host/$port"
 
