@@ -46,7 +46,9 @@ proc user_check {} {
 # setup_adept_client - adept client-side setup
 #
 proc setup_adept_client {} {
-    ::fa_adept::AdeptClient adept -port $::params(serverport)
+    ::fa_adept::AdeptClient adept \
+		-port $::params(serverport) \
+		-showTraffic $::params(showtraffic)
 }
 
 #

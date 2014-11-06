@@ -20,6 +20,7 @@ namespace eval ::fa_adept {
     public variable connectRetryIntervalSeconds 60
     public variable connected 0
     public variable loggedIn 0
+	public variable showTraffic 0
 
 	protected variable writabilityCheckAfterID
     protected variable connectTimerID
@@ -285,6 +286,10 @@ namespace eval ::fa_adept {
 		#
 		if {$size < 0} {
 			return
+		}
+
+		if {$showTraffic} {
+			puts "< $line"
 		}
 
 		#
@@ -752,8 +757,9 @@ namespace eval ::fa_adept {
 	#  disconnects and schedules reconnection shortly in the future
     #
     method send {text} {
-		# NB temp
-		#puts "send '$text'"
+		if {$showTraffic} {
+			puts "> $text"
+		}
 
 		if {[catch {puts $sock $text} catchResult] == 1} {
 			log_locally "got '$catchResult' writing to FlightAware socket, reconnecting..."
