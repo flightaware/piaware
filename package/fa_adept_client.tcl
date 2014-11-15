@@ -621,7 +621,7 @@ namespace eval ::fa_adept {
     method close_socket_and_reopen {} {
 		close_socket
 		log_locally "reconnecting after 60s..."
-		after 60000 connect
+		after 60000 [list adept connect]
     }
 
 	#
