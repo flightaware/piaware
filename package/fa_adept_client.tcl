@@ -278,11 +278,11 @@ namespace eval ::fa_adept {
 		if {[catch {set size [gets $sock line]} catchResult] == 1} {
 			log_locally "got '$catchResult' reading FlightAware socket, reconnecting... "
 			close_socket_and_reopen
+			return
 		}
 
 		#
-		# sometimes you get a callback with no data, that's OK but there's 
-		# nothing to do
+		# sometimes you get a callback with no data, that's OK but there's nothing to do
 		#
 		if {$size < 0} {
 			return
@@ -297,12 +297,12 @@ namespace eval ::fa_adept {
 		# response handler
 		#
 		if {[catch {array set response [split $line "\t"]}] == 1} {
-			logger "malformed message from server ('$line'), ignoring..."
+			log_locally "malformed message from server ('$line'), ignoring..."
 			return
 		}
 
 		if {[catch {handle_response response} catchResult] == 1} {
-			logger "error handling message '[string map {\n \\n \t \\t} $line]' from server ($catchResult), ([string map {\n \\n \t \\t} [string range $::errorInfo 0 1000]]), continuing..."
+			log_locally "error handling message '[string map {\n \\n \t \\t} $line]' from server ($catchResult), ([string map {\n \\n \t \\t} [string range $::errorInfo 0 1000]]), continuing..."
 		}
     }
 
