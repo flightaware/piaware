@@ -87,7 +87,7 @@ namespace eval ::fa_adept {
 		# if we succeed to connect and login, we'll cancel this
 		set connectTimerID [after [expr {round(($connectRetryIntervalSeconds * (1 + rand())) * 1000)}] $this connect]
 
-		logger "connecting to FlightAware $host/$port"
+		log_locally "connecting to FlightAware $host/$port"
 
 		# attempt to connect with TLS negotiation.  Use the included
 		# CA cert file to confirm the cert's signature on the certificate
