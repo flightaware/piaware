@@ -297,12 +297,15 @@ namespace eval ::fa_adept {
 		# response handler
 		#
 		if {[catch {array set response [split $line "\t"]}] == 1} {
-			log_locally "malformed message from server ('$line'), ignoring..."
+			log_locally "malformed message from server ('$line'), disconnecting and reconnecting..."
+			close_socket_and_reopen
 			return
 		}
 
 		if {[catch {handle_response response} catchResult] == 1} {
-			log_locally "error handling message '[string map {\n \\n \t \\t} $line]' from server ($catchResult), ([string map {\n \\n \t \\t} [string range $::errorInfo 0 1000]]), continuing..."
+			log_locally "error handling message '[string map {\n \\n \t \\t} $line]' from server ($catchResult), ([string map {\n \\n \t \\t} [string range $::errorInfo 0 1000]]), disconnecting and reconnecting..."
+			close_socket_and_reopen
+			return
 		}
     }
 
