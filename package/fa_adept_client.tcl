@@ -406,11 +406,10 @@ namespace eval ::fa_adept {
 	# update_check - see if the requested update type (manualUpdate or
 	#   autoUpdate) is allowed.
 	#
-	#   you should be able to inspect this and handle_auto_update_message,
-	#   handle_manual_update_message and how they're invoked to assure
-	#   yourself that if there is no autoUpdate or manualUpdate in
-	#   /etc/piaware configured true or by piaware-config configured true,
-	#   the update cannot occur
+	#   you should be able to inspect this and handle_update_request
+	#   and how they're invoked to assure yourself that if there is
+	#   no autoUpdate or manualUpdate in /etc/piaware configured true
+	#   or by piaware-config configured true, the update cannot occur.
 	#
 	method update_check {varName} {
 		# if there is no matching update variable in the adept config or
