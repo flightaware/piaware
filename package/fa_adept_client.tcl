@@ -224,23 +224,6 @@ namespace eval ::fa_adept {
 			return 0
 		}
 
-		# validate the type of certificate
-		if {![string match "DigiCert*High Assurance*" $issuer(CN)]} {
-			set reason "issuer CN is not 'DigiCert High Assurance'"
-			return 0
-		}
-
-		# validate the signer
-		if {$issuer(O) != "DigiCert Inc"} {
-			set reason "issuer O is not 'DigiCert Inc'"
-			return 0
-		}
-
-		if {$issuer(C) != "US"} {
-			set reason "issuer C is not 'US'"
-			return 0
-		}
-
 		log_locally "FlightAware server SSL certificate validated"
 		return 1
     }
