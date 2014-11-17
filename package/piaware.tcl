@@ -413,7 +413,7 @@ proc update_operating_system_and_packages {} {
     upgrade_raspbian_packages
     upgrade_dump1090
     upgrade_piaware
-	upgrade_raspbian_kernel
+	#upgrade_raspbian_kernel
     reboot
 }
 
@@ -436,8 +436,8 @@ proc upgrade_raspbian_packages {} {
 }
 
 #
-# upgrade_raspbian_kernel - upgrade the raspbian kernel, requires a reboot
-#   to take effect
+# upgrade_raspbian_kernel - upgrade the raspbian kernel by running rpi-update;
+# requires a reboot to take effect
 #
 proc upgrade_raspbian_kernel {} {
     logger "*** attempting to upgrade raspbian kernel and boot files to the latest"
