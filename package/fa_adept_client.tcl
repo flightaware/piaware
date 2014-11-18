@@ -853,7 +853,7 @@ proc ca_crt_file {} {
 #   return it or return the empty string
 #
 proc parse_mac_address_from_line {line} {
-	if {[regexp {([0-9a-fA-F]{2}[:-]){5}([0-9a-fA-F]{2})} $line dummy mac]} {
+	if {[regexp {(([0-9a-fA-F]{2}[:-]){5}([0-9a-fA-F]{2}))} $line dummy mac]} {
 		return $mac
 	}
 	return ""
