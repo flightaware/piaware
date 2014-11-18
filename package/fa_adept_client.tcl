@@ -702,7 +702,7 @@ namespace eval ::fa_adept {
 			regexp {^([^ ]*)} $line dummy device
 			if {$mac != ""} {
 				# gotcha
-				logger "no eth0 device, using $mac from device '$device'"
+				log_locally "no eth0 device, using $mac from device '$device'"
 				break
 			}
 		}
