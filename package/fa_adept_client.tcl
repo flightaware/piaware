@@ -697,12 +697,12 @@ namespace eval ::fa_adept {
 
 		set mac ""
 		while {[gets $fp line] >= 0} {
-			set mac [parse_mac_address_from_line $line]
+			set mac [::fa_adept::parse_mac_address_from_line $line]
 			set device ""
 			regexp {^([^ ]*)} $line dummy device
-			puts stderr "no eth0 device, using $mac from device '$device'"
 			if {$mac != ""} {
 				# gotcha
+				logger "no eth0 device, using $mac from device '$device'"
 				break
 			}
 		}
