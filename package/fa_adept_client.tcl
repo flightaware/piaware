@@ -679,10 +679,15 @@ namespace eval ::fa_adept {
 	#  if we can't find any mac address at all then return an empty string
 	#
 	method get_mac_address {} {
+		if {[info exists ::macAddress]} {
+			return $::macAddress
+		}
+
 		set macFile /sys/class/net/eth0/address
 		if {[file readable $macFile]} {
 			set fp [open $macFile]
 			gets $fp mac
+			set ::macAddress $mac
 			close $fp
 			return $mac
 		}
@@ -702,6 +707,7 @@ namespace eval ::fa_adept {
 			regexp {^([^ ]*)} $line dummy device
 			if {$mac != ""} {
 				# gotcha
+				set ::macAddress $mac
 				log_locally "no eth0 device, using $mac from device '$device'"
 				break
 			}
