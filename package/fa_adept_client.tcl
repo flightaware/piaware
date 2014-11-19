@@ -444,9 +444,10 @@ namespace eval ::fa_adept {
 	method handle_update_request {type _row} {
 		upvar $_row row
 
-		# force piaware config reload in case user changed config since
-		# we last looked
+		# force piaware config and adept config reload in case user changed
+		# config since we last looked
 		load_piaware_config
+		load_adept_config
 
 		switch $type {
 			"auto" {
