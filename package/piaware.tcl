@@ -76,10 +76,13 @@ proc is_pid_running {pid} {
     if {[catch {kill -0 $pid} catchResult] == 1} {
 		switch [lindex $::errorCode 1] {
 			"EPERM" {
+				# we didn't have permission to kill it but that we got this
+				# means the process exists
 				return 1
 			}
 
 			"ESRCH" {
+				# no such process
 				return 0
 			}
 
@@ -88,6 +91,8 @@ proc is_pid_running {pid} {
 			}
 		}
     }
+	# no error from kill, that means the process exists and we had permissions
+	# to kill it.  whatever, the main point is the process exists
     return 1
 }
 
@@ -124,7 +129,7 @@ proc is_piaware_running {} {
 		return 0
     }
 
-    return [is_piaware_running]
+    return [is_pid_running $pid]
 }
 
 #
