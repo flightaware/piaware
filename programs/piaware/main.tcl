@@ -49,7 +49,7 @@ proc main {{argv ""}} {
     }
 
 	if {$::params(v)} {
-		puts stdout "$::piawareVersion"
+		puts stdout "$::piawareVersionFull"
 		exit 0
 	}
 
