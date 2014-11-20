@@ -325,7 +325,13 @@ namespace eval ::fa_adept {
 			}
 
 			default {
-				logger "unrecognized message type '$row(type)' from server, ignoring..."
+				log_locally "unrecognized message type '$row(type)' from server, ignoring..."
+				incr ::nUnrecognizedServerMessages
+				if {$::nUnrecognizedServerMessages > 20} {
+					log_locally "that's too many, i'm disconnecting and reconnecting..."
+					close_socket_and_reopen
+					set ::nUnrecognizedServerMessages 0
+				}
 			}
 		}
 	}
