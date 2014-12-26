@@ -26,6 +26,7 @@ namespace eval ::fa_adept {
     protected variable connectTimerID
 	protected variable aliveTimerID
 	protected variable nextHostIndex 0
+	protected variable lastCompressClock 0
 
     constructor {args} {
 		configure {*}$args
@@ -779,12 +780,62 @@ namespace eval ::fa_adept {
 
 		set row(clock) [clock seconds]
 
+		compress_array row
+
 		set message ""
 		foreach field [lsort [array names row]] {
 			append message "\t$field\t$row($field)"
 		}
 
 		send [string range $message 1 end]
+	}
+
+	#
+	# compress_array - compress some of the key-value pairs in the array
+	# into a single quoted binary key-value pair
+	#
+	method compress_array {_row} {
+		upvar $_row row
+
+		set newKey "!"
+		set binData ""
+
+		# handle squawk specially by converting it to decimal
+		if {[info exists row(squawk)]} {
+			scan $row(squawk) %o row(squawk)
+		}
+
+		# remove clocks from consecutive messages that are the same as
+		# the last clock emitted
+		if {[info exists row(clock)]} {
+			if {$row(clock) == $lastCompressClock} {
+				unset row(clock)
+			} else {
+				set lastCompressClock $row(clock)
+			}
+		}
+
+		foreach "var keyChar format" "clock c I hexid h H3 ident i A8 alt a I lat l R lon m R speed s S squawk q S" {
+			if {[info exists row($var)]} {
+				append newKey $keyChar
+				append binData [binary format $format $row($var)]
+				unset row($var)
+			}
+		}
+
+		# encode airGround into special key if G and remove completely if A
+		if {[info exists row(airGround)]} {
+			if {$row(airGround) == "G"} {
+				append newKey g
+			}
+			unset row(airGround)
+		}
+
+		# encode tabs and newlines and whatnot
+		set binData [string map {\t \\t \\ \\\\ \n \\n} $binData]
+
+		set row($newKey) $binData
+		return
 	}
 
 	#
