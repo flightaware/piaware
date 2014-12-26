@@ -815,7 +815,7 @@ namespace eval ::fa_adept {
 			}
 		}
 
-		foreach "var keyChar format" "clock c I hexid h H3 ident i A8 alt a I lat l R lon m R speed s S squawk q S" {
+		foreach "var keyChar format" "clock c I hexid h H3 ident i A8 alt a I lat l R lon m R speed s S squawk q S heading H S" {
 			if {[info exists row($var)]} {
 				append newKey $keyChar
 				append binData [binary format $format $row($var)]
