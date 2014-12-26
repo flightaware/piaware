@@ -79,6 +79,7 @@ if 0 {
 	setup_signals
 
 	# maintain a pidfile so we don't get multiple copies of ourself
+	# (only does anything if we were invoked with the -p option)
 	create_pidfile
 
 	# if they requested a debug port, give them one
