@@ -800,11 +800,6 @@ namespace eval ::fa_adept {
 		set newKey "!"
 		set binData ""
 
-		# handle squawk specially by converting it to decimal
-		if {[info exists row(squawk)]} {
-			scan $row(squawk) %o row(squawk)
-		}
-
 		# remove clocks from consecutive messages that are the same as
 		# the last clock emitted
 		if {[info exists row(clock)]} {
@@ -815,7 +810,7 @@ namespace eval ::fa_adept {
 			}
 		}
 
-		foreach "var keyChar format" "clock c I hexid h H3 ident i A8 alt a I lat l R lon m R speed s S squawk q S heading H S" {
+		foreach "var keyChar format" "clock c I hexid h H6 ident i A8 alt a I lat l R lon m R speed s S squawk q H4 heading H S" {
 			if {[info exists row($var)]} {
 				append newKey $keyChar
 				append binData [binary format $format $row($var)]
