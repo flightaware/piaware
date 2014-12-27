@@ -657,6 +657,8 @@ namespace eval ::fa_adept {
 		set message(local_auto_update_enable) [update_check autoUpdate]
 		set message(local_manual_update_enable) [update_check manualUpdate]
 
+		set message(compression_version) 1.0
+
 		send_array message
 	}
 
