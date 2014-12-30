@@ -782,7 +782,9 @@ namespace eval ::fa_adept {
 
 		set row(clock) [clock seconds]
 
-		compress_array row
+		if {$loggedIn} {
+			compress_array row
+		}
 
 		set message ""
 		foreach field [lsort [array names row]] {

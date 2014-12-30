@@ -104,12 +104,7 @@ proc periodically_send_health_information {} {
 
     construct_health_array row
 
-    set list [list]
-    foreach element [lsort [array names row]] {
-		lappend list $element $row($element)
-    }
-
-	send_line [join $list "\t"]
+	adept send_array row
 }
 
 # vim: set ts=4 sw=4 sts=4 noet :

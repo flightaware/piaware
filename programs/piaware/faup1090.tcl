@@ -173,16 +173,22 @@ proc faup1090_data_available {sock} {
 # send_if_logged_in - send an adept message but only if logged in
 #
 proc send_if_logged_in {line} {
-    if {[adept is_logged_in]} {
-		send_line $line
+    if {![adept is_logged_in]} {
+		return
     }
+
+	if {[catch {send_adsb_line $line} catchResult] == 1} {
+		log_locally "error uploading ADS-B message: $catchResult"
+	}
 }
 
 #
-# send_line - send a line to the adept server
+# send_adsb_line - send an ADS-B message to the adept server
 #
-proc send_line {line} {
-	adept send $line
+proc send_adsb_line {line} {
+	array set row [split $line "\t"]
+	adept send_array row
+
 	incr ::nMessagesSent
 	if {$::nMessagesSent == 7} {
 		log_locally "piaware has successfully sent several msgs to FlightAware!"
