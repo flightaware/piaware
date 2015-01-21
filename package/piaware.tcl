@@ -619,8 +619,8 @@ proc upgrade_dump1090 {} {
 proc upgrade_dpkg_package {name url} {
 	logger "considering upgrading $name from $url..."
 	if {![query_dpkg_name_and_version $name currentPackageName currentPackageVersion]} {
-		logger "unable to query current version of $name from dpkg"
-		return 0
+		logger "unable to query current version of $name from dpkg. it's probably not installed. proceeding with upgrade..."
+		return 1
 	}
 
 	set compare [compare_versions_from_packages $currentPackageVersion $url]
