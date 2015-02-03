@@ -662,7 +662,8 @@ proc restart_piaware {} {
 	logger "restarting piaware. hopefully i'll be right back..."
 	system "/etc/init.d/piaware restart &"
 	sleep 10
-	logger "piaware failed to die, pid [pid]"
+	logger "piaware failed to die, pid [pid], that's me, i'm gonna kill myself"
+	exit 0
 }
 
 #
