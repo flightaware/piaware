@@ -645,7 +645,7 @@ proc upgrade_dpkg_package {name url} {
 	}
 
     logger "installing $name..."
-    run_program_log_output "dpkg -i $tmpFile"
+    run_program_log_output "dpkg --force-confnew -i $tmpFile"
 
     logger "installing any required dependencies"
     run_program_log_output "apt-get install -fy"
