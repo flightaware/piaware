@@ -619,21 +619,20 @@ proc upgrade_dump1090 {} {
 proc upgrade_dpkg_package {name url} {
 	logger "considering upgrading $name from $url..."
 	if {![query_dpkg_name_and_version $name currentPackageName currentPackageVersion]} {
-		logger "unable to query current version of $name from dpkg. it's probably not installed. proceeding with upgrade..."
-		return 1
-	}
+		logger "unable to query current version of $name from dpkg. it may not be installed. proceeding with upgrade..."
+	} else {
+		set compare [compare_versions_from_packages $currentPackageVersion $url]
 
-	set compare [compare_versions_from_packages $currentPackageVersion $url]
-
-	if {$compare > 0} {
-		logger "current version $currentPackageVersion is newer than requested $url, skipping..."
-		return 0
-	}
-
-	if {$name == "piaware"} {
-		if {[compare_versions_from_packages $::piawareVersion $url] > 0} {
-			logger "current version of piaware $::piawareVersion is newer than requested, skipping..."
+		if {$compare > 0} {
+			logger "current version $currentPackageVersion is newer than requested $url, skipping..."
 			return 0
+		}
+
+		if {$name == "piaware"} {
+			if {[compare_versions_from_packages $::piawareVersion $url] > 0} {
+				logger "current version of piaware $::piawareVersion is newer than requested, skipping..."
+				return 0
+			}
 		}
 	}
 
