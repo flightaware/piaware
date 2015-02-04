@@ -185,7 +185,7 @@ proc setup_signals {} {
 # shutdown - shutdown signal handler
 #
 proc shutdown {{reason ""}} {
-	logger "$::argv0 is shutting down because it received a shutdown signal ($reason) from the system..."
+	logger "$::argv0 (process [pid]) is shutting down because it received a shutdown signal ($reason) from the system..."
 	cleanup_and_exit
 }
 
@@ -196,7 +196,7 @@ proc shutdown {{reason ""}} {
 proc cleanup_and_exit {} {
 	stop_faup1090
 	remove_pidfile
-	logger "$::argv0 is exiting..."
+	logger "$::argv0 (process [pid]) is exiting..."
 	exit 0
 }
 
