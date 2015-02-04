@@ -124,8 +124,15 @@ proc switch_logfile {} {
 #  of milliseconds that it's at midnight
 #
 proc schedule_logfile_switch {} {
-	set secsPerDay 86400
 	set now [clock seconds]
+
+	if {$now < 1423000000} {
+		log_locally "schedule_logfile_switch: system clock isn't current ($now), should be at least 1423000000, maybe ntpd hasn't synchronized time yet, will check again in a minute"
+		after 60000 schedule_logfile_switch
+		return
+	}
+
+	set secsPerDay 86400
 	set clockAtNextMidnight [expr {(((($now + 60) / $secsPerDay) + 1) * $secsPerDay) - 1}]
 	set secondsUntilMidnight [expr {$clockAtNextMidnight - $now}]
 	after [expr {$secondsUntilMidnight * 1000}] schedule_logfile_switch_and_switch_logfile
