@@ -24,7 +24,7 @@ After a successful login, piaware should forward filtered ADS-B traffic to Fligh
 
 Every five minutes piaware also sends a message containing basic health information about the local machine such as system clock, CPU temperature, basic filesystem capacity and system uptime.
 
-Piaware uses several techniques are used to keep the connection established and disconnect and reconnect if something goes wrong.
+Piaware uses several techniques to keep the connection established and disconnect and reconnect if something goes wrong.
 
 piaware-config program
 ---
@@ -52,7 +52,7 @@ piaware logs to the file **/tmp/piaware.out**.  At the end of each GMT day that 
 fa_adept_client package
 ---
 
-The fa_adept_client package provieds a class library for being a FlightAware aviation data exchange protocol (ADEPT) client.
+The fa_adept_client package provides a class library for being a FlightAware aviation data exchange protocol (ADEPT) client.
 
 fa_adept_config package
 ---
