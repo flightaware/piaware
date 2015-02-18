@@ -413,13 +413,16 @@ namespace eval ::fa_adept {
 		# if there is a var in the adept config and it's not a boolean or
 		# it's false, bail.
 		#
-		if {[info exists ::adeptConfig($varName)]} {
+		if {![info exists ::adeptConfig($varName)]} {
+			logger "$varName is not set in adept config, looking further..."
+		} else {
 			if {![string is boolean $::adeptConfig($varName)]} {
 				logger "$varName in adept config isn't a boolean, bailing on update request"
 				return 0
 			}
 
 			if {!$::adeptConfig($varName)} {
+				logger "$varName in adept config is disabled, disallowing update"
 				return 0
 			} else {
 				# the var is there and set to true, we proceed with the update
@@ -434,14 +437,21 @@ namespace eval ::fa_adept {
 				logger "$varName in /etc/piaware isn't a boolean, bailing on update request"
 				return 0
 			} else {
-				# the var is there and true, proceed
-				logger "$varName in /etc/piaware is enabled, allowing update"
-				return 1
+				if {$val} {
+					# the var is there and true, proceed
+					logger "$varName in /etc/piaware is enabled, allowing update"
+					return 1
+				} else {
+					# the var is there and false, bail
+					logger "$varName in /etc/piaware is disabled, disallowing update"
+					return 0
+				}
 			}
 		}
 
 		# this shouldn't happen
-		error "software error in handle_shutdown_message"
+		logger "software error detected in update_check, disallowing update"
+		return 0
 	}
 
 	#
