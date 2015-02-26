@@ -173,12 +173,12 @@ proc process_netstat_socket_line {line} {
     lassign $line proto recvq sendq localAddress foreignAddress state pidProg
     lassign [split $pidProg "/"] pid prog
 
-    if {$localAddress == "*:30005" && $state == "LISTEN"} {
+    if {($localAddress == "*:30005" || $localAddress == "localhost:30005") && $state == "LISTEN"} {
 		set ::netstatus(program_30005) $prog
 		set ::netstatus(status_30005) 1
     }
 
-    if {$localAddress == "*:10001" && $state == "LISTEN"} {
+    if {($localAddress == "*:10001" || $localAddress == "localhost:10001") && $state == "LISTEN"} {
 		set ::netstatus(program_10001) $prog
 		set ::netstatus(status_10001) 1
     }
