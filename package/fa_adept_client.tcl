@@ -552,6 +552,9 @@ namespace eval ::fa_adept {
 	method handle_alive_message {_row} {
 		upvar $_row row
 
+		# get the system clock on the local pi
+		set now [clock seconds]
+
 		if {![info exists row(interval)]} {
 			set row(interval) 300
 		}
@@ -568,6 +571,10 @@ namespace eval ::fa_adept {
 		# schedule alive_timeout to run in the future
 		set aliveTimerID [after $afterMS [list $this alive_timeout]]
 		#log_locally "handle_alive_message: alive timer ID is $aliveTimerID"
+
+		if {[info exists row(clock)]} {
+			set ::myClockOffset [expr {$now - $row(clock)}]
+		}
 	}
 
 	#
@@ -683,6 +690,10 @@ namespace eval ::fa_adept {
 		set message(type) log
 		set message(message) [string map {\n \\n \t \\t} $text]
 		set message(mac) [get_mac_address_or_quit]
+
+		if {[info exists ::myClockOffset]} {
+			set message(offset) $::myClockOffset
+		}
 
 		foreach var "user" globalVar "::flightaware_user" {
 			if {[info exists $globalVar]} {
