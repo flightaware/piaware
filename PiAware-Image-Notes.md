@@ -15,5 +15,5 @@ Here's a summary of the changes from the default version of Raspbian.
 * Higher USB current limit on Raspberry Pi Model B Plus is enabled.
 * Swapping to the SD card is disabled.  Although this saves wear on the SD card, if the system runs out of memory it will crash.
 * ssh host keys are deleted as the last step of creating the install image and the rc.local script has been extended to regenerate host keys if they are not present.  This causes each PiAware image to generate its own ssh host keys, improving security.
-
+* The default password has been changed from raspberry to flightaware
  
