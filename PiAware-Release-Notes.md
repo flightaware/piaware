@@ -1,5 +1,128 @@
+piaware 1.20-1
+--
+* Greatly improved range and message rate by configuring dump1090 to use auto-gain rather than max gain (--gain -10 added to dump1090 arguments). Sites allowing remote upgrade will be upgraded automatically. People running their own copies of dump1090 are advised to add --gain -10 to their dump1090 command line arugments to obtain these same improvements.
+
+* Allow piaware to upgrade a package (piaware or dump1090) even if the current version can't be determined, like when it isn't installed. Since previous versions of the piaware bootable image shipped with dump1090 but dump1090 wasn't installed as a dpkg, piaware versions prior to 1.20 can't upgrade dump1090 through the manual (user-triggered) or automatic (flightaware-triggered) upgrade process.
+
+* Make piaware exit if it asks for a restart of itself but didn't die. In some cases upgrading could leave two copies of piaware running at the same time.
+
+* piaware's process ID number is now logged in piaware shutdown messages so the log isn't confusing if the old version is still exiting while the new one is already running. (People upgrading from 1.19-3 will still see the potentially confusing messages; future upgrades from 1.20-1 will have clearer log messages.)
+
+* When piaware is looking for a dump1090 control script in /etc/init.d, make sure it prefers like fadump1090.sh to fadump1090.sh.dpkg-old.
+
+* Bug fix to make renaming /tmp/piaware.out to /tmp/piaware.out.yesterday to be more likely to occur on the UTC day boundary.
+
+* "pi" user's password on SD card image has been changed from the default raspberry to flightaware to help thwart possible automated attacks against Raspberry Pi devices running Raspbian with the default account and password.
+
+piaware 1.19-3
+---
+* The 1.19-2 package was corrupted. We always bump the version for every change due to CDN caching and whatnot.
+
+
+piaware 1.19-2
+---
+* Compress the ADS-B messages, not just the non-ADS-B messages.
+
+piaware 1.19-1
+---
+* New compression techniques reduce upstream bandwidth by 2/3rds without filtering any additional messages.
+
+* Disconnect from the server after many unrecognized server messages.
+
+* Report full version when running piaware -v to get version number.
+
+* Remove raspi-copies-and-fills from dependencies. This makes the piaware Debian package compatible with more systems not based on Raspberry Pi.
+
+piaware 1.18-2
+---
+* Principally this release is to bump the version number because the 1.18-1 SD card image zip file was corrupt.
+
+* Reload adept config on update request in case piaware-config has been run and used to change something since piaware last started.
+
+piaware 1.18-1
+---
+* Fix "too many nested evaluations" error on systems without an eth0 device.
+
+* Include full piaware version (like 1.18-1 vs just 1.18) in login message.
+
+* Cache the mac address once it is known, for performance.
+
+piaware 1.17-2
+--
+* Fix bug in reconnecting after receiving an unrecognized message from the server.
+
+* Get a mac address from alternate source like wlan0 if no eth0 is present
+
+* Don't invoke rpi-update as part of a full update.
+
+piaware 1.17-1
+--
+* Disconnect/reconnect after detecting an error in a server message. Although we don't believe the runaway logging is caused by a server message, whatever the cause this should interrupt the runaway.
+
+* After disconnecting from the server wait 60 seconds before reconnecting. Again the goal here mainly is to slow things down.
+
+* Don't continue through the server message handler if we get an error reading from the server socket.
+
+* Don't try to log errors about messages theoretically received from the server, back to the server.
+
+* Add a -showtraffic option to piaware to aid debugging.
+
+
+piaware 1.17
+---
+* Improved connection / re-connection handling and stability (important update)
+
+* Do not consider issuer of SSL certificate, in light of potential changes during SSL cert renewal.
+
+piaware 1.16
+---
+* Reworked problem detection and restart logic: Piaware will now reliably attempt to restart dump1090 if no messages are received in an hour and piaware can find a startup script for dump1090 in /etc/init.d to restart it with.
+
+* Piaware will now attempt to start dump1090 if no ADS-B producer program is seen listening for connections on port 30005 (the "Beast" binary data port) for more than six minutes.
+
+* Most piaware messages logged locally are now also forwarded to FlightAware. This will greatly help with debugging and users will soon be able to retrieve the last few hours of log messages via the FlightAware website.
+
+* New remote update capability for updating Raspbian and piaware. Automatic and manual updates are supported. Both can be enabled or disabled on the device using piaware-config and auto updates can be disabled by the user through the FlightAware website. If enabled the user will be able to issue manual updates through the FlightAware website, updating PiAware, other Debian packages, and the operating system and boot firmware as well as rebooting and restarting piaware and dump1090.
+
+* If the connection is lost with the FlightAware server then the reconnect interval is randomized between 60 and 120 seconds rather than hard-set at 60 seconds to ease the server load when the adept server is restarted and a thousand plus piaware hosts all reconnect at the same time
+
+piaware 1.15
+---
+* Piaware will now attempt to restart dump1090 if no messages are received in an hour.
+
+* Multiple adept servers are now tried, round-robin. The IP of the FlightAware server is now listed as well as the hostname. (This allows connection in some cases where there are DNS problems on the local host.)
+
+* Some addition versions of Linux are now supported. (thanks to github user brookst (Tim Brooks) for this)
+
+piaware 1.14
+---
+Mon, 06 Oct 2014 16:50:47 +0000
+
+* faup1090 now exits if it loses its connection.
+Before this if dump1090 restarted for some reason then faup1090 would sit there idefinitely and passing no data to piaware, even after dump1090 came back. Hat tip to Oliver Jowett (github user "mutability") for the fix.
+
+* faup1090 services table bug fix
+A mistake in how the services table was defined in faup1090 caused faup1090 to go past the end of the table when initializing and manipulating the TCP listening port. It's a wonder it didn't cause a coredump. Hat tip again to Oliver Jowett for pointing out the bug...
+
+* Certificate validation failures on some other Linux systems' version of OpenSSL have been fixed. Hat tip to John Carroll (FA user johncarroll944) for the fix.
+
+* Picked up numerous upstream dump1090 improvements and bug fixes, mostly by Oliver Jowett, through Malcolm Robb's dump1090 on github:
+
+ * Improved client EOF handling.
+
+ * Check if bit correction happened before bailing out due to a bad CRC.
+
+ * Prefer to use global CPR decoding where possible.
+
+ * Add --stats-every option, add sample block counters
+
+ * Better error reporting if dump1090 is unable to bind a listening port.
+
+
 piaware 1.13-1
 ---
+Mon, 30 Sep 2014 12:49:09 +0000
+
 
 * piaware can now login without a FlightAware user's username and password having been pre-configured on the Raspberry Pi.
 
