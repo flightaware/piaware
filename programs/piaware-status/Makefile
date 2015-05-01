@@ -3,9 +3,8 @@
 #  get the status of the piaware toolchain
 #
 
-LIB=/usr/lib
-BIN=/usr/bin
-TCLSH=tclsh8.5
+LIB=$(PREFIX_DIR)/lib
+BIN=$(PREFIX_DIR)/bin
 
 CLIENT_INSTALLFILES= *.tcl
 

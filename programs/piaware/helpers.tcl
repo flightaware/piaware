@@ -12,6 +12,10 @@ package require tls
 proc logger {text} {
 	#::bsd::syslog log info $text
 	log_locally $text
+	if {[llength [info commands "adept"]] < 1} {
+	     # adept client has not yet loaded
+	     return 0
+	}
 	adept send_log_message $text
 }
 

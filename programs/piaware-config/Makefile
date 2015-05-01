@@ -3,9 +3,8 @@
 #  configure and do other stuff as a FlightAware adept client
 #
 
-LIB=/usr/lib
-BIN=/usr/bin
-TCLSH=tclsh8.5
+LIB=$(PREFIX_DIR)/lib
+BIN=$(PREFIX_DIR)/bin
 
 CLIENT_INSTALLFILES= *.tcl
 
