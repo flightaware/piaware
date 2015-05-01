@@ -646,9 +646,9 @@ namespace eval ::fa_adept {
 		# construct some key-value pairs to be included.
 		#
 		# note that there are two possible sources for piaware_version_full.
-		# the first one found will be used.
+		# the last one found will be used.
 		#
-		foreach var "user password piaware_version image_type piaware_version_full piaware_version_full" globalVar "::flightaware_user ::flightaware_password ::piawareVersion ::imageType ::fullVersionID ::piawareVersionFull" {
+		foreach var "user password piaware_version image_type piaware_version_full piaware_version_full" globalVar "::flightaware_user ::flightaware_password ::piawareVersion ::imageType ::piawareVersionFull ::fullVersionID" {
 			if {[info exists $globalVar]} {
 				set message($var) [set $globalVar]
 			}
