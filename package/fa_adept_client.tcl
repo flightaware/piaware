@@ -1,3 +1,4 @@
+# -*- mode: tcl; tab-width: 4; indent-tabs-mode: t -*-
 #
 # fa_adept_client - Itcl class for connecting to and communicating with
 #  an Open Aviation Data Exchange Protocol service
@@ -300,7 +301,7 @@ namespace eval ::fa_adept {
 	method handle_response {_row} {
 		upvar $_row row
 
-		switch $row(type) {
+		switch -glob $row(type) {
 			"login_response" {
 				handle_login_response_message row
 			}
@@ -323,6 +324,18 @@ namespace eval ::fa_adept {
 
 			"request_manual_update" {
 				handle_update_request manual row
+			}
+
+			"mlat_enable" {
+				start_providing_mlat
+			}
+
+			"mlat_disable" {
+				stop_providing_mlat
+			}
+
+			"mlat_*" {
+				forward_to_mlat_client row
 			}
 
 			default {
@@ -619,6 +632,7 @@ namespace eval ::fa_adept {
 			unset sock
 		}
 
+		stop_providing_mlat
 		reap_any_dead_children
     }
 
@@ -673,6 +687,7 @@ namespace eval ::fa_adept {
 
 		set message(local_auto_update_enable) [update_check autoUpdate]
 		set message(local_manual_update_enable) [update_check manualUpdate]
+		set message(mlat_available) [mlat_is_configured]
 
 		set message(compression_version) 1.0
 

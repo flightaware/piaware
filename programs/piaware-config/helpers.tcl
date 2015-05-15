@@ -1,11 +1,12 @@
+# -*- mode: tcl; tab-width: 4; indent-tabs-mode: t -*-
 #
 # fa_adept - config file manager and client manager
 #
 # Copyright (C) 2014 FlightAware LLC, All Rights Reserved
 #
 
-set configParams [list user password autoUpdate manualUpdate]
-set booleanConfigParams [list autoUpdate manualUpdate]
+set configParams [list user password autoUpdate manualUpdate mlat]
+set booleanConfigParams [list autoUpdate manualUpdate mlat]
 #
 # process_parameters - look at params array and do things 
 #
