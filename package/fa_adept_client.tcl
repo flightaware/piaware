@@ -326,14 +326,6 @@ namespace eval ::fa_adept {
 				handle_update_request manual row
 			}
 
-			"mlat_enable" {
-				start_providing_mlat
-			}
-
-			"mlat_disable" {
-				stop_providing_mlat
-			}
-
 			"mlat_*" {
 				forward_to_mlat_client row
 			}
@@ -632,7 +624,7 @@ namespace eval ::fa_adept {
 			unset sock
 		}
 
-		stop_providing_mlat
+		disable_mlat
 		reap_any_dead_children
     }
 

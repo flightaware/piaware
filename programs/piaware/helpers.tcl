@@ -208,7 +208,7 @@ proc shutdown {{reason ""}} {
 #
 proc cleanup_and_exit {} {
 	stop_faup1090
-	stop_providing_mlat
+	disable_mlat
 	remove_pidfile
 	logger "$::argv0 (process [pid]) is exiting..."
 	exit 0

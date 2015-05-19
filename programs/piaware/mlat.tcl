@@ -4,11 +4,14 @@
 # This bridges multilateration messages between a
 # mlat-client subprocess and the adept server.
 
-set ::mlatWanted 0
-set ::mlatLoggedIn 0
+# does the server want mlat data?
+set ::mlatEnabled 0
+# is our client ready for data?
+set ::mlatReady 0
+# interval between client restarts
 set ::mlatRestartMillis 60000
 
-proc mlat_is_configured{} {
+proc mlat_is_configured {} {
     if {![info exists ::adeptConfig(mlat)]} {
 		return 0
 	}
@@ -24,38 +27,46 @@ proc mlat_is_configured{} {
 	}
 }
 
-proc start_providing_mlat {} {
+proc enable_mlat {} {
 	if {![mlat_is_configured]} {
-		logger "Ignoring request for multilateration data - disabled or missing from config file"
+		logger "Ignoring request for multilateration data - mlat config setting disabled or missing"
 		return
 	}
 
-	if {$::mlatWanted} {
+	if {$::mlatEnabled} {
 		# already enabled
 		return
 	}
 
-	logger "enabling multilateration client.."
-	set ::mlatWanted 1
+	logger "Enabling multilateration client"
+	set ::mlatEnabled 1
 	start_mlat_client
 }
 
-proc stop_providing_mlat {} {
-	set ::mlatWanted 0
-	close_mlat
-	if {[info exists ::mlatRestartTimer]} {
-		catch {after cancel $::mlatRestartTimer}
-		unset ::mlatRestartTimer
+proc disable_mlat {} {
+	if {$::mlatEnabled} {
+		logger "Disabling multilateration client"
+		set ::mlatEnabled 0
+		close_mlat_client
+		if {[info exists ::mlatRestartTimer]} {
+			catch {after cancel $::mlatRestartTimer}
+			unset ::mlatRestartTimer
+		}
 	}
 }
 
 proc close_mlat_client {} {
-	if ($::mlatLoggedIn) {
-		set message(type) mlat_logout
+	if {![info exists ::mlatPipe]} {
+		return
+	}
+
+	if ($::mlatReady) {
+		set message(type) mlat_event
+		set message(event) notready
 		adept send_array message
 	}
 
-	set ::mlatLoggedIn 0
+	set ::mlatReady 0
 	catch {close $::mlatPipe}
 	unset ::mlatPipe
 	reap_any_dead_children
@@ -64,7 +75,7 @@ proc close_mlat_client {} {
 proc start_mlat_client {} {
 	unset -nocomplain ::mlatRestartTimer
 
-	if {!$::mlatWanted} {
+	if {!$::mlatEnabled} {
 		return
 	}
 
@@ -81,7 +92,7 @@ proc start_mlat_client {} {
 	}
 
 	set ::mlatPipe [open "|fa-mlat-client --input-host localhost --input-port 30005" r+]
-	set ::mlatLoggedIn 0
+	set ::mlatReady 0
 	fconfigure $::mlatPipe -buffering line -blocking 0 -translation binary
 	fileevent $::mlatPipe readable mlat_data_available
 }
@@ -96,11 +107,26 @@ proc close_and_restart_mlat_client {} {
 }
 
 proc forward_to_mlat_client {_row} {
-	if {! $::mlatLoggedIn} {
-		return
+	upvar $_row row
+
+	# handle messages intended for piaware
+	switch -exact $row(type) {
+		"mlat_enable" {
+			enable_mlat
+			return
+		}
+
+		"mlat_disable" {
+			disable_mlat
+			return
+		}
 	}
 
-	upvar $_row row
+	# anything else goes to the client
+
+	if {! $::mlatReady} {
+		return
+	}
 
 	set message ""
 	foreach field [lsort [array names row]] {
@@ -149,18 +175,9 @@ proc mlat_data_available {} {
 proc process_mlat_message {_row} {
 	upvar $_row row
 
-	if {$::mlatLoggedIn} {
-		adept send_array row
-		return
+	if {$message(type) eq "mlat_event" && $message(event) eq "ready"} {
+		set ::mlatReady 1
 	}
 
-	# not started yet
-	# wait for mlat_event / connected then tell adept everything is go
-	if {$message(type) == "mlat_event" && $message(event) == "connected"} {
-		logger "multilateration client successfully connected to ADS-B producer"
-		set login(type) mlat_login
-		adept send_array login
-		set ::mlatLoggedIn 1
-		adept send_array row
-	}
+	adept send_array row
 }

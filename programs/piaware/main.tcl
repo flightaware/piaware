@@ -23,6 +23,7 @@ source $::launchdir/config.tcl
 source $::launchdir/helpers.tcl
 source $::launchdir/faup1090.tcl
 source $::launchdir/health.tcl
+source $::launchdir/mlat.tcl
 
 #
 # main - the main program
