@@ -1,3 +1,4 @@
+# -*- mode: tcl; tab-width: 4; indent-tabs-mode: t -*-
 #
 # piaware - ADS-B data upload to FlightAware
 #
@@ -29,6 +30,7 @@ source $::launchdir/health.tcl
 proc main {{argv ""}} {
     set options {
         {p.arg "" "specify the name of a file to write our pid in"}
+        {serverhosts.arg {eyes.flightaware.com 70.42.6.203} "specify alternate server host list (for FA testing)"}
         {serverport.arg "1200" "specify alternate server port (for FA testing)"}
         {debug  "log to stdout rather than the log file"}
         {showtraffic  "emit traffic to stdout (for debugging)"}
@@ -36,7 +38,7 @@ proc main {{argv ""}} {
         {v  "emit version information and exit"}
     }
 
-    set usage ": $::argv0 ?-p pidfile? ?-v? ?-debug? ?-serverport <port>? "
+    set usage ": $::argv0 ?-p pidfile? ?-v? ?-debug? ?-serverport <port>? ?-serverhost <host>?"
 
     if {[catch {array set ::params [::cmdline::getoptions argv $options $usage]} catchResult] == 1} {
         puts stderr $catchResult
