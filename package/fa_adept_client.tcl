@@ -689,7 +689,7 @@ namespace eval ::fa_adept {
 		set message(local_manual_update_enable) [update_check manualUpdate]
 		set message(mlat_available) [mlat_is_configured]
 
-		set message(compression_version) 1.0
+		set message(compression_version) 1.1
 
 		send_array message
 	}
@@ -850,7 +850,7 @@ namespace eval ::fa_adept {
 			}
 		}
 
-		foreach "var keyChar format" "clock c I hexid h H6 ident i A8 alt a I lat l R lon m R speed s S squawk q H4 heading H S" {
+		foreach "var keyChar format" "clock c I hexid h H6 ident i A8 alt a I lat l R lon m R speed s S squawk q H4 heading H S m_short S H12H14 m_long L H12H28 m_even E H12H28 m_odd O H12H28" {
 			if {[info exists row($var)]} {
 				append newKey $keyChar
 				append binData [binary format $format $row($var)]
