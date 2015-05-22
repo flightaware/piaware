@@ -31,7 +31,7 @@ source $::launchdir/mlat.tcl
 proc main {{argv ""}} {
     set options {
         {p.arg "" "specify the name of a file to write our pid in"}
-        {serverhosts.arg {eyes.flightaware.com 70.42.6.203} "specify alternate server host list (for FA testing)"}
+        {serverhosts.arg "" "specify alternate server hosts (for FA testing)"}
         {serverport.arg "1200" "specify alternate server port (for FA testing)"}
         {debug  "log to stdout rather than the log file"}
         {showtraffic  "emit traffic to stdout (for debugging)"}
