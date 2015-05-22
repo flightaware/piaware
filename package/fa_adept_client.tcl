@@ -679,7 +679,7 @@ namespace eval ::fa_adept {
 
 		set message(local_auto_update_enable) [update_check autoUpdate]
 		set message(local_manual_update_enable) [update_check manualUpdate]
-		set message(mlat_available) [mlat_is_configured]
+		set message(local_mlat_enable) [mlat_is_configured]
 
 		set message(compression_version) 1.1
 
