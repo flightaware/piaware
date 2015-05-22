@@ -50,9 +50,16 @@ proc user_check {} {
 # setup_adept_client - adept client-side setup
 #
 proc setup_adept_client {} {
+	if {$::params(serverhosts) == ""} {
+		set hostOptions ""
+	} else {
+		set hostOptions "-hosts $::params(serverhosts)"
+	}
+
     ::fa_adept::AdeptClient adept \
 		-port $::params(serverport) \
-		-showTraffic $::params(showtraffic)
+		-showTraffic $::params(showtraffic) \
+		{*}$hostOptions
 }
 
 #

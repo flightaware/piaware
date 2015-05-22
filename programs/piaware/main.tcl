@@ -29,6 +29,7 @@ source $::launchdir/health.tcl
 proc main {{argv ""}} {
     set options {
         {p.arg "" "specify the name of a file to write our pid in"}
+        {serverhosts.arg "" "specify alternate server hosts (for FA testing)"}
         {serverport.arg "1200" "specify alternate server port (for FA testing)"}
         {debug  "log to stdout rather than the log file"}
         {showtraffic  "emit traffic to stdout (for debugging)"}
