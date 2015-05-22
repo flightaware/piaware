@@ -189,7 +189,7 @@ proc mlat_data_available {} {
 proc process_mlat_message {_row} {
 	upvar $_row row
 
-	if {$message(type) eq "mlat_event" && $message(event) eq "ready"} {
+	if {$row(type) eq "mlat_event" && $row(event) eq "ready"} {
 		set ::mlatReady 1
 	}
 
