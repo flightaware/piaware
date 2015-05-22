@@ -848,10 +848,19 @@ namespace eval ::fa_adept {
 			}
 		}
 
-		foreach "var keyChar format" "clock c I hexid h H6 ident i A8 alt a I lat l R lon m R speed s S squawk q H4 heading H S m_short S H12H14 m_long L H12H28 m_even E H12H28 m_odd O H12H28" {
+		foreach "var keyChar format" "clock c I hexid h H6 ident i A8 alt a I lat l R lon m R speed s S squawk q H4 heading H S" {
 			if {[info exists row($var)]} {
 				append newKey $keyChar
 				append binData [binary format $format $row($var)]
+				unset row($var)
+			}
+		}
+
+		# These keys expect a list-format value:
+		foreach "var keyChar format" "m_short S H12H14 m_long L H12H28 m_sync Y H12H28H12H28" {
+			if {[info exists row($var)]} {
+				append newKey $keyChar
+				append binData [binary format $format {*}$row($var)]
 				unset row($var)
 			}
 		}
