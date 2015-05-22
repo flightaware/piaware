@@ -13,23 +13,32 @@ set ::mlatRestartMillis 60000
 
 proc mlat_is_configured {} {
     if {![info exists ::adeptConfig(mlat)]} {
+		logger "Multilateration not enabled - config setting not present"
 		return 0
 	}
 
 	if {![string is boolean $::adeptConfig(mlat)]} {
+		logger "Multilateration not enabled - config setting isn't a boolean"
 		return 0
 	}
 
-	if {$::adeptConfig(mlat)} {
-		return 1
-	} else {
+	if {!$::adeptConfig(mlat)} {
+		logger "Multilateration not enabled - disabled in config"
 		return 0
 	}
+
+	# check for existence of fa-mlat-client
+	if {[auto_execok fa-mlat-client] eq ""} {
+		logger "Multilateration not enabled - no fa-mlat-client found"
+		return 0
+	}
+
+	# all ok
+	return 1
 }
 
 proc enable_mlat {} {
 	if {![mlat_is_configured]} {
-		logger "Ignoring request for multilateration data - mlat config setting disabled or missing"
 		return
 	}
 
