@@ -100,7 +100,12 @@ proc start_mlat_client {} {
 		return
 	}
 
-	set ::mlatPipe [open "|fa-mlat-client --input-host localhost --input-port 30005" r+]
+	if {[catch {set ::mlatPipe [open "|fa-mlat-client --input-host localhost --input-port 30005 2>@stderr" r+]} catchResult] == 1} {
+		logger "got '$catchResult' starting multilateration client"
+		schedule_mlat_client_restart
+		return
+	}
+
 	set ::mlatReady 0
 	fconfigure $::mlatPipe -buffering line -blocking 0 -translation binary
 	fileevent $::mlatPipe readable mlat_data_available
