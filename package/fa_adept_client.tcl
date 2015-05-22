@@ -792,6 +792,12 @@ namespace eval ::fa_adept {
 	#  disconnects and schedules reconnection shortly in the future
     #
     method send {text} {
+		if {![info exists sock]} {
+			# we might be halfway through a reconnection.
+			# drop data on the floor
+			return
+		}
+
 		if {$showTraffic} {
 			puts "> $text"
 		}
