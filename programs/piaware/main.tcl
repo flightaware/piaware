@@ -31,8 +31,8 @@ source $::launchdir/mlat.tcl
 proc main {{argv ""}} {
     set options {
         {p.arg "" "specify the name of a file to write our pid in"}
-        {serverhosts.arg "" "specify alternate server hosts (for FA testing)"}
-        {serverport.arg "1200" "specify alternate server port (for FA testing)"}
+        {serverhosts.arg "earrs.hou.flightaware.com" "specify alternate server hosts (for FA testing)"}
+        {serverport.arg "1201" "specify alternate server port (for FA testing)"}
         {debug  "log to stdout rather than the log file"}
         {showtraffic  "emit traffic to stdout (for debugging)"}
         {debugport.arg "0" "open a localhost-only port to the tcl interpreter"}
