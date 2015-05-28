@@ -12,28 +12,26 @@ set ::mlatReady 0
 set ::mlatRestartMillis 60000
 
 proc mlat_is_configured {} {
-    if {![info exists ::adeptConfig(mlat)]} {
-		logger "Multilateration not enabled - config setting not present"
-		return 0
-	}
+	if {[info exists ::adeptConfig(mlat)]} {
+		if {![string is boolean $::adeptConfig(mlat)]} {
+			logger "multilateration support disabled (config setting should be a boolean, but isn't)"
+			return 0
+		}
 
-	if {![string is boolean $::adeptConfig(mlat)]} {
-		logger "Multilateration not enabled - config setting isn't a boolean"
-		return 0
-	}
-
-	if {!$::adeptConfig(mlat)} {
-		logger "Multilateration not enabled - disabled in config"
-		return 0
+		if {!$::adeptConfig(mlat)} {
+			logger "multilateration support disabled (explicitly disabled in config)"
+			return 0
+		}
 	}
 
 	# check for existence of fa-mlat-client
 	if {[auto_execok fa-mlat-client] eq ""} {
-		logger "Multilateration not enabled - no fa-mlat-client found"
+		logger "multilateration support disabled (no fa-mlat-client found)"
 		return 0
 	}
 
 	# all ok
+	logger "multilateration support enabled (use piaware-config to disable)"
 	return 1
 }
 
@@ -47,14 +45,14 @@ proc enable_mlat {} {
 		return
 	}
 
-	logger "Enabling multilateration client"
+	logger "multilateration data requested, enabling mlat client"
 	set ::mlatEnabled 1
 	start_mlat_client
 }
 
 proc disable_mlat {} {
 	if {$::mlatEnabled} {
-		logger "Disabling multilateration client"
+		logger "multilateration data no longer required, disabling mlat client"
 		set ::mlatEnabled 0
 		close_mlat_client
 		if {[info exists ::mlatRestartTimer]} {
