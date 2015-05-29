@@ -1,3 +1,4 @@
+# -*- mode: tcl; tab-width: 4; indent-tabs-mode: t -*-
 #
 # fa_adept_client - Itcl class for connecting to and communicating with
 #  an Open Aviation Data Exchange Protocol service
@@ -300,7 +301,7 @@ namespace eval ::fa_adept {
 	method handle_response {_row} {
 		upvar $_row row
 
-		switch $row(type) {
+		switch -glob $row(type) {
 			"login_response" {
 				handle_login_response_message row
 			}
@@ -323,6 +324,10 @@ namespace eval ::fa_adept {
 
 			"request_manual_update" {
 				handle_update_request manual row
+			}
+
+			"mlat_*" {
+				forward_to_mlat_client row
 			}
 
 			default {
@@ -619,6 +624,7 @@ namespace eval ::fa_adept {
 			unset sock
 		}
 
+		disable_mlat
 		reap_any_dead_children
     }
 
@@ -673,8 +679,9 @@ namespace eval ::fa_adept {
 
 		set message(local_auto_update_enable) [update_check autoUpdate]
 		set message(local_manual_update_enable) [update_check manualUpdate]
+		set message(local_mlat_enable) [mlat_is_configured]
 
-		set message(compression_version) 1.0
+		set message(compression_version) 1.1
 
 		send_array message
 	}
@@ -785,6 +792,12 @@ namespace eval ::fa_adept {
 	#  disconnects and schedules reconnection shortly in the future
     #
     method send {text} {
+		if {![info exists sock]} {
+			# we might be halfway through a reconnection.
+			# drop data on the floor
+			return
+		}
+
 		if {$showTraffic} {
 			puts "> $text"
 		}
@@ -839,6 +852,15 @@ namespace eval ::fa_adept {
 			if {[info exists row($var)]} {
 				append newKey $keyChar
 				append binData [binary format $format $row($var)]
+				unset row($var)
+			}
+		}
+
+		# These keys expect a list-format value:
+		foreach "var keyChar format" "m_short S H12H14 m_long L H12H28 m_sync Y H12H28H12H28" {
+			if {[info exists row($var)]} {
+				append newKey $keyChar
+				append binData [binary format $format {*}$row($var)]
 				unset row($var)
 			}
 		}

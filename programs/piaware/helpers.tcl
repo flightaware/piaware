@@ -1,3 +1,4 @@
+# -*- mode: tcl; tab-width: 4; indent-tabs-mode: t -*-
 #
 # fa_adept_client - open data exchange protocol server
 #
@@ -213,6 +214,7 @@ proc shutdown {{reason ""}} {
 #
 proc cleanup_and_exit {} {
 	stop_faup1090
+	disable_mlat
 	remove_pidfile
 	logger "$::argv0 (process [pid]) is exiting..."
 	exit 0
