@@ -16,7 +16,7 @@ namespace eval ::fa_adept {
 ::itcl::class AdeptClient {
     public variable sock
     public variable host
-    public variable hosts [list eyes.flightaware.com 70.42.6.203]
+    public variable hosts [list piaware.flightaware.com 70.42.6.203]
     public variable port 1200
     public variable connectRetryIntervalSeconds 60
     public variable connected 0
