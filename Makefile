@@ -8,11 +8,15 @@ SYSVINIT := $(shell ls -d /etc/init.d/ 2>/dev/null)
 TCLSH=$(shell which tclsh || which tclsh8.5 || which tclsh8.6)
 USR_DIR := /usr
 
+ifneq ($(DESTDIR),)
+    DESTDIR := $(DESTDIR)/
+endif
+
 ifeq ($(PREFIX),)
-    PREFIX_DIR := $(USR_DIR)
+    PREFIX_DIR := $(DESTDIR)$(USR_DIR)
 else
-    PREFIX_DIR := $(PREFIX)/$(USR_DIR)
-    $(warning Installing to $(PREFIX))
+    PREFIX_DIR := $(DESTDIR)$(PREFIX)/$(USR_DIR)
+    $(warning Installing to $(DESTDIR)$(PREFIX))
 endif
 
 export TCLSH
@@ -30,10 +34,12 @@ install:
 
 # conditionally install init services
 ifdef SYSVINIT
-	install scripts/piaware-rc-script $(SYSVINIT)piaware
+	install -d $(DESTDIR)$(SYSVINIT)
+	install scripts/piaware-rc-script $(DESTDIR)$(SYSVINIT)piaware
 else
 ifdef SYSTEMD
-	install scripts/piaware.service $(PREFIX)/$(SYSTEMD)
+	install -d $(DESTDIR)/$(SYSTEMD)
+	install scripts/piaware.service $(DESTDIR)$(PREFIX)/$(SYSTEMD)
 else
 	@echo "No init service found"
 endif
