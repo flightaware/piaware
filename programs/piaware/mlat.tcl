@@ -98,15 +98,46 @@ proc start_mlat_client {} {
 		return
 	}
 
-	if {[catch {set ::mlatPipe [open "|fa-mlat-client --input-host localhost --input-port 30005 2>@stderr" r+]} catchResult] == 1} {
+	pipe rpipe wpipe
+	set command [list "fa-mlat-client" "--input-host" "localhost" "--input-port" "30005" "2>@$wpipe"]
+	if {[catch {set ::mlatPipe [open |$command r+]} catchResult] == 1} {
 		logger "got '$catchResult' starting multilateration client"
 		schedule_mlat_client_restart
+		catch {close $rpipe}
+		catch {close $wpipe}
 		return
 	}
+
+	close $wpipe
+	fconfigure $rpipe -buffering line -blocking 0
+	fileevent $rpipe readable [list forward_to_stderr $rpipe]
 
 	set ::mlatReady 0
 	fconfigure $::mlatPipe -buffering line -blocking 0 -translation binary
 	fileevent $::mlatPipe readable mlat_data_available
+}
+
+proc forward_to_stderr {pipe} {
+	while 1 {
+		if {[catch {set size [gets $pipe line]}] == 1} {
+			catch {close $pipe}
+			reap_any_dead_children
+			return
+		}
+
+		if {$size < 0} {
+			break
+		}
+
+		if {$line ne ""} {
+			puts stderr $line
+		}
+	}
+
+	if {[eof $pipe]} {
+		catch {close $pipe}
+		reap_any_dead_children
+	}
 }
 
 proc schedule_mlat_client_restart {} {
