@@ -80,7 +80,10 @@ proc close_mlat_client {} {
 }
 
 proc start_mlat_client {} {
-	unset -nocomplain ::mlatRestartTimer
+	if {[info exists ::mlatRestartTimer]} {
+		after cancel $::mlatRestartTimer
+		unset ::mlatRestartTimer
+	}
 
 	if {!$::mlatEnabled} {
 		return
@@ -141,6 +144,9 @@ proc forward_to_stderr {pipe} {
 }
 
 proc schedule_mlat_client_restart {} {
+	if [info exists ::mlatRestartTimer] {
+		after cancel $::mlatRestartTimer
+	}
 	set ::mlatRestartTimer [after $::mlatRestartMillis start_mlat_client]
 }
 
