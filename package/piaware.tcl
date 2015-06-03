@@ -135,13 +135,13 @@ proc is_piaware_running {} {
 
 #
 # dump1090_any_bad_args - check for bad args (--no-crc-check,
-#  --agressive, --fix). Returns 1 if found, 0 if not
+#  --agressive). Returns 1 if found, 0 if not
 #
 proc dump1090_any_bad_args {} {
 	
 	set fp [open "|ps auxww | grep dump1090"]
 
-	set bad_args [list "--no-crc-check" "--aggressive" "--fix" ]
+	set bad_args [list "--no-crc-check" "--aggressive"]
 
 	while {[gets $fp pid] >= 0} {
         foreach arg $bad_args {
