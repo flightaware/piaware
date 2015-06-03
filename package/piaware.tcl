@@ -134,6 +134,29 @@ proc is_piaware_running {} {
 }
 
 #
+# dump1090_any_bad_args - check for bad args (--no-crc-check,
+#  --agressive, --fix). Returns 1 if found, 0 if not
+#
+proc dump1090_any_bad_args {} {
+	
+	set fp [open "|ps auxww | grep dump1090"]
+
+	set bad_args [list "--no-crc-check" "--aggressive" "--fix" ]
+
+	while {[gets $fp pid] >= 0} {
+        foreach arg $bad_args {
+			 # search the process for bad arguments
+             if {[string last $arg $pid] != -1} {
+				return 1
+             }
+        }
+	}
+	close $fp
+	
+	return 0
+}
+
+#
 # test_port_for_traffic - connect to a port and
 #  see if we can read a byte before a timeout expires.
 #
