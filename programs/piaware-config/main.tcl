@@ -39,7 +39,7 @@ proc main {{argv ""}} {
 		{show "show config file"}
 	}
 
-	set usage ": $::argv0 -help|-user|-password|-start|-stop|-status|-autoUpdate 1/0|-manualUpdate 1/0"
+	set usage ": $::argv0 -help|-user|-password|-start|-stop|-restart|-status|-autoUpdate 1/0|-manualUpdate 1/0|-mlat 1/0"
 
 	if {$argv == ""} {
 		puts stderr "usage$usage"
