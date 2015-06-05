@@ -359,6 +359,43 @@ namespace eval ::fa_adept {
 				set ::flightaware_user $row(user)
 			}
 
+
+
+
+			# if we recieved lat/lon data, we should save it in /etc/latlon
+			if {[info exists row(recv_lat)] && [info exists row(recv_lon)]} {
+	
+				set latlon "--lat $row(recv_lat) --lon $row(recv_lon)"
+				set fp "/var/lib/dump1090/latlon"
+				exec mkdir -p "/var/lib/dump1090"
+
+				# if the file exists, we need to make sure that it has good data
+				# then we will check to see if it's old data
+				# if the data is old, we write new data. If the data is bad, we write new data
+
+				if {[file exists $fp]} {
+					set f [open $fp r]
+					set data [read $f]
+
+					# if not exactly one line, bad data. If not equal to input, old data. Delete the file.
+					if { ([llength [split $data "\n"]] != 1) || [string compare $latlon $data] } {
+						close $f
+						exec rm $fp
+					}
+				}
+
+				# if the file doesn't exist, create it
+				if {![file exists $fp]} {
+					set f [open $fp w]
+					puts -nonewline $f $latlon
+					log_locally  "Updated loaction"
+				} else { 
+					log_localy "Did not update location" 
+				}
+			close $f		
+			}
+
+
 			log_locally "logged in to FlightAware as user $::flightaware_user"
 			cancel_connect_timer
 		} else {
