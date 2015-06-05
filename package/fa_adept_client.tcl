@@ -390,7 +390,7 @@ namespace eval ::fa_adept {
 					puts -nonewline $f $latlon
 					log_locally  "Updated loaction"
 				} else { 
-					log_localy "Did not update location" 
+					log_locally "Did not update location" 
 				}
 			close $f		
 			}
