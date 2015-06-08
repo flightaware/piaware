@@ -559,10 +559,31 @@ proc fetch_url_as_string {url} {
 }
 
 #
+# fetch_url_as_binary_file_callback - callback routine for
+#   fetch_url_as_binary_file_callback for the completion or timeout
+#   of http requests
+#
+proc fetch_url_as_binary_file_callback {sock token} {
+	# ok we got the callback, set the global variable
+	# that fetch_url_as_binary_file is vwaiting on,
+	# so that it can go on
+	set ::fetchUrlVwaitVar 1
+}
+
+
+#
 # fetch_url_as_binary_file - fetch the URL to the file, 1 on success else 0
 #
 proc fetch_url_as_binary_file {url outputFile} {
-    set req [::http::geturl $url -timeout 15000 -binary 1 -strict 0]
+	unset -nocomplain ::fetchUrlVwaitVar
+
+    set req [::http::geturl $url \
+		-timeout 900000 \
+		-binary 1 \
+		-callback fetch_url_as_binary_file_callback \
+		-strict 0]
+
+	vwait ::fetchUrlVwaitVar
 
     set status [::http::status $req]
     set data [::http::data $req]
