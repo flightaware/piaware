@@ -365,7 +365,7 @@ namespace eval ::fa_adept {
 			# if we recieved lat/lon data, we should save it in /etc/latlon
 			if {[info exists row(recv_lat)] && [info exists row(recv_lon)]} {
 	
-				set latlon "--lat $row(recv_lat) --lon $row(recv_lon)"
+				set latlon "$row(recv_lat)\n$row(recv_lon)"
 				set fp "/var/lib/dump1090/latlon"
 				exec mkdir -p "/var/lib/dump1090"
 
@@ -377,8 +377,8 @@ namespace eval ::fa_adept {
 					set f [open $fp r]
 					set data [read $f]
 
-					# if not exactly one line, bad data. If not equal to input, old data. Delete the file.
-					if { ([llength [split $data "\n"]] != 1) || [string compare $latlon $data] } {
+					# if not exactly two lines, bad data. If not equal to input, old data. Delete the file.
+					if { ([llength [split $data "\n"]] != 2) || [string compare $latlon $data] } {
 						close $f
 						exec rm $fp
 					}
