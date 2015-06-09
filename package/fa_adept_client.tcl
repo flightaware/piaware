@@ -359,9 +359,6 @@ namespace eval ::fa_adept {
 				set ::flightaware_user $row(user)
 			}
 
-
-
-
 			# if we recieved lat/lon data, we should save it in /etc/latlon
 			if {[info exists row(recv_lat)] && [info exists row(recv_lon)]} {
 	
@@ -388,8 +385,8 @@ namespace eval ::fa_adept {
 				if {![file exists $fp]} {
 					set f [open $fp w]
 					puts -nonewline $f $latlon
-					log_locally  "Updated loaction"
-				} else { 
+					log_locally  "Updated loaction... you should reboot dump1090"
+					} else { 
 					log_locally "Did not update location" 
 				}
 			close $f		
