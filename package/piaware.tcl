@@ -538,7 +538,7 @@ proc fetch_url_as_string {url} {
 # fetch_url_as_binary_file - fetch the URL to the file, 1 on success else 0
 #
 proc fetch_url_as_binary_file {url outputFile} {
-    set req [::http::geturl $url -timeout 15000 -binary 1 -strict 0]
+    set req [::http::geturl $url -timeout 900000 -binary 1 -strict 0]
 
     set status [::http::status $req]
     set data [::http::data $req]
