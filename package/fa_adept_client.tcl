@@ -363,32 +363,32 @@ namespace eval ::fa_adept {
 			if {[info exists row(recv_lat)] && [info exists row(recv_lon)]} {
 	
 				set latlon "$row(recv_lat)\n$row(recv_lon)"
-				set fp "/var/lib/dump1090/latlon"
-				exec mkdir -p "/var/lib/dump1090"
+				set f "/var/lib/dump1090/latlon"
+				file mkdir "/var/lib/dump1090"
 
 				# if the file exists, we need to make sure that it has good data
 				# then we will check to see if it's old data
 				# if the data is old, we write new data. If the data is bad, we write new data
 
-				if {[file exists $fp]} {
-					set f [open $fp r]
-					set data [read $f]
-					close $f
+				if {[file exists $f]} {
+					set fp [open $f r]
+					set data [read $fp]
+					close $fp
 					# if not exactly two lines, bad data. If not equal to input, old data. Delete the file.
 					if { ([llength [split $data "\n"]] != 2) || [string compare $latlon $data] } {
-						file delete $fp
+						file delete $f
 					}
 				}
 
 				# if the file doesn't exist, create it
-				if {![file exists $fp]} {
-					set f [open $fp w]
-					puts -nonewline $f $latlon
-					close $f
-					log_locally  "Updated loaction... will reboot dump1090"
+				if {![file exists $f]} {
+					set fp [open $f w]
+					puts -nonewline $fp $latlon
+					close $fp
+					log_locally  "updated location... will reboot dump1090"
 					attempt_dump1090_restart
 					} else { 
-					log_locally "Did not update location" 
+					log_locally "did not update location" 
 				}
 			}
 
