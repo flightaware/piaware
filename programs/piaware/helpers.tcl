@@ -33,7 +33,7 @@ proc log_locally {text} {
 #
 proc greetings {} {
 	log_locally "****************************************************"
-	log_locally "piaware version $::piawareVersion is running, process ID [pid]"
+	log_locally "piaware version $::piawareVersionFull is running, process ID [pid]"
 	log_locally "your system info is: [exec /bin/uname --all]"
 }
 
