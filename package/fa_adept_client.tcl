@@ -376,7 +376,7 @@ namespace eval ::fa_adept {
 					close $f
 					# if not exactly two lines, bad data. If not equal to input, old data. Delete the file.
 					if { ([llength [split $data "\n"]] != 2) || [string compare $latlon $data] } {
-						exec rm $fp
+						file delete $fp
 					}
 				}
 
