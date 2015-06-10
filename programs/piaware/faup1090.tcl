@@ -406,7 +406,7 @@ proc stop_faup1090_close_faup1090_socket_and_reopen {} {
 # attempt_dump1090_restart - restart dump1090 if we can figure out how to
 #
 proc attempt_dump1090_restart {{action restart}} {
-	set scripts [glob -nocomplain /etc/init.d/*dump1090*.sh]
+	set scripts [glob -nocomplain /etc/init.d/*dump1090*]
 
 	switch [llength $scripts] {
 		0 {

@@ -373,10 +373,9 @@ namespace eval ::fa_adept {
 				if {[file exists $fp]} {
 					set f [open $fp r]
 					set data [read $f]
-
+					close $f
 					# if not exactly two lines, bad data. If not equal to input, old data. Delete the file.
 					if { ([llength [split $data "\n"]] != 2) || [string compare $latlon $data] } {
-						close $f
 						exec rm $fp
 					}
 				}
@@ -385,11 +384,12 @@ namespace eval ::fa_adept {
 				if {![file exists $fp]} {
 					set f [open $fp w]
 					puts -nonewline $f $latlon
-					log_locally  "Updated loaction... you should reboot dump1090"
+					close $f
+					log_locally  "Updated loaction... will reboot dump1090"
+					attempt_dump1090_restart
 					} else { 
 					log_locally "Did not update location" 
 				}
-			close $f		
 			}
 
 
