@@ -408,39 +408,37 @@ proc stop_faup1090_close_faup1090_socket_and_reopen {} {
 proc attempt_dump1090_restart {{action restart}} {
 	set scripts [glob -nocomplain /etc/init.d/*dump1090*]
 
-	switch [llength $scripts] {
-		0 {
-			logger "can't $action dump1090, no dump1090 script in /etc/init.d"
-			return
-		}
-
-		1 {
-			set script [lindex $scripts 0]
-		}
-
-		default {
-			foreach script $scripts {
-				if {[string match "*old*" $script]} continue
-
-				if {[string match "fadump1090*" $script]} {
-					set scripts $script
-					break
-				}
-			}
-			if {[llength $scripts] > 1} {
-				set scripts [lindex $scripts 0]
-			}
-			logger "warning, more than one dump1090 script in /etc/init.d, proceeding with '$script'..."
+	foreach script $scripts {
+		switch -glob $script {
+			*\.dpkg*	{ 
+			} *\.rpm*	{
+			} *\.ba*	{
+			} *\.old	{ 
+			} *\.org	{
+			} *\.orig	{
+			} *\.save	{
+			} *\.swp	{
+			} *\.core	{ 
+			} default	{ lappend acceptableScripts $script
+			}	
 		}
 	}
+	if { [info exists acceptableScripts] } {
+		set script [lindex $acceptableScripts 0]
+		if { [llength $acceptableScripts] > 1 } {
+			logger "warning, more than one dump1090 script in /etc/init.d, proceding with '$script'..."
+		}
 
-	logger "attempting to $action dump1090 using '$script $action'..."
-	set exitStatus [system "$script $action"]
+		logger "attempting to $action dump1090 using '$script $action'..."
+		set exitStatus [system "$script $action"]
 
-	if {$exitStatus == 0} {
-		logger "dump1090 $action appears to have been successful"
-	} else {
-		logger "got exit status $exitStatus while trying to $action dump1090"
+		if {$exitStatus == 0} {
+			logger "dump1090 $action appears to have been successful"
+		} else {
+			logger "got exit status $exitStatus while trying to $action dump1090"
+		}
+	} else { 
+		logger "can't $action dump1090, no dump1090 script in /etc/init.d"
 	}
 }
 
