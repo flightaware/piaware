@@ -527,7 +527,7 @@ proc init_http_client {} {
 		return
     }
 
-    ::tls::init -ssl2 0 -ssl3 0 -tls1 1
+    ::tls::init -ssl2 0 -ssl3 0 -tls1 1 -cipher DEFAULT:!EDH
     ::http::register https 443 ::tls::socket
 
     set ::tlsInitialized 1
