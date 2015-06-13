@@ -95,7 +95,7 @@ namespace eval ::fa_adept {
 		# CA cert file to confirm the cert's signature on the certificate
 		# the server sends us
 		if {[catch {set sock [tls::socket \
-			-cipher ALL \
+			-cipher DEFAULT:!EDH \
 			-cafile [::fa_adept::ca_crt_file] \
 			-ssl2 0 \
 			-ssl3 0 \
