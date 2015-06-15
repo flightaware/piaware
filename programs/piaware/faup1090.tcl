@@ -410,17 +410,24 @@ proc attempt_dump1090_restart {{action restart}} {
 
 	foreach script $scripts {
 		switch -glob $script {
-			*\.dpkg*	{ 
-			} *\.rpm*	{
-			} *\.ba*	{
-			} *\.old	{ 
-			} *\.org	{
-			} *\.orig	{
-			} *\.save	{
-			} *\.swp	{
-			} *\.core	{ 
-			} default	{ lappend acceptableScripts $script
-			}	
+			*.dpkg*	-
+			*.rpm* -
+			*.ba* -
+			*.old -
+			*.org -
+			*.orig -
+			*.save -
+			*.swp -
+			*.core -
+			*~ {
+				# Skip this
+			}
+
+			default {
+				if {[auto_execok $script] ne ""} {
+					lappend acceptableScripts $script
+				}
+			}
 		}
 	}
 	if { [info exists acceptableScripts] } {
