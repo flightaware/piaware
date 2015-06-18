@@ -124,14 +124,14 @@ proc start_mlat_client {} {
 
 	close $wpipe
 	fconfigure $rpipe -buffering line -blocking 0
-	fileevent $rpipe readable [list forward_to_stderr $rpipe]
+	fileevent $rpipe readable [list forward_to_logger [pid $::mlatPipe] $rpipe]
 
 	set ::mlatReady 0
 	fconfigure $::mlatPipe -buffering line -blocking 0 -translation binary
 	fileevent $::mlatPipe readable mlat_data_available
 }
 
-proc forward_to_stderr {pipe} {
+proc forward_to_logger {childpid pipe} {
 	while 1 {
 		if {[catch {set size [gets $pipe line]}] == 1} {
 			catch {close $pipe}
@@ -144,7 +144,7 @@ proc forward_to_stderr {pipe} {
 		}
 
 		if {$line ne ""} {
-			puts stderr $line
+			logger "mlat($childpid): $line"
 		}
 	}
 
