@@ -110,6 +110,8 @@ proc start_mlat_client {} {
 		lappend command "--udp-transport" "$udp_host:$udp_port:$udp_key"
 	}
 
+	logger "Starting multilateration client: $command"
+
 	pipe rpipe wpipe
 	lappend command "2>@$wpipe"
 	if {[catch {set ::mlatPipe [open |$command r+]} catchResult] == 1} {
