@@ -13,6 +13,21 @@ set ::mlatRestartMillis 60000
 # UDP transport info
 set ::mlatUdpTransport {}
 
+proc find_mlat_client {} {
+	if {![info exists ::mlatClientPath]} {
+		set candidates [list "/usr/lib/fa-mlat-client/fa-mlat-client" \
+						"fa-mlat-client"]
+		foreach candidate $candidates {
+			set ::mlatClientPath [auto_execok $candidate]
+			if {$::mlatClientPath ne ""} {
+				break
+			}
+		}
+	}
+
+	return $::mlatClientPath
+}
+
 proc mlat_is_configured {} {
 	if {[info exists ::adeptConfig(mlat)]} {
 		if {![string is boolean $::adeptConfig(mlat)]} {
@@ -27,7 +42,7 @@ proc mlat_is_configured {} {
 	}
 
 	# check for existence of fa-mlat-client
-	if {[auto_execok fa-mlat-client] eq ""} {
+	if {[find_mlat_client] eq ""} {
 		logger "multilateration support disabled (no fa-mlat-client found)"
 		return 0
 	}
@@ -104,7 +119,8 @@ proc start_mlat_client {} {
 		return
 	}
 
-	set command [list "fa-mlat-client" "--input-host" "localhost" "--input-port" "30005"]
+	set command [find_mlat_client]
+	lappend command "--input-host" "localhost" "--input-port" "30005"
 	if {$::mlatUdpTransport ne ""} {
 		lassign $::mlatUdpTransport udp_host udp_port udp_key
 		lappend command "--udp-transport" "$udp_host:$udp_port:$udp_key"
