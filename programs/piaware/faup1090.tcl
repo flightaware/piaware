@@ -533,5 +533,36 @@ proc traffic_report {} {
 
 }
 
-# vim: set ts=4 sw=4 sts=4 noet :
+# when adept tells us the receiver location,
+# record it and maybe restart dump1090 / faup1090
+proc update_location {lat lon} {
+	if {$lat eq $::receiverLat && $lon eq $::receiverLon} {
+		# unchanged
+		return
+	}
 
+	# nb: we always save the new location, but the globals
+	# reflect what dump1090 was last started with and
+	# are only updated if we decide to restart dump1090.
+	# This handles the case where the location walks in
+	# small steps.
+
+	save_location_info $lat $lon
+
+	if {$::receiverLat ne "" && $::receiverLon ne ""} {
+		if {abs($::receiverLat - $lat) < 0.1 && abs($::receiverLon - $lon) < 0.1} {
+			# Didn't change enough to care about restarting
+			return
+		}
+	}
+
+	# changed nontrivially; restart faup1090 to use the new values
+	set ::receiverLat $lat
+	set ::receiverLon $lon
+	if {[info exists ::faupPipe]} {
+		logger "Receiver location changed, restarting dump1090"
+		attempt_dump1090_restart
+	}
+}
+
+# vim: set ts=4 sw=4 sts=4 noet :

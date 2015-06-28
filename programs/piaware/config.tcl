@@ -30,4 +30,7 @@ set adsbNoProducerStartDelaySeconds 360
 # dump1090 or some other mode S beast-style source
 set faup1090Port 10001
 
+# where we store our location info
+set locationFile "/var/lib/dump1090/latlon"
+
 # vim: set ts=4 sw=4 sts=4 noet :

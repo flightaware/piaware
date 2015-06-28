@@ -77,6 +77,8 @@ proc load_adept_config_and_setup {} {
 		set ::flightaware_password $::adeptConfig(password)
 	}
 
+	lassign [load_location_info] ::receiverLat ::receiverLon
+
 	return 1
 }
 
@@ -218,6 +220,49 @@ proc cleanup_and_exit {} {
 	remove_pidfile
 	logger "$::argv0 (process [pid]) is exiting..."
 	exit 0
+}
+
+#
+# load lat/lon info from /var/lib if available
+#
+proc load_location_info {} {
+	if {[catch {set ll [try_load_location_info]}] == 1} {
+		return [list "" ""]
+	}
+
+	return $ll
+}
+
+proc try_load_location_info {} {
+	set fp [open $::locationFile r]
+	set data [read $fp]
+	close $fp
+
+	lassign [split $data "\n"] lat lon
+	if {![string is double $lat] || ![string is double $lon]} {
+		error "lat/lon missing or not numeric"
+	}
+
+	return [list $lat $lon]
+}
+
+# save location info
+proc save_location_info {lat lon} {
+	if {[catch {try_save_location_info $lat $lon} catchResult] == 1} {
+		log_locally "got '$catchResult' trying to update $::locationFile"
+	}
+}
+
+proc try_save_location_info {lat lon} {
+	set dir [file dirname $::locationFile]
+	if {![file exists $dir]} {
+		file mkdir $dir
+	}
+
+	set fp [open $::locationFile w]
+	puts $fp $lat
+	puts $fp $lon
+	close $fp
 }
 
 # vim: set ts=4 sw=4 sts=4 noet :

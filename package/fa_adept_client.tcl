@@ -335,6 +335,10 @@ namespace eval ::fa_adept {
 				forward_to_mlat_client row
 			}
 
+			"update_location" {
+				handle_update_location row
+			}
+
 			default {
 				log_locally "unrecognized message type '$row(type)' from server, ignoring..."
 				incr ::nUnrecognizedServerMessages
@@ -364,39 +368,10 @@ namespace eval ::fa_adept {
 				set ::flightaware_user $row(user)
 			}
 
-			# if we recieved lat/lon data, we should save it in /etc/latlon
+			# if we received lat/lon data, handle it
 			if {[info exists row(recv_lat)] && [info exists row(recv_lon)]} {
-	
-				set latlon "$row(recv_lat)\n$row(recv_lon)"
-				set f "/var/lib/dump1090/latlon"
-				file mkdir "/var/lib/dump1090"
-
-				# if the file exists, we need to make sure that it has good data
-				# then we will check to see if it's old data
-				# if the data is old, we write new data. If the data is bad, we write new data
-
-				if {[file exists $f]} {
-					set fp [open $f r]
-					set data [read $fp]
-					close $fp
-					# if not exactly two lines, bad data. If not equal to input, old data. Delete the file.
-					if { ([llength [split $data "\n"]] != 2) || [string compare $latlon $data] } {
-						file delete $f
-					}
-				}
-
-				# if the file doesn't exist, create it
-				if {![file exists $f]} {
-					set fp [open $f w]
-					puts -nonewline $fp $latlon
-					close $fp
-					log_locally  "updated location... will reboot dump1090"
-					attempt_dump1090_restart
-					} else { 
-					log_locally "did not update location" 
-				}
+				update_location $row(recv_lat) $row(recv_lon)
 			}
-
 
 			log_locally "logged in to FlightAware as user $::flightaware_user"
 			cancel_connect_timer
@@ -410,6 +385,14 @@ namespace eval ::fa_adept {
 			log_locally "You can start it up again using 'sudo /etc/init.d/piaware start'"
 			exit 4
 		}
+	}
+
+	#
+	# handle_update_location - handle a location-update notification from the server
+	#
+	method handle_update_location {_row} {
+		upvar $_row row
+		update_location $row(recv_lat) $row(recv_lon)
 	}
 
 	#
