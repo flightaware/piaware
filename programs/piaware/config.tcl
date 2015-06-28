@@ -26,10 +26,6 @@ set sendHealthInformationIntervalSeconds 300
 # for before we will attempt to start it
 set adsbNoProducerStartDelaySeconds 360
 
-# port on which flightaware-style messages are received from faup1090 or
-# dump1090 or some other mode S beast-style source
-set faup1090Port 10001
-
 # where we store our location info
 set locationFile "/var/lib/dump1090/latlon"
 

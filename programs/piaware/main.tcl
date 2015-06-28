@@ -111,9 +111,7 @@ if 0 {
 
 	adept connect
 
-	inspect_sockets_with_netstat
-
-    setup_fa_style_adsb_client
+    connect_adsb_via_faup1090
 
 	periodically_check_adsb_traffic
 

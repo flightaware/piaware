@@ -684,9 +684,7 @@ namespace eval ::fa_adept {
 			set message(adsbprogram) $::netstatus(program_30005)
 		}
 
-		if {[info exists ::netstatus(program_10001)]} {
-			set message(transprogram) $::netstatus(program_10001)
-		}
+		set message(transprogram) "faup1090"
 
 		set message(mac) [get_mac_address_or_quit]
 
