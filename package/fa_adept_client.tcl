@@ -28,6 +28,7 @@ namespace eval ::fa_adept {
 	protected variable aliveTimerID
 	protected variable nextHostIndex 0
 	protected variable lastCompressClock 0
+	protected variable flushPending 0
 
     constructor {args} {
 		configure {*}$args
@@ -133,13 +134,17 @@ namespace eval ::fa_adept {
 		#logger "TLS local status: [::tls::status -local $sock]"
 		log_locally "encrypted session established with FlightAware"
 
-		# configure the socket nonblocking line-buffered and
+		# configure the socket nonblocking full-buffered and
 		# schedule this object's server_data_available method
 		# to be invoked when data is available on the socket
+		# we arrange to call flush periodically while output is pending,
+		# to get better batching of data while still getting it out
+		# promptly
 
-		fconfigure $sock -buffering line -blocking 0 -translation binary
+		fconfigure $sock -buffering full -buffersize 4096 -blocking 0 -translation binary
 		fileevent $sock readable [list $this server_data_available]
 		set connected 1
+		set flushPending 0
 
 		# ok, we're connected, now attempt to login
 		# note that login reply will be asynchronous to us, i.e.
@@ -822,7 +827,7 @@ namespace eval ::fa_adept {
 	#  disconnects and schedules reconnection shortly in the future
     #
     method send {text} {
-		if {![info exists sock]} {
+		if {![is_connected]} {
 			# we might be halfway through a reconnection.
 			# drop data on the floor
 			return
@@ -835,8 +840,26 @@ namespace eval ::fa_adept {
 		if {[catch {puts $sock $text} catchResult] == 1} {
 			log_locally "got '$catchResult' writing to FlightAware socket, reconnecting..."
 			close_socket_and_reopen
+			return
+		}
+
+		if {!$flushPending} {
+			set flushPending 1
+			after 200 [list $this flush_output]
 		}
     }
+
+	# flush any buffered output
+	method flush_output {} {
+		set flushPending 0
+		if {[info exists sock]} {
+			if {[catch {flush $sock} catchResult] == 1} {
+				log_locally "got '$catchResult' writing to FlightAware socket, reconnecting..."
+				close_socket_and_reopen
+				return
+			}
+		}
+	}
 
 	#
 	# send_array - send an array as a message
