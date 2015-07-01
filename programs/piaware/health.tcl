@@ -1,3 +1,4 @@
+# -*- mode: tcl; tab-width: 4; indent-tabs-mode: t -*-
 # Copyright (C) 2014 FlightAware LLC All Rights Reserved
 #
 
@@ -36,6 +37,55 @@ proc cpu_temperature {} {
 }
 
 #
+# get_cpu_load - return the recent cpu load as a percentage (0-100)
+#
+proc get_cpu_load {} {
+	if {[catch {lassign [get_cpu_ticks] load_ticks elapsed_ticks}] == 1} {
+		return 0
+	}
+
+	set recent_load 0
+	if {[info exists ::lastCPU]} {
+		lassign $::lastCPU last_load_ticks last_elapsed_ticks
+		if {$elapsed_ticks > $last_elapsed_ticks} {
+			set recent_load [expr {round(100.0 * ($load_ticks - $last_load_ticks) / ($elapsed_ticks - $last_elapsed_ticks))}]
+		}
+	} else {
+		# use load since boot
+		if {$elapsed_ticks > 0} {
+			set recent_load [expr {round(100.0 * $load_ticks / $elapsed_ticks)}]
+		}
+	}
+
+	set ::lastCPU [list $load_ticks $elapsed_ticks]
+	return $recent_load
+}
+
+proc get_cpu_ticks {} {
+	set fp [open /proc/stat r]
+	while 1 {
+		gets $fp line
+		set splitted [split $line " "]
+		if {[lindex $splitted 0] eq "cpu"} {
+			set others [lassign $splitted dummy dummy user nice sys idle]
+			break
+		}
+	}
+	close $fp
+
+	if {![info exists others]} {
+		return [list 0 0]
+	}
+
+	set total [expr {$user + $nice + $sys + $idle}]
+	foreach x [split $others " "] {
+		incr total $x
+	}
+
+	return [list [expr {$total - $idle}] $total]
+}
+
+#
 # get_uptime - get uptime from /proc/uptime, return 0 if failed
 #
 proc get_uptime {} {
@@ -70,6 +120,7 @@ proc construct_health_array {_row} {
     catch {array set row [filesystem_usage]}
 	catch {set row(adsbprogram_running) [is_adsb_program_running]}
     catch {set row(cputemp) [cpu_temperature]}
+    catch {set row(cpuload) [get_cpu_load]}
     catch {set row(uptime) [get_uptime]}
 
 	if {[info exists ::netstatus(program_30005)]} {
