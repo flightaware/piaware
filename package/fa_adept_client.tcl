@@ -697,7 +697,7 @@ namespace eval ::fa_adept {
 		set message(local_manual_update_enable) [update_check manualUpdate]
 		set message(local_mlat_enable) [mlat_is_configured]
 
-		set message(compression_version) 1.1
+		set message(compression_version) 1.2
 
 		send_array message
 	}
@@ -848,7 +848,14 @@ namespace eval ::fa_adept {
 	method send_array {_row} {
 		upvar $_row row
 
-		set row(clock) [clock seconds]
+		if {[info exists row(clock)]} {
+			set now [clock seconds]
+			if {abs($now - $row(clock)) > 1} {
+				set row(sent_at) $now
+			}
+		} else {
+			set row(clock) [clock seconds]
+		}
 
 		if {$loggedIn} {
 			compress_array row
@@ -882,7 +889,7 @@ namespace eval ::fa_adept {
 			}
 		}
 
-		foreach "var keyChar format" "clock c I hexid h H6 ident i A8 alt a I lat l R lon m R speed s S squawk q H4 heading H S" {
+		foreach "var keyChar format" "clock c I sent_at C I hexid h H6 ident i A8 alt a I lat l R lon m R speed s S squawk q H4 heading H S" {
 			if {[info exists row($var)]} {
 				append newKey $keyChar
 				append binData [binary format $format $row($var)]
