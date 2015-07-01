@@ -120,7 +120,7 @@ proc start_mlat_client {} {
 	}
 
 	set command [find_mlat_client]
-	lappend command "--input-host" "localhost" "--input-port" "30005"
+	lappend command "--input-connect" "localhost:30005" "--results" "beast,connect,localhost:30004"
 	if {$::mlatUdpTransport ne ""} {
 		lassign $::mlatUdpTransport udp_host udp_port udp_key
 		lappend command "--udp-transport" "$udp_host:$udp_port:$udp_key"
