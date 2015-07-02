@@ -679,7 +679,12 @@ proc upgrade_dpkg_package {name url} {
 proc restart_piaware {} {
 	logger "restarting piaware. hopefully i'll be right back..."
 	system "/etc/init.d/piaware restart &"
-	sleep 10
+
+	# sleep apparently restarts on signals, we want to process them,
+	# so use after/vwait so the event loop runs.
+	after 10000 [list set ::die 1]
+	vwait ::die
+
 	logger "piaware failed to die, pid [pid], that's me, i'm gonna kill myself"
 	exit 0
 }
