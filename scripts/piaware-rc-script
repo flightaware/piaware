@@ -32,7 +32,7 @@ start() {
 
 stop() {
     log_daemon_msg "Stopping piaware server" "piaware"
-    /sbin/start-stop-daemon --stop --quiet --oknodo --pidfile $PIDFILE
+    /sbin/start-stop-daemon --stop --quiet --oknodo --pidfile $PIDFILE --retry 5
     log_end_msg $?
     rm -f $PIDFILE
     return
