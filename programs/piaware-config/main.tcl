@@ -32,6 +32,7 @@ proc main {{argv ""}} {
 		{autoUpdate.arg "" "1 = allow FlightAware to automatically update software on my Pi, 0 = no"}
 		{manualUpdate.arg "" "1 = allow me to trigger manual updates through FlightAware, 0 = no"}
 		{mlat.arg "" "1 = allow multilateration data to be provided, 0 = no"}
+		{mlatResults.arg "" "1 = send multilateration results to localhost:30004, 0 = no"}
 		{start "attempt to start the ADS-B client"}
 		{stop "attempt to stop the ADS-B client"}
 		{restart "attempt to restart the ADS-B client"}
