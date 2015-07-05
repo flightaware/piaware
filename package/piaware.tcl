@@ -202,12 +202,6 @@ proc process_netstat_socket_line {line} {
 		set ::netstatus(status_30005) 1
     }
 
-    if {[string match "*:10001" $localAddress] && $state == "LISTEN"} {
-		set ::netstatus(program_10001) $prog
-		set ::netstatus(status_10001) 1
-    }
-
-
     switch $prog {
 		"faup1090" {
 			if {[string match "*:30005" $foreignAddress] && $state == "ESTABLISHED"} {
@@ -216,7 +210,6 @@ proc process_netstat_socket_line {line} {
 		}
 
 		"piaware" {
-			set ::running(piaware) 1
 			if {[string match "*:1200" $foreignAddress] && $state == "ESTABLISHED"} {
 				set ::netstatus(piaware_1200) 1
 			}
@@ -228,9 +221,6 @@ proc process_netstat_socket_line {line} {
 # inspect_sockets_with_netstat - run netstat and make a report
 #
 proc inspect_sockets_with_netstat {} {
-    set ::running(dump1090) 0
-    set ::running(faup1090) 0
-    set ::running(piaware) 0
     set ::netstatus(status_30005) 0
     set ::netstatus(faup1090_30005) 0
     set ::netstatus(piaware_1200) 0

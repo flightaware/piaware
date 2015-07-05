@@ -79,9 +79,8 @@ proc whats_probably_30005 {} {
 # check_ports_for_data - check for data on beast and flightaware-style ports
 #
 proc check_ports_for_data {} {
-    set ::nRunning 2
+    set ::nRunning 1
     test_port_for_traffic 30005 adsb_data_callback
-    test_port_for_traffic 10001 fa_style_data_callback
 }
 
 #
@@ -102,15 +101,4 @@ proc adsb_data_callback {state} {
     set prog [whats_probably_30005]
     puts [subst_is_or_is_not "$prog %s producing data on port 30005." $state]
     decr_nrunning
-
-}
-
-#
-# fa_style_data_callback - callback when data is received on the FA-style port
-#
-proc fa_style_data_callback {state} {
-    set prog [whats_probably_30005]
-    puts [subst_is_or_is_not "$prog %s producing data on port 10001." $state]
-    decr_nrunning
-
 }
