@@ -90,7 +90,7 @@ proc check_ports_for_data {} {
 proc decr_nrunning {} {
     incr ::nRunning -1
     if {$::nRunning <= 0} {
-	set ::die ""
+	set ::die 1
     }
 }
 

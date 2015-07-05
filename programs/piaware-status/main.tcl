@@ -1,3 +1,4 @@
+# -*- mode: tcl; tab-width: 4; indent-tabs-mode: t -*-
 #
 # fa_adept aka piaware-status - interactive program to
 #  get the status of the piaware toolchain
@@ -19,6 +20,8 @@ package require cmdline
 package require Tclx
 package require fa_adept_config
 
+set ::die 0
+
 #
 # main - the main program
 #
@@ -34,7 +37,10 @@ proc main {{argv ""}} {
 if {!$tcl_interactive} {
     main $argv
 
-	vwait die
+	while {!$die} {
+		vwait die
+	}
+
 	exit 0
 }
 
