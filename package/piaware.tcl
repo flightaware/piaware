@@ -266,9 +266,9 @@ proc netstat_report {} {
     inspect_sockets_with_netstat
 
 	if {!$::netstatus(status_30005)} {
-		puts "no program appears to be listening for connections on port $port."
+		puts "no program appears to be listening for connections on port 30005."
 	} else {
-		puts "$::netstatus(program_30005) is listening for connections on port $port."
+		puts "$::netstatus(program_30005) is listening for connections on port 30005."
 	}
 
     puts "[subst_is_or_is_not "faup1090 %s connected to port 30005." $::netstatus(faup1090_30005)]"
