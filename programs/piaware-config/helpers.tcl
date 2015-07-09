@@ -5,8 +5,8 @@
 # Copyright (C) 2014 FlightAware LLC, All Rights Reserved
 #
 
-set configParams [list user password autoUpdate manualUpdate mlat mlatResults]
-set booleanConfigParams [list autoUpdate manualUpdate mlat]
+set configParams [list user password autoUpdate manualUpdate mlat mlatResults mlatResultsFormat]
+set booleanConfigParams [list autoUpdate manualUpdate mlat mlatResults]
 #
 # process_parameters - look at params array and do things 
 #

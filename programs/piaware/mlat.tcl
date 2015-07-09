@@ -123,7 +123,13 @@ proc start_mlat_client {} {
 	lappend command "--input-connect" "localhost:30005"
 
 	if {![info exists ::adeptConfig(mlatResults)] || ([string is boolean $::adeptConfig(mlatResults)] && $::adeptConfig(mlatResults))} {
-		lappend command "--results" "beast,connect,localhost:30004"
+		if {![info exists ::adeptConfig(mlatResultsFormat)] || $::adeptConfig(mlatResultsFormat) eq "default"} {
+			lappend command "--results" "beast,connect,localhost:30004"
+		} else {
+			foreach r $::adeptConfig(mlatResultsFormat) {
+				lappend command "--results" $r
+			}
+		}
 	}
 
 	if {$::mlatUdpTransport ne ""} {

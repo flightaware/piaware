@@ -33,6 +33,7 @@ proc main {{argv ""}} {
 		{manualUpdate.arg "" "1 = allow me to trigger manual updates through FlightAware, 0 = no"}
 		{mlat.arg "" "1 = allow multilateration data to be provided, 0 = no"}
 		{mlatResults.arg "" "1 = send multilateration results to localhost:30004, 0 = no"}
+		{mlatResultsFormat.arg "" "format(s) to generate mlat results in, 'default' to reset to the default format"}
 		{start "attempt to start the ADS-B client"}
 		{stop "attempt to stop the ADS-B client"}
 		{restart "attempt to restart the ADS-B client"}
@@ -40,7 +41,7 @@ proc main {{argv ""}} {
 		{show "show config file"}
 	}
 
-	set usage ": $::argv0 -help|-user|-password|-start|-stop|-restart|-status|-autoUpdate 1/0|-manualUpdate 1/0|-mlat 1/0"
+	set usage ": $::argv0 -help|-user|-password|-start|-stop|-restart|-status|-autoUpdate 1/0|-manualUpdate 1/0|-mlat 1/0|-mlatResults 1/0|-mlatResultsFormat formatlist"
 
 	if {$argv == ""} {
 		puts stderr "usage$usage"
