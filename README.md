@@ -87,6 +87,15 @@ and removed by doing a
 
     update-rc.d piaware remove
 
+Use piaware_builder to build from source
+---
+
+If you can, use [piaware_builder](https://github.com/flightaware/piaware_builder) to build piaware.
+This is a mostly automated build that is used to build the Raspbian piaware release packages that
+FlightAware provides. It should also work on other Debian-based systems.
+
+The following instructions are historical and may be somewhat out of date.
+
 Building and installing Piaware from source
 ---
 

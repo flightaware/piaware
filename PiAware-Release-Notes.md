@@ -1,3 +1,6 @@
+This file is historical. For a current changelog, see
+[the piaware_builder package changelog](https://raw.githubusercontent.com/flightaware/piaware_builder/master/changelog).
+
 piaware 1.20-1
 --
 * Greatly improved range and message rate by configuring dump1090 to use auto-gain rather than max gain (--gain -10 added to dump1090 arguments). Sites allowing remote upgrade will be upgraded automatically. People running their own copies of dump1090 are advised to add --gain -10 to their dump1090 command line arugments to obtain these same improvements.
