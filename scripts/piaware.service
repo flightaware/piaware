@@ -2,7 +2,7 @@
 # install in /etc/systemd/system
 
 [Unit]
-Description=Flight Aware uploader
+Description=FlightAware uploader
 Requires=dump1090.service
 # network-online target may need to be enabled via:
 # systemctl enable NetworkManager-wait-online.service
