@@ -1,5 +1,5 @@
 # piaware uploader service for systemd
-# install in /etc/systemd/system
+# install in /etc/systemd/system or /usr/lib/systemd/system
 
 [Unit]
 Description=Flight Aware uploader
@@ -12,9 +12,12 @@ Wants=network-online.target
 After=dump1090.service network-online.target
 
 [Service]
-ExecStart=/usr/bin/piaware -debug
+Type=Forking
+RuntimeDirectory=piaware
+RuntimeDirectoryMode=755
+ExecStart=/usr/bin/piaware -debug -p /var/run/piaware/piaware.pid
 Restart=always
 RestartSec=30
 
 [Install]
-WantedBy=default.target
+WantedBy=default.target dump1090.service
