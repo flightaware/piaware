@@ -25,34 +25,24 @@ proc load_piaware_config {} {
     return 1
 }
 
-#
-# query_dpkg_name_and_version - Figure out an installed dpkg package name
-#   and version
-#
-# Find a package that has the requested name in the package name.
-#
-# Parse out the name and version into passed-in variables and return
-#  1 if successful or 0 if unsuccessful
-#
-proc query_dpkg_name_and_version {name _packageName _packageVersion} {
-    upvar $_packageName packageName $_packageVersion packageVersion
+# query_dpkg_names_and_versions - Match installed package names and return a list
+# of names and versions.
+proc query_dpkg_names_and_versions {pattern} {
+	set results [list]
 
-    if {[catch {set fp [open "|dpkg-query --show *$name* 2>/dev/null"]} ] } {
-        logger "unable to run dpkg-query! can't determine $name package info"
-        return 0
-    }
+	if {[catch {set fp [open "|dpkg-query --show $pattern 2>/dev/null"]}]} {
+		# silently swallow
+		return $results
+	}
 
-    gets $fp line
+	while {[gets $fp line] >= 0} {
+		if {[regexp {([^\t]*)\t(.*)} $line dummy packageName packageVersion]} {
+			lappend results $packageName $packageVersion
+		}
+	}
 
-    if {[catch {close $fp}] == 1} {
-		return 0
-    }
-
-    if {![regexp {([^\t]*)\t(.*)} $line dummy packageName packageVersion]} {
-		return 0
-    }
-
-    return 1
+	catch {close $fp}
+	return $results
 }
 
 #
@@ -64,15 +54,16 @@ proc load_piaware_config_and_stuff {} {
     load_piaware_config
 
     if {![info exists ::imageType]} {
-		if {[query_dpkg_name_and_version piaware packageName packageVersion]} {
+		set res [query_dpkg_names_and_versions "*piaware*"]
+		if {[llength $res] == 2} {
+			# only if it's unambiguous
+			lassign $res packageName packageVersion
 			set ::imageType "${packageName}_package"
 			set ::piawarePackageVersion $packageVersion
 		}
 	}
 
-	if {[query_dpkg_name_and_version dump1090 packageName packageVersion]} {
-		set ::dump1090PackageVersion $packageVersion
-	}
+	set ::dump1090Packages [query_dpkg_names_and_versions "*dump1090*"]
 }
 
 # is_pid_running - return 1 if the specified process ID is running, else 0
@@ -630,7 +621,8 @@ proc upgrade_dump1090 {} {
 #
 proc upgrade_dpkg_package {name url} {
 	logger "considering upgrading $name from $url..."
-	if {![query_dpkg_name_and_version $name currentPackageName currentPackageVersion]} {
+	lassign [query_dpkg_names_and_versions $name] currentPackageName currentPackageVersion
+	if {$currentPackageVersion eq ""} {
 		logger "unable to query current version of $name from dpkg. it may not be installed. proceeding with upgrade..."
 	} else {
 		set compare [compare_versions_from_packages $currentPackageVersion $url]

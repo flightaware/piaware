@@ -672,7 +672,7 @@ namespace eval ::fa_adept {
 		set message(type) login
 
 		# construct some key-value pairs to be included.
-		foreach var "user password image_type piaware_version piaware_version_full piaware_package_version dump1090_package_version" globalVar "::flightaware_user ::flightaware_password ::imageType ::piawareVersion ::piawareVersionFull ::piawarePackageVersion ::dump1090PackageVersion" {
+		foreach var "user password image_type piaware_version piaware_version_full piaware_package_version dump1090_packages" globalVar "::flightaware_user ::flightaware_password ::imageType ::piawareVersion ::piawareVersionFull ::piawarePackageVersion ::dump1090Packages" {
 			if {[info exists $globalVar] && [set $globalVar] ne ""} {
 				set message($var) [set $globalVar]
 			}
