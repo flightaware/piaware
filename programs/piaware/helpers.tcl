@@ -173,24 +173,39 @@ proc create_pidfile {} {
 
 	log_locally "creating pidfile $file"
 
-	set fp [open $file w]
-	puts $fp [pid]
-	close $fp
+	# a+ so we have write access but don't fail on missing files and don't clobber existing data
+	set ::pidfile [open $file "a+"]
+	if {![flock -write -nowait $::pidfile]} {
+		close $::pidfile
+		unset ::pidfile
+		log_locally "unable to lock pidfile $file; is another piaware instance running?"
+		exit 2
+	}
+	chan seek $::pidfile 0 start
+	chan truncate $::pidfile 0
+	puts $::pidfile [pid]
+	flush $::pidfile
+
+	# keep the pidfile open so we maintain the lock
 }
 
 #
 # remove_pidfile - remove the pidfile if it exists
 #
 proc remove_pidfile {} {
-	set file $::params(p)
-	if {$file == ""}  {
+	if {![info exists ::pidfile]} {
 		return
 	}
 
-	log_locally "removing pidfile $file"
-	if {[catch {file delete $file} catchResult] == 1} {
-		logger "failed to remove pidfile: $catchResult, continuing..."
+	# delete before unlocking to avoid a race with a concurrently starting piaware
+	log_locally "removing pidfile $::params(p)"
+	if {[catch {file delete $::params(p)} catchResult] == 1} {
+		log_locally "failed to remove pidfile: $catchResult, continuing..."
 	}
+
+	# closing releases our lock
+	close $::pidfile
+	unset ::pidfile
 }
 
 #
