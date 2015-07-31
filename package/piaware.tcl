@@ -68,7 +68,11 @@ proc load_piaware_config_and_stuff {} {
 			set ::imageType "${packageName}_package"
 			set ::piawarePackageVersion $packageVersion
 		}
-    }
+	}
+
+	if {[query_dpkg_name_and_version dump1090 packageName packageVersion]} {
+		set ::dump1090PackageVersion $packageVersion
+	}
 }
 
 # is_pid_running - return 1 if the specified process ID is running, else 0
