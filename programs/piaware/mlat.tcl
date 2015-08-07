@@ -198,6 +198,13 @@ proc forward_to_mlat_client {_row} {
 			disable_mlat
 			return
 		}
+
+		"mlat_result" {
+			# remember we got a mlat result for this hexid
+			# so we can filter any spurious looped-back results
+			# for a while
+			set ::mlatSawResult($row(hexid)) [clock seconds]
+		}
 	}
 
 	# anything else goes to the client

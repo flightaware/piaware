@@ -201,6 +201,16 @@ proc send_if_logged_in {line} {
 #
 proc send_adsb_line {line} {
 	array set row [split $line "\t"]
+
+	# extra filtering to avoid looping mlat results back
+	set hexid $row(hexid)
+	if {[info exists ::mlatSawResult($hexid)]} {
+		if {$row(clock) - $::mlatLastResults($row(hexid))) < 45.0} {
+			# keep alt as it might be from Mode S
+			unset -nocomplain row(lat) row(lon) row(heading) row(speed)
+		}
+	}
+
 	adept send_array row
 
 	incr ::nMessagesSent
