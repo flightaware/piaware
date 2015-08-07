@@ -23,6 +23,13 @@ proc setup_faup1090_vars {} {
 	set ::lastAdsbConnectedClock [clock seconds]
 	# what the producer is called
 	set ::adsbDataProgram "the ADS-B data program"
+
+	# path to faup1090
+	set path "/usr/lib/piaware/helpers/faup1090"
+	if {[set ::faup1090Path [auto_execok $path]] eq ""} {
+		logger "No faup1090 found at $path, cannot continue"
+		exit 1
+	}
 }
 
 #
@@ -85,13 +92,8 @@ proc connect_adsb_via_faup1090 {} {
 	set ::adsbDataProgram $::netstatus(program_30005)
 	set ::lastAdsbConnectedClock [clock seconds]
 	logger "ADS-B data program '$::adsbDataProgram' is listening on port 30005, so far so good"
-	set args [auto_execok faup1090]
-	if {$args eq ""} {
-		logger "No faup1090 in PATH, will try again in 10 minutes"
-		schedule_adsb_connect_attempt 600
-		return
-	}
 
+	set args $::faup1090Path
 	lappend args "--net-bo-ipaddr" "localhost" "--net-bo-port" "30005"
 	if {$::receiverLat ne "" && $::receiverLon ne ""} {
 		lappend args "--lat" [format "%.3f" $::receiverLat] "--lon" [format "%.3f" $::receiverLon]

@@ -12,21 +12,8 @@ set ::mlatReady 0
 set ::mlatRestartMillis 60000
 # UDP transport info
 set ::mlatUdpTransport {}
-
-proc find_mlat_client {} {
-	if {![info exists ::mlatClientPath]} {
-		set candidates [list "/usr/lib/fa-mlat-client/fa-mlat-client" \
-						"fa-mlat-client"]
-		foreach candidate $candidates {
-			set ::mlatClientPath [auto_execok $candidate]
-			if {$::mlatClientPath ne ""} {
-				break
-			}
-		}
-	}
-
-	return $::mlatClientPath
-}
+# path to fa-mlat-client
+set ::mlatClientPath [auto_execok "/usr/lib/piaware/helpers/fa-mlat-client"]
 
 proc mlat_is_configured {} {
 	if {[info exists ::adeptConfig(mlat)]} {
@@ -42,7 +29,7 @@ proc mlat_is_configured {} {
 	}
 
 	# check for existence of fa-mlat-client
-	if {[find_mlat_client] eq ""} {
+	if {$::mlatClientPath eq ""} {
 		logger "multilateration support disabled (no fa-mlat-client found)"
 		return 0
 	}
@@ -119,7 +106,7 @@ proc start_mlat_client {} {
 		return
 	}
 
-	set command [find_mlat_client]
+	set command $::mlatClientPath
 	lappend command "--input-connect" "localhost:30005"
 
 	if {![info exists ::adeptConfig(mlatResults)] || ([string is boolean $::adeptConfig(mlatResults)] && $::adeptConfig(mlatResults))} {
