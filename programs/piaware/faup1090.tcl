@@ -94,7 +94,7 @@ proc connect_adsb_via_faup1090 {} {
 	logger "ADS-B data program '$::adsbDataProgram' is listening on port 30005, so far so good"
 
 	set args $::faup1090Path
-	lappend args "--net-bo-ipaddr" "localhost" "--net-bo-port" "30005"
+	lappend args "--net-bo-ipaddr" "localhost" "--net-bo-port" "30005" "--stdout"
 	if {$::receiverLat ne "" && $::receiverLon ne ""} {
 		lappend args "--lat" [format "%.3f" $::receiverLat] "--lon" [format "%.3f" $::receiverLon]
 	}
