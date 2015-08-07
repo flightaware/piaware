@@ -205,7 +205,7 @@ proc send_adsb_line {line} {
 	# extra filtering to avoid looping mlat results back
 	set hexid $row(hexid)
 	if {[info exists ::mlatSawResult($hexid)]} {
-		if {$row(clock) - $::mlatLastResults($row(hexid))) < 45.0} {
+		if {($row(clock) - $::mlatSawResult($row(hexid))) < 45.0} {
 			# keep alt as it might be from Mode S
 			unset -nocomplain row(lat) row(lon) row(heading) row(speed)
 		}
