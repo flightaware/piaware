@@ -6,38 +6,81 @@ The basic aim of the piaware package is to forward data read from an ADS-B recei
 It does this using a program, piaware, aided by some support programs.
 
 * piaware - establishes an encrypted session to FlightAware and forwards data
-* faup1090 - run by piaware to connect to dump1090 or some other program producing beast-style ADS-B data and translate between its format and FlightAware's
 * piaware-config - used to configure piaware like with a FlightAware username and password
 * piaware-status - used to check the status of piaware
+* faup1090 - run by piaware to connect to dump1090 or some other program producing beast-style ADS-B data and translate between its format and FlightAware's
+* fa-mlat-client - run by piaware to gather data for multilateration
 
 This repo is the basis of the piaware Debian install package available
 from https://flightaware.com/adsb/piaware/
 
+Building from source
+---
+
+This repository provides only part of the overall piaware package.
+You must also build fa-mlat-client and faup1090 and put them in the right places.
+
+Please use [piaware_builder](https://github.com/flightaware/piaware_builder) to build the
+piaware package; this is a mostly automated build that knows how to assemble and build
+the different parts of the piaware pacakge. It is used to build the Raspbian piaware
+release packages that FlightAware provides. It should also work on other Debian-based systems.
+
 piaware program
 ---
 
-The piaware program establishes a compressed, encrypted TLS connection to FlightAware and logs in with a registered FlightAware username (or email address) and password.
+The piaware program establishes a compressed, encrypted TLS connection to FlightAware and authenticates
+either by MAC address, or by a registered FlightAware username (or email address) and password.
 
-It then looks to see if your system is running the FlightAware version of dump1090 (available from https://github.com/flightaware/dump1090_mr) and if not, it starts the translation program faup1090 (available from the same source).
+It then starts faup1090 to translate ADS-B data from a raw Beast-format feed on port 30005 to a filtered
+ADS-B format. The filtered data is uploaded to FlightAware over the previously established TLS
+connection.
 
-After a successful login, piaware should forward filtered ADS-B traffic to FlightAware.  (The filtering is to reduce the amount of traffic.  We do a lot of stuff to minimize upstream bandwidth.)
+Every five minutes piaware also sends a message containing basic health information about the local machine
+such as system clock, CPU temperature, CPU load, basic filesystem capacity and system uptime.
 
-Every five minutes piaware also sends a message containing basic health information about the local machine such as system clock, CPU temperature, basic filesystem capacity and system uptime.
+Piaware will start the multilateration client fa-mlat-adept on request. fa-mlat-client extracts raw messages
+from port 30005 and selectively forwards them by UDP to the FlightAware servers. UDP is used as this
+message forwarding is time-sensitive, but it's not too important if some messages get dropped. Multilateration
+control messages are sent over the main piaware TCP connection.
 
 Piaware uses several techniques to keep the connection established and disconnect and reconnect if something goes wrong.
+
 
 piaware-config program
 ---
 
-piaware-config provides a way for you to set the FlightAware username and password that piaware will use to log into FlightAware and do some other stuff.  (One account can be used for many piaware ADS-B receiver sites.)
+piaware-config provides a way for you to set the FlightAware username and password that piaware will use to log
+into FlightAware and do some other stuff.  (One account can be used for many piaware ADS-B receiver sites.)
 
 The main use will be
 
-    piaware-config -user username -password
+```
+$ sudo piaware-config -user username -password
+```
 
 This will set the user to "username" and prompt for the password.  These are then saved in a config file that piaware finds when it starts.
 
-Note that as of PiAware 1.13 it is no longer necessary to set a username and password, although if you do it will still work.  If PiAware is not pre-configured then the server will generally be able to associate the PiAware host with your FlightAware account automatically by looking at your FlightAware web session and the IP address your pi is coming from.  If it can't then there's a process for claiming a PiAware receiver as belonging to you.  For more information please check out [PiAware build instructions](https://flightaware.com/adsb/piaware/build) at FlightAware.
+Note that as of PiAware 1.13 it is no longer necessary to set a username and password, although if you do it will still work.
+If PiAware is not pre-configured then the server will generally be able to associate the PiAware host with your FlightAware
+account automatically by looking at your FlightAware web session and the IP address your pi is coming from.  If it can't then
+there's a process for claiming a PiAware receiver as belonging to you.  For more information please check out
+[PiAware build instructions](https://flightaware.com/adsb/piaware/build) at FlightAware.
+
+piaware-config may also be used to configure where multilateration results are forwarded. By default, results will be
+looped back to the local dump1090 process on port 30004. This can be disabled if needed:
+
+```
+$ sudo piaware-config -mlatResults 0
+```
+
+Or the ways in which results are generated can be modified:
+
+```
+  # Connect to localhost:30004 and send multilateration results in Beast format.
+  # Listen on port 310003 and provide multilateration results in Basestation format to anyone who connects
+
+$ sudo piaware-config -mlatResults "beast,connect,localhost:30004 basestation,listen,31003
+```
 
 piaware-status program
 ---
@@ -86,108 +129,3 @@ This can probably be done for people installing piaware from this repo by doing 
 and removed by doing a
 
     update-rc.d piaware remove
-
-Use piaware_builder to build from source
----
-
-If you can, use [piaware_builder](https://github.com/flightaware/piaware_builder) to build piaware.
-This is a mostly automated build that is used to build the Raspbian piaware release packages that
-FlightAware provides. It should also work on other Debian-based systems.
-
-The following instructions are historical and may be somewhat out of date.
-
-Building and installing Piaware from source
----
-
-Before installing piaware you need to install the RTL-SDR libraries and dump1090and stuff.  We've created some [instructions](https://github.com/flightaware/piaware/wiki/Building-and-installing-PiAware-from-source) for that in the piaware wiki at github.
-
-Notes from a recent install on Debian
-* install Debian without desktop or whatever, pretty much everything else
-* use ISO image if from Parallels
-* in Parallels I let it take all of the disk
-
-At first sudo isn't even there, so I did a su to become superuser (could have logged in as root instead) and did
-
-```
-apt-get update
-apt-get install sudo
-```
-
-While su'ed add myself to group sudo in /etc/group and edited the line in /etc/sudoers for group sudo to be
-
-```
-%sudo	ALL=(ALL) NOPASSWD: ALL
-```
-
-...which allowed me to run sudo without entering my password.
-
-This seems to be the default configuration on Raspbian.
-
-Next install various packages.  If they are already installed, as on Raspbian
-many are, that's fine.
-
-```
-sudo apt-get install tcl8.5-dev tclx8.4-dev itcl3-dev tcl-tls tcllib automake cmake tcl-tclreadline telnet git gcc make
-```
-
-If you want to develop, you might want to add some manual pages and whatnot...
-
-```
-sudo apt-get install tcl8.5-doc tclx8.4-doc itcl3-doc
-```
-
-Clone the tcllauncher git repo from the [tcllauncher git repo](https://github.com/flightaware/tcllauncher) and build...
-
-```
-git clone https://github.com/flightaware/tcllauncher.git
-cd tcllauncher
-autoconf
-./configure --with-tcl=/usr/lib/tcl8.5
-make
-sudo make install
-```
-
-### Build and install dump1090
-
-Build the RTL-SDR support libraries and build and install dump1090.
-
-If you want to build the FlightAware variant, please follow our build
-instructions in the [dump1090_mr repository](https://github.com/flightaware/dump1090_mr#building) at github.
-
-### Build PiAware
-
-Clone and install the piaware git repo from [FlightAware's piaware repository](https://github.com/flightaware/piaware):
-
-```
-git clone https://github.com/flightaware/piaware.git
-cd piaware
-sudo make install
-```
-
-Make piaware start and stop when the system boots and shuts down:
-
-```
-sudo update-rc.d piaware defaults
-```
-
-Stop piaware from stopping and starting when the system boots and shuts down:
-
-```
-  sudo update-rc.d piaware remove
-```
-
-Start piaware manually
-
-```
-/etc/init.d/piaware start
-```
-
-Please see the section on [/etc/init.d/piaware](https://github.com/flightaware/piaware#etcinitdpiaware) earlier in this document for details.
-
-Overview of PiAware pieces
----
-FlightAware's dump1090 is exactly the same as Malcolm Robb’s except for the code added to provide messages as filtered key-value pairs on port 10001.  All the command-line switches and capabilities should be there with only the addition of the —net-fatsv-port and the —no-rtlsdr-ok switches we created. 
-
-faup1090 is a version of dump1090 that only has the ability to connect to the binary beast output port of dump1090 or another program capable of putting out that format such as modesmixer, and provides the filtered key-value pairs on port 10001.
-
-In summary, FlightAware's dump1090 is standard dump1090 with the added port 10001 stuff and running FlightAware's dump1090 is slightly more efficient than running standard dump1090 and piaware running faup1090 to translate.
