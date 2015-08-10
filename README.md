@@ -79,7 +79,7 @@ Or the ways in which results are generated can be modified:
   # Connect to localhost:30004 and send multilateration results in Beast format.
   # Listen on port 310003 and provide multilateration results in Basestation format to anyone who connects
 
-$ sudo piaware-config -mlatResults "beast,connect,localhost:30004 basestation,listen,31003
+$ sudo piaware-config -mlatResults "beast,connect,localhost:30004 basestation,listen,31003"
 ```
 
 piaware-status program
