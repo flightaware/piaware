@@ -41,7 +41,7 @@ proc main {{argv ""}} {
 		{show "show config file"}
 	}
 
-	set usage ": $::argv0 -help|-user|-password|-start|-stop|-restart|-status|-autoUpdate 1/0|-manualUpdate 1/0|-mlat 1/0|-mlatResults 1/0|-mlatResultsFormat formatlist"
+	set usage ": $::argv0 -help|-user|-password|-start|-stop|-restart|-status|-show|-autoUpdate 1/0|-manualUpdate 1/0|-mlat 1/0|-mlatResults 1/0|-mlatResultsFormat formatlist"
 
 	if {$argv == ""} {
 		puts stderr "usage$usage"
