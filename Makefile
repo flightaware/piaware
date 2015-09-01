@@ -39,7 +39,7 @@ ifdef SYSVINIT
 else
 ifdef SYSTEMD
 	install -d $(DESTDIR)/$(SYSTEMD)
-	install scripts/piaware.service $(DESTDIR)$(PREFIX)/$(SYSTEMD)
+	install -m644 scripts/piaware.service $(DESTDIR)$(PREFIX)/$(SYSTEMD)
 else
 	@echo "No init service found"
 endif
