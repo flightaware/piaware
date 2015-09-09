@@ -13,6 +13,18 @@ set piawarePidFile /var/run/piaware.pid
 set piawareConfigFile /etc/piaware
 
 #
+# do a pipe open after clearing locale vars
+#
+proc open_nolocale {cmd {mode r}} {
+	set oldenv [array get ::env]
+	array unset ::env LANG
+	array unset ::env LC_*
+	catch {open $cmd $mode} result options
+	array set ::env $oldenv
+	return -options $options $result
+}
+
+#
 # load_piaware_config - load the piaware config file.  don't stop if it
 #  doesn't exist
 #
@@ -220,7 +232,8 @@ proc inspect_sockets_with_netstat {} {
     set ::netstatus(faup1090_30005) 0
     set ::netstatus(piaware_1200) 0
 
-    set fp [open "|netstat --program --protocol=inet --tcp --wide --all --numeric"]
+	# We must do this to get the expected socket state strings.
+	set fp [open_nolocale "|netstat --program --protocol=inet --tcp --wide --all --numeric"]
     # discard two header lines
     gets $fp
     gets $fp
@@ -318,7 +331,7 @@ proc reap_any_dead_children {} {
 #  have one
 #
 proc get_local_device_ip_address {dev} {
-    set fp [open "|ip address show dev $dev"]
+    set fp [open_nolocale "|ip address show dev $dev"]
     while {[gets $fp line] >= 0} {
         if {[regexp {inet ([^/]*)} $line dummy ip]} {
             catch {close $fp}
@@ -349,7 +362,7 @@ proc get_local_ethernet_ip_address {} {
 proc get_default_gateway_interface_and_ip {_gateway _iface _ip} {
     upvar $_gateway gateway $_iface iface $_ip ip
 
-    set fp [open "|netstat -rn"]
+    set fp [open_nolocale "|netstat -rn"]
     gets $fp
     gets $fp
 
