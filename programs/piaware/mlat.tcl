@@ -111,7 +111,7 @@ proc start_mlat_client {} {
 
 	if {![info exists ::adeptConfig(mlatResults)] || ([string is boolean $::adeptConfig(mlatResults)] && $::adeptConfig(mlatResults))} {
 		if {![info exists ::adeptConfig(mlatResultsFormat)] || $::adeptConfig(mlatResultsFormat) eq "default"} {
-			lappend command "--results" "beast,connect,localhost:30004"
+			lappend command "--results" "basestation,listen,31003"
 		} else {
 			foreach r $::adeptConfig(mlatResultsFormat) {
 				lappend command "--results" $r
