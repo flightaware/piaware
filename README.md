@@ -67,19 +67,21 @@ there's a process for claiming a PiAware receiver as belonging to you.  For more
 [PiAware build instructions](https://flightaware.com/adsb/piaware/build) at FlightAware.
 
 piaware-config may also be used to configure where multilateration results are forwarded. By default, results will be
-looped back to the local dump1090 process on port 30004. This can be disabled if needed:
+made available on port 31003 in Basestation format.  This is different to the previous default of automatically looping back to the local dump1090 process on port 30004.  This is to avoid causing issues for clients feeding other sites and clients which do not expect or are unable to distinguish non-aircraft derived messages and interpret FlightAware MLAT calulated positions as true ADS-B data.
 
-```
-$ sudo piaware-config -mlatResults 0
-```
-
-Or the ways in which results are generated can be modified:
+If the previous behaviour is required, it must be explicitly enabled.  However, before doing so, you must ensure that any other clients using the local dump1090 can handle and are happy to accept MLAT data:
 
 ```
   # Connect to localhost:30004 and send multilateration results in Beast format.
   # Listen on port 310003 and provide multilateration results in Basestation format to anyone who connects
 
 $ sudo piaware-config -mlatResultsFormat "beast,connect,localhost:30004 basestation,listen,31003"
+```
+
+Feedback of MLAT results can be disabled entirely if needed:
+
+```
+$ sudo piaware-config -mlatResults 0
 ```
 
 piaware-status program
