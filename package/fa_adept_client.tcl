@@ -361,6 +361,10 @@ namespace eval ::fa_adept {
 		if {$row(status) == "ok"} {
 			set loggedIn 1
 
+			# we got far enough to call this a successful connection, so
+			# start again from the start of the host list next time.
+			set nextHostIndex 0
+
 			# if the login response contained a user, that's what we're
 			# logged in as even if it's not what we might've said or
 			# more likely we didn't say
