@@ -185,27 +185,45 @@ proc create_pidfile {} {
 	chan truncate $::pidfile 0
 	puts $::pidfile [pid]
 	flush $::pidfile
+	set ::pidfileIsMine 1
 
 	# keep the pidfile open so we maintain the lock
+}
+
+#
+# unlock_pidfile - release any lock on the pidfile,
+# but otherwise leave the file alone
+proc unlock_pidfile {} {
+	if {![info exists ::pidfile]} {
+		return
+	}
+
+	# closing releases our lock
+	close $::pidfile
+	unset ::pidfile
+
+	# no longer safe to delete the pidfile
+	# as someone else may overwrite it
+	unset -nocomplain ::pidfileIsMine
 }
 
 #
 # remove_pidfile - remove the pidfile if it exists
 #
 proc remove_pidfile {} {
-	if {![info exists ::pidfile]} {
+	if {![info exists ::pidfileIsMine]} {
 		return
 	}
 
-	# delete before unlocking to avoid a race with a concurrently starting piaware
+	# delete before unlocking to avoid a race with a concurrently starting
+	# piaware
 	log_locally "removing pidfile $::params(p)"
 	if {[catch {file delete $::params(p)} catchResult] == 1} {
 		log_locally "failed to remove pidfile: $catchResult, continuing..."
 	}
 
-	# closing releases our lock
-	close $::pidfile
-	unset ::pidfile
+	unset ::pidfileIsMine
+	unlock_pidfile
 }
 
 #

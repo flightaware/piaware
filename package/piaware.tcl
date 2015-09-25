@@ -676,11 +676,9 @@ proc upgrade_dpkg_package {name url} {
 # program, so it's a bit tricky
 #
 proc restart_piaware {} {
-	# if we have a pidfile, clean it up now so the restart can replace
-	# it.
-	if {[info exists ::pidfile]} {
-		remove_pidfile
-	}
+	# unlock the pidfile if we have a lock, so that the new piaware can
+	# get the lock even if we're still running.
+	unlock_pidfile
 
 	logger "restarting piaware. hopefully i'll be right back..."
 	system "/etc/init.d/piaware restart &"
