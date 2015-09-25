@@ -49,16 +49,26 @@ Piaware uses several techniques to keep the connection established and disconnec
 piaware-config program
 ---
 
-piaware-config provides a way for you to set the FlightAware username and password that piaware will use to log
-into FlightAware and do some other stuff.  (One account can be used for many piaware ADS-B receiver sites.)
+piaware-config provides a way for you to configure piaware's settings to control authentication, updates, and
+multilateration.
 
-The main use will be
+The configuration is read once when piaware starts. If you change piaware's configuration, you should then restart
+piaware by:
+
+```
+$ sudo service piaware restart
+```
+
+Configuring authentication
+---
+
+To configure the user that piaware logs in as, use:
 
 ```
 $ sudo piaware-config -user username -password
 ```
 
-This will set the user to "username" and prompt for the password.  These are then saved in a config file that piaware finds when it starts.
+This will set the user to "username" and prompt for the password.
 
 Note that as of PiAware 1.13 it is no longer necessary to set a username and password, although if you do it will still work.
 If PiAware is not pre-configured then the server will generally be able to associate the PiAware host with your FlightAware
@@ -66,20 +76,62 @@ account automatically by looking at your FlightAware web session and the IP addr
 there's a process for claiming a PiAware receiver as belonging to you.  For more information please check out
 [PiAware build instructions](https://flightaware.com/adsb/piaware/build) at FlightAware.
 
-piaware-config may also be used to configure where multilateration results are forwarded. By default, results will be
-looped back to the local dump1090 process on port 30004. This can be disabled if needed:
+Configuring updates
+---
+
+To configure whether piaware will accept requests for automatic (requested by FlightAware) or manual (requested
+by you via the FlightAware website control panel) updates and restarts:
+
+```
+# disable auto updates:
+$ sudo piaware-config -autoUpdate 0
+# disable manual updates:
+$ sudo piaware-config -manualUpdate 0
+```
+
+Updates default to enabled for Piaware sdcard images, and disabled for package installs.
+
+Configuring multilateration support
+---
+
+Multilateration data is sent to FlightAware by default. To disable it:
+
+```
+# disable multilateration:
+$ sudo piaware-config -mlat 0
+```
+
+Configuring multilateration results
+---
+
+By default, multilateration positions resulting from the data that you feed to FlightAware
+are returned to you by sending them to the local dump1090 process on port 30104; dump1090
+will then include them on the web map it generates.
+
+There are two controls for this. There is an overall enable/disable
+control that can be used to entirely disable returning results if they are not needed:
 
 ```
 $ sudo piaware-config -mlatResults 0
 ```
 
-Or the ways in which results are generated can be modified:
+If you want to send the results elsewhere, you can modify where they are sent and the format used:
 
 ```
-  # Connect to localhost:30004 and send multilateration results in Beast format.
+  # Connect to localhost:30104 and send multilateration results in Beast format.
   # Listen on port 310003 and provide multilateration results in Basestation format to anyone who connects
 
-$ sudo piaware-config -mlatResultsFormat "beast,connect,localhost:30004 basestation,listen,31003"
+$ sudo piaware-config -mlatResultsFormat "beast,connect,localhost:30104 basestation,listen,31003"
+```
+
+The default configuration now connects to port 30104, not 30004. The default FlightAware dump1090 configuration has
+been updated to match this. This change is to avoid accidentally feeding mlat results to an older dump1090
+that is not mlat-aware and might end up feeding the results to places you don't want to feed them to. If you really
+do want to feed to port 30004, and you know that's not going to cause problems with mlat results going where they
+shouldn't, you can return to the older behaviour by:
+
+```
+$ sudo piaware-config -mlatResultsFormat "beast,connect,localhost:30004"
 ```
 
 piaware-status program
