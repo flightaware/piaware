@@ -108,8 +108,8 @@ namespace eval ::fa_adept {
 
 			#-command [list $this tls_callback] \
 			#-require 1  \
-			#-request 1  
-			#-command [list $this tls_callback] 
+			#-request 1
+			#-command [list $this tls_callback]
 
 		# force the handshake to complete before proceeding
 		# we can get errors from this.  catch them and return failure
@@ -125,7 +125,8 @@ namespace eval ::fa_adept {
 
 		# validate the certificate.  error out if it fails.
 		if {![validate_certificate_status $tlsStatus reason]} {
-			error "certificate validation failed: $reason"
+			log_locally "certificate validation failed: $reason"
+			return 0
 		}
 
 		# tls local status are key-value pairs of number of bits
@@ -155,7 +156,7 @@ namespace eval ::fa_adept {
     }
 
     #
-    # validate_certificate_status - return 1 if the certificate looks cool, 
+    # validate_certificate_status - return 1 if the certificate looks cool,
 	#  else 0
     #
     method validate_certificate_status {statusList _reason} {
@@ -236,7 +237,7 @@ namespace eval ::fa_adept {
     }
 
     #
-    # crack_certificate_fields - given a string like CN=foo,O=bar,L=Houston, 
+    # crack_certificate_fields - given a string like CN=foo,O=bar,L=Houston,
 	#  crack the key-value pairs into the named array
     #
     method crack_certificate_fields {string _array} {
@@ -251,7 +252,7 @@ namespace eval ::fa_adept {
     }
 
     #
-    # server_data_available - callback routine invoked when data is available 
+    # server_data_available - callback routine invoked when data is available
 	# from the server
     #
     method server_data_available {} {
@@ -991,7 +992,7 @@ namespace eval ::fa_adept {
 }
 
 #
-# ca_crt_file - dig the location of the ca.crt file shipped inside the 
+# ca_crt_file - dig the location of the ca.crt file shipped inside the
 #  fa_adept_client package and return the path to the ca.crt file
 #
 proc ca_crt_file {} {
