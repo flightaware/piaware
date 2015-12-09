@@ -191,44 +191,14 @@ namespace eval ::fa_adept {
 		# crack fields in the certificate and require some of them to be present
 		crack_certificate_fields $status(subject) subject
 		#parray subject
-		foreach field "CN O L ST C" {
-			if {![info exists subject($field)]} {
-				set reason "required subject field '$field' is missing"
-				return 0
-			}
-		}
 
 		# crack issuer fields from the certificate and require some of them to be
 		# present
 		crack_certificate_fields $status(issuer) issuer
-		#parray issuer
-		foreach field "CN OU O C" {
-			if {![info exists issuer($field)]} {
-				set reason "required issuer field '$field' is missing"
-				return 0
-			}
-		}
 
 		# validate the common name
-		if {$subject(CN) != "*.flightaware.com"} {
-			set reason "subject CN is not '*.flightaware.com"
-			return 0
-		}
-
-		# validate the organization
-		if {$subject(O) != "FlightAware LLC"} {
-			set reason "subject O is not 'FlightAware LLC'"
-			return 0
-		}
-
-		# validate the state
-		if {$subject(ST) != "Texas"} {
-			set reason "subject ST is not 'Texas'"
-		}
-
-		# validate the country
-		if {$subject(C) != "US"} {
-			set reason "subject C is not 'US'"
+		if {![info exist subject(CN)] || ($subject(CN) != "*.flightaware.com" && $subject(CN) != "piaware.flightaware.com" && $subject(CN) != "adept.flightaware.com" || $subject(CN) != "eyes.flightaware.com")} {
+			set reason "subject CN is not valid"
 			return 0
 		}
 
