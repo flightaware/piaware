@@ -197,7 +197,7 @@ namespace eval ::fa_adept {
 		crack_certificate_fields $status(issuer) issuer
 
 		# validate the common name
-		if {![info exist subject(CN)] || ($subject(CN) != "*.flightaware.com" && $subject(CN) != "piaware.flightaware.com" && $subject(CN) != "adept.flightaware.com" || $subject(CN) != "eyes.flightaware.com")} {
+		if {![info exist subject(CN)] || ($subject(CN) != "*.flightaware.com" && $subject(CN) != "piaware.flightaware.com" && $subject(CN) != "adept.flightaware.com" && $subject(CN) != "eyes.flightaware.com")} {
 			set reason "subject CN is not valid"
 			return 0
 		}
