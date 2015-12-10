@@ -663,9 +663,11 @@ namespace eval ::fa_adept {
 
 		set message(mac) [get_mac_address_or_quit]
 
-		if {[get_default_gateway_interface_and_ip gateway iface ip]} {
-			set message(local_ip) $ip
-			set message(local_iface) $iface
+		catch {
+			if {[get_default_gateway_interface_and_ip gateway iface ip]} {
+				set message(local_ip) $ip
+				set message(local_iface) $iface
+			}
 		}
 
 		set message(local_auto_update_enable) [update_check autoUpdate]
