@@ -670,6 +670,15 @@ namespace eval ::fa_adept {
 			}
 		}
 
+		catch {
+			get_os_release rel
+			foreach {k1 k2} {ID os_id VERSION_ID os_version_id VERSION os_version} {
+				if {[info exists rel($k1)]} {
+					set message($k2) $rel($k1)
+				}
+			}
+		}
+
 		set message(local_auto_update_enable) [update_check autoUpdate]
 		set message(local_manual_update_enable) [update_check manualUpdate]
 		set message(local_mlat_enable) [mlat_is_configured]

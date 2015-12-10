@@ -381,6 +381,23 @@ proc get_default_gateway_interface_and_ip {_gateway _iface _ip} {
 }
 
 #
+# get_os_release - parse /etc/os-release and populate an array
+#
+proc get_os_release {_out} {
+	upvar $_out out
+
+	set f [open "/etc/os-release" "r"]
+	while {[gets $f line] >= 0} {
+		if {[regexp {^\s*([A-Za-z_]+)="(.+)"} $line -> key value]} {
+			set out($key) $value
+		} elseif {[regexp {^\s*([A-Za-z_]+)=(\S+)} $line -> key value]} {
+			set out($key) $value
+		}
+	}
+	close $f
+}
+
+#
 # warn_once - issue a warning message but only once
 #
 proc warn_once {message args} {
