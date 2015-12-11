@@ -61,8 +61,38 @@ set caDir [file join [file dirname [info script]] "ca"]
     #
     # tls_callback - routine called back during TLS negotiation
     #
-    method tls_callback {args} {
-		log_locally "tls_callback: $args"
+    method tls_callback {cmd channel args} {
+		switch $cmd {
+			verify {
+				lassign $args depth cert status err
+				if {!$status} {
+					log_locally "TLS verify failed: $err"
+					log_locally "Failing certificate:"
+					foreach {k v} $cert {
+						log_locally "  $k: $v"
+					}
+				}
+				return $status
+			}
+
+			error {
+				lassign $args message
+				log_locally "TLS error: $message"
+			}
+
+			info {
+				lassign $args major minor message
+				if {$major eq "alert"} {
+					log_locally "TLS alert: $message"
+				} elseif {$major eq "error"} {
+					log_locally "TLS error: $message"
+				}
+			}
+
+			default {
+				log_locally "unhandled TLS callback: $cmd $channel $args"
+			}
+		}
     }
 
 	#
@@ -104,15 +134,11 @@ set caDir [file join [file dirname [info script]] "ca"]
 								  -ssl3 0 \
 								  -tls1 1 \
 								  -require 1 \
+								  -command [list $this tls_callback] \
 								  $host $port]} catchResult] == 1} {
 			log_locally "got '$catchResult' to adept server at $host/$port, will try again soon..."
 			return 0
 		}
-
-			#-command [list $this tls_callback] \
-			#-require 1  \
-			#-request 1
-			#-command [list $this tls_callback]
 
 		# force the handshake to complete before proceeding
 		# we can get errors from this.  catch them and return failure
