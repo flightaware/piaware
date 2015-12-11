@@ -20,22 +20,23 @@ set caDir [file join [file dirname [info script]] "ca"]
     public variable host
     public variable hosts [list piaware.flightaware.com piaware.flightaware.com 70.42.6.197 70.42.6.198]
     public variable port 1200
+    public variable loginTimeoutSeconds 30
     public variable connectRetryIntervalSeconds 60
     public variable connected 0
     public variable loggedIn 0
 	public variable showTraffic 0
 
-	protected variable writabilityCheckAfterID
-    protected variable connectTimerID
-	protected variable aliveTimerID
-	protected variable nextHostIndex 0
-	protected variable lastCompressClock 0
-	protected variable flushPending 0
+    protected variable writabilityTimerID
+    protected variable wasWritable 0
+    protected variable loginTimerID
+    protected variable reconnectTimerID
+    protected variable aliveTimerID
+    protected variable nextHostIndex 0
+    protected variable lastCompressClock 0
+    protected variable flushPending 0
 
     constructor {args} {
 		configure {*}$args
-
-		schedule_writability_check
     }
 
     #
@@ -96,14 +97,34 @@ set caDir [file join [file dirname [info script]] "ca"]
     }
 
 	#
-	# cancel_connect_timer - cancel the timer we set at the start of attempting
-	#  to connect that'll attempt to connect again.  intended to be called
-	#  at the start of attempting to connect
+	# cancel_timers - cancel all outstanding connect/alive timers
 	#
-	method cancel_connect_timer {} {
-		if {[info exists connectTimerID]} {
-			after cancel $connectTimerID
-			unset connectTimerID
+	method cancel_timers {} {
+		cancel_alive_timer
+		cancel_login_timer
+		cancel_reconnect_timer
+		cancel_writability_timer
+	}
+
+	#
+	# cancel_login_timer - cancel the timer that aborts the connection
+	# if we have not successfully logged in after a while
+	#
+	method cancel_login_timer {} {
+		if {[info exists loginTimerID]} {
+			after cancel $loginTimerID
+			unset loginTimerID
+		}
+	}
+
+	#
+	# cancel_reconnect_timer - cancel the timer that schedules a
+	# reconnection
+	#
+	method cancel_reconnect_timer {} {
+		if {[info exists reconnectTimerID]} {
+			after cancel $reconnectTimerID
+			unset reconnectTimerID
 		}
 	}
 
@@ -115,12 +136,11 @@ set caDir [file join [file dirname [info script]] "ca"]
 		# close the connection if already connected and cancel the reconnect
 		# event timer if there is one
 		close_socket
-		cancel_connect_timer
+		cancel_timers
 		next_host
 
-		# schedule a new connect attempt in the future
-		# if we succeed to connect and login, we'll cancel this
-		set connectTimerID [after [expr {round(($connectRetryIntervalSeconds * (1 + rand())) * 1000)}] $this connect]
+		# schedule a timer that gives up if the login doesn't succeed for a while
+		set loginTimerID [after [expr {$loginTimeoutSeconds * 1000}] $this abort_login_attempt]
 
 		log_locally "connecting to FlightAware $host/$port"
 
@@ -145,6 +165,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 		# if one occurs.
 		if {[catch {::tls::handshake $sock} catchResult] == 1} {
 			log_locally "error during tls handshake: $catchResult, will try again soon..."
+			close_socket_and_reopen
 			return 0
 		}
 
@@ -155,6 +176,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 		# validate the certificate.  error out if it fails.
 		if {![validate_certificate_status $tlsStatus reason]} {
 			log_locally "certificate validation failed: $reason"
+			close_socket_and_reopen
 			return 0
 		}
 
@@ -175,6 +197,8 @@ set caDir [file join [file dirname [info script]] "ca"]
 		fileevent $sock readable [list $this server_data_available]
 		set connected 1
 		set flushPending 0
+
+		schedule_writability_check
 
 		# ok, we're connected, now attempt to login
 		# note that login reply will be asynchronous to us, i.e.
@@ -221,10 +245,6 @@ set caDir [file join [file dirname [info script]] "ca"]
 		crack_certificate_fields $status(subject) subject
 		#parray subject
 
-		# crack issuer fields from the certificate and require some of them to be
-		# present
-		crack_certificate_fields $status(issuer) issuer
-
 		# validate the common name
 		if {![info exist subject(CN)] || ($subject(CN) != "*.flightaware.com" && $subject(CN) != "piaware.flightaware.com" && $subject(CN) != "adept.flightaware.com" && $subject(CN) != "eyes.flightaware.com")} {
 			set reason "subject CN is not valid"
@@ -250,6 +270,11 @@ set caDir [file join [file dirname [info script]] "ca"]
 		return
     }
 
+	method abort_login_attempt {} {
+		log_locally "no login response within $loginTimeoutSeconds seconds, giving up on that connection"
+		close_socket_and_reopen
+	}
+
     #
     # server_data_available - callback routine invoked when data is available
 	# from the server
@@ -257,8 +282,7 @@ set caDir [file join [file dirname [info script]] "ca"]
     method server_data_available {} {
 		# if end of file on the socket, close the socket and attempt to reopen
 		if {[eof $sock]} {
-			reap_any_dead_children
-			log_locally "lost connection to FlightAware, reconnecting..."
+			log_locally "lost connection to FlightAware (server closed connection)"
 			close_socket_and_reopen
 			return
 		}
@@ -266,7 +290,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 		# get a line of data from the socket.  if we get an error, close the
 		# socket and attempt to reopen
 		if {[catch {set size [gets $sock line]} catchResult] == 1} {
-			log_locally "got '$catchResult' reading FlightAware socket, reconnecting... "
+			log_locally "lost connection to FlightAware ($catchResult)"
 			close_socket_and_reopen
 			return
 		}
@@ -378,7 +402,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 			}
 
 			log_locally "logged in to FlightAware as user $::flightaware_user"
-			cancel_connect_timer
+			cancel_login_timer
 		} else {
 			# NB do more here, like UI stuff
 			log_locally "*******************************************"
@@ -640,8 +664,6 @@ set caDir [file join [file dirname [info script]] "ca"]
 		set connected 0
 		set loggedIn 0
 
-		cancel_alive_timer
-
 		if {[info exists sock]} {
 			# we don't care about why it didn't close if it doesn't
 			# close cleanly...
@@ -651,7 +673,6 @@ set caDir [file join [file dirname [info script]] "ca"]
 		}
 
 		disable_mlat
-		reap_any_dead_children
     }
 
     #
@@ -659,8 +680,12 @@ set caDir [file join [file dirname [info script]] "ca"]
     #
     method close_socket_and_reopen {} {
 		close_socket
-		log_locally "reconnecting after 60s..."
-		after 60000 [list adept connect]
+		cancel_timers
+
+		set interval [expr {round(($connectRetryIntervalSeconds * (1 + rand())))}]
+		log_locally "reconnecting after $interval seconds..."
+
+		set reconnectTimerID [after [expr {$interval * 1000}] [list $this connect]]
     }
 
 	#
@@ -937,66 +962,36 @@ set caDir [file join [file dirname [info script]] "ca"]
 	}
 
 	#
-	# schedule_writability_check - schedule periodically_check_writability
-	#  to run one time after a delay
+	# schedule_writability_check:
+	#   every 10 seconds, set up a fileevent callback to check for socket writability
+	#   if/when the fileevent callback fires, remove the callback and set a flag
+	#   when the timer next fires, if the flag isn't set, then give up and abort
 	#
 	method schedule_writability_check {} {
-		after 60000 [list $this periodically_check_writability]
+		cancel_writability_timer
+		set wasWritable 0
+		set writabilityTimerID [after 10000 [list $this check_writability]]
+		catch {fileevent $sock writable [list $this socket_was_writable]}
 	}
 
-	#
-	# periodically_check_writability - periodically see if the socket is
-	#  writable
-	#
-	method periodically_check_writability {} {
-		schedule_writability_check
-
-		check_socket_writability
+	method socket_was_writable {} {
+		set wasWritable 1
+		fileevent $sock writable ""
 	}
 
-	#
-	# check_socket_writability - set up a timer and a writable file event.
-	#  if we get the file event, the socket is writable.  if we get the
-	#  timer event, it's dead.
-	#
-	method check_socket_writability {} {
-		if {!$connected} {
-			return
-		}
-		# create a timer event for a timeout and a writable file event.
-		# if we get the file event callback then it's ok but if we get the
-		# timer callback it isn't.
-		set writabilityCheckAfterID [after 10000 [list $this writability_check_callback 0]]
-
-		if {[catch {fileevent $sock writable [list $this writability_check_callback 1]} catchResult] == 1} {
-			# failed to begin with, cancel the after script,
-			# invoke the callback now, and we are done
-			after cancel $writabilityCheckAfterID
-			writability_check_callback 0
-		}
-		return
-	}
-
-	#
-	# writability_check_callback
-	#
-	method writability_check_callback {state} {
-		# if we got a fileevent callback, cancel the after time
-		if {$state} {
-			# success, we got called back by the writable event
-			# cancel the timer event
-			after cancel $writabilityCheckAfterID
-		}
-
-		# cancel the writable event either way but if it errors, force
-		# state to not-writable
-		if {[catch {fileevent $sock writable ""}] == 1} {
-			set state 0
-		}
-
-		if {!$state} {
+	method check_writability {} {
+		if {!$wasWritable} {
 			log_locally "data isn't making it to FlightAware, reconnecting..."
 			close_socket_and_reopen
+		} else {
+			schedule_writability_check
+		}
+	}
+
+	method cancel_writability_timer {} {
+		if {[info exists writabilityTimerID]} {
+			after cancel $writabilityTimerID
+			unset writabilityTimerID
 		}
 	}
 }
