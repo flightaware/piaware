@@ -13,6 +13,8 @@ package require Itcl
 
 namespace eval ::fa_adept {
 
+set caDir [file join [file dirname [info script]] "ca"]
+
 ::itcl::class AdeptClient {
     public variable sock
     public variable host
@@ -96,12 +98,13 @@ namespace eval ::fa_adept {
 		# CA cert file to confirm the cert's signature on the certificate
 		# the server sends us
 		if {[catch {set sock [tls::socket \
-			-cipher ALL \
-			-cafile [::fa_adept::ca_crt_file] \
-			-ssl2 0 \
-			-ssl3 0 \
-			-tls1 1 \
-			$host $port]} catchResult] == 1} {
+								  -cipher ALL \
+								  -cadir $::fa_adept::caDir \
+								  -ssl2 0 \
+								  -ssl3 0 \
+								  -tls1 1 \
+								  -require 1 \
+								  $host $port]} catchResult] == 1} {
 			log_locally "got '$catchResult' to adept server at $host/$port, will try again soon..."
 			return 0
 		}
