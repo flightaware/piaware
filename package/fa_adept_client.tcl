@@ -139,25 +139,54 @@ set caDir [file join [file dirname [info script]] "ca"]
 		cancel_timers
 		next_host
 
+		log_locally "Connecting to FlightAware adept server at $host/$port"
+
+		# start the connection attempt
+		if {[catch {set sock [socket -async $host $port]}]} {
+			log_locally "Connection to adept server at $host/$port failed: $catchResult"
+			close_socket_and_reopen
+			return 0
+		}
+
 		# schedule a timer that gives up if the login doesn't succeed for a while
 		set loginTimerID [after [expr {$loginTimeoutSeconds * 1000}] $this abort_login_attempt]
 
-		log_locally "connecting to FlightAware $host/$port"
+		fileevent $sock writable [list $this connect_completed]
+		return 1
+	}
+
+	method connect_completed {} {
+		if {![info exists sock]} {
+			# we raced with a close for some other reason
+			return
+		}
+
+		# turn off the writability check now
+		fileevent $sock writable ""
+
+		set error [fconfigure $sock -error]
+		if {$error ne ""} {
+			log_locally "Connection to adept server at $host/$port failed: $error"
+			close_socket_and_reopen
+			return
+		}
+
+		log_locally "Connection with adept server at $host/$port established"
 
 		# attempt to connect with TLS negotiation.  Use the included
 		# CA cert file to confirm the cert's signature on the certificate
 		# the server sends us
-		if {[catch {set sock [tls::socket \
-								  -cipher ALL \
-								  -cadir $::fa_adept::caDir \
-								  -ssl2 0 \
-								  -ssl3 0 \
-								  -tls1 1 \
-								  -require 1 \
-								  -command [list $this tls_callback] \
-								  $host $port]} catchResult] == 1} {
-			log_locally "got '$catchResult' to adept server at $host/$port, will try again soon..."
-			return 0
+		if {[catch {tls::import $sock \
+						-cipher ALL \
+						-cadir $::fa_adept::caDir \
+						-ssl2 0 \
+						-ssl3 0 \
+						-tls1 1 \
+						-require 1 \
+						-command [list $this tls_callback]} catchResult] == 1} {
+			log_locally "TLS handshake with adept server at $host/$port failed: $catchResult"
+			close_socket_and_reopen
+			return
 		}
 
 		# force the handshake to complete before proceeding
@@ -166,7 +195,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 		if {[catch {::tls::handshake $sock} catchResult] == 1} {
 			log_locally "error during tls handshake: $catchResult, will try again soon..."
 			close_socket_and_reopen
-			return 0
+			return
 		}
 
 		# obtain information about the TLS session we negotiated
@@ -177,7 +206,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 		if {![validate_certificate_status $tlsStatus reason]} {
 			log_locally "certificate validation failed: $reason"
 			close_socket_and_reopen
-			return 0
+			return
 		}
 
 		# tls local status are key-value pairs of number of bits
@@ -204,8 +233,6 @@ set caDir [file join [file dirname [info script]] "ca"]
 		# note that login reply will be asynchronous to us, i.e.
 		# it will come in later
 		login
-
-		return 1
     }
 
     #
