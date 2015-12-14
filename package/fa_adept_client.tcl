@@ -193,7 +193,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 		# we can get errors from this.  catch them and return failure
 		# if one occurs.
 		if {[catch {::tls::handshake $sock} catchResult] == 1} {
-			log_locally "error during tls handshake: $catchResult, will try again soon..."
+			log_locally "TLS handshake with adept server at $host/$port failed: $catchResult"
 			close_socket_and_reopen
 			return
 		}
@@ -204,7 +204,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 
 		# validate the certificate.  error out if it fails.
 		if {![validate_certificate_status $tlsStatus reason]} {
-			log_locally "certificate validation failed: $reason"
+			log_locally "Certificate validation with adept server at $host/$port failed: $reason"
 			close_socket_and_reopen
 			return
 		}
@@ -298,7 +298,11 @@ set caDir [file join [file dirname [info script]] "ca"]
     }
 
 	method abort_login_attempt {} {
-		log_locally "no login response within $loginTimeoutSeconds seconds, giving up on that connection"
+		if {![is_connected]} {
+			log_locally "Connection attempt with adept server at $host/$port timed out"
+		} else {
+			log_locally "Login attempt with adept server at $host/$port timed out"
+		}
 		close_socket_and_reopen
 	}
 
@@ -309,7 +313,7 @@ set caDir [file join [file dirname [info script]] "ca"]
     method server_data_available {} {
 		# if end of file on the socket, close the socket and attempt to reopen
 		if {[eof $sock]} {
-			log_locally "lost connection to FlightAware (server closed connection)"
+			log_locally "Lost connection to adept server at $host/$port: server closed connection"
 			close_socket_and_reopen
 			return
 		}
@@ -317,7 +321,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 		# get a line of data from the socket.  if we get an error, close the
 		# socket and attempt to reopen
 		if {[catch {set size [gets $sock line]} catchResult] == 1} {
-			log_locally "lost connection to FlightAware ($catchResult)"
+			log_locally "Lost connection to adept server at $host/$port: $catchResult"
 			close_socket_and_reopen
 			return
 		}
@@ -710,7 +714,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 		cancel_timers
 
 		set interval [expr {round(($connectRetryIntervalSeconds * (1 + rand())))}]
-		log_locally "reconnecting after $interval seconds..."
+		log_locally "reconnecting in $interval seconds..."
 
 		set reconnectTimerID [after [expr {$interval * 1000}] [list $this connect]]
     }
