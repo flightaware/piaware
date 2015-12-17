@@ -142,7 +142,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 		log_locally "Connecting to FlightAware adept server at $host/$port"
 
 		# start the connection attempt
-		if {[catch {set sock [socket -async $host $port]}]} {
+		if {[catch {set sock [socket -async $host $port]} catchResult]} {
 			log_locally "Connection to adept server at $host/$port failed: $catchResult"
 			close_socket_and_reopen
 			return 0
