@@ -434,6 +434,12 @@ set caDir [file join [file dirname [info script]] "ca"]
 
 			log_locally "logged in to FlightAware as user $::flightaware_user"
 			cancel_login_timer
+
+			# modern adept servers always send alive messages within the first
+			# 60 seconds
+			if {![info exists aliveTimerID]} {
+				set aliveTimerID [after 90000 [list $this alive_timeout]]
+			}
 		} else {
 			# NB do more here, like UI stuff
 			log_locally "*******************************************"
@@ -647,16 +653,10 @@ set caDir [file join [file dirname [info script]] "ca"]
 		set afterMS [expr {round($row(interval) * 1000 * 1.2)}]
 
 		# cancel the current alive timeout timer if it exists
-		if {![info exists aliveTimerID]} {
-			log_locally "server is sending alive messages; we will expect them"
-		} else {
-			#log_locally "alive message received from FlightAware"
-			cancel_alive_timer
-		}
+		cancel_alive_timer
 
 		# schedule alive_timeout to run in the future
 		set aliveTimerID [after $afterMS [list $this alive_timeout]]
-		#log_locally "handle_alive_message: alive timer ID is $aliveTimerID"
 
 		if {[info exists row(clock)]} {
 			set ::myClockOffset [expr {$now - $row(clock)}]
