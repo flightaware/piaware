@@ -64,17 +64,6 @@ proc main {{argv ""}} {
 
 	load_piaware_config_and_stuff
 
-	#::tcllauncher::daemonize
-	# NB does not work due to thread/fork interaction, can be solved with
-	# improvements in tcllauncher
-	# we are instead launching from the /etc/init.d/ script
-if 0 {
-	set pid [fork]
-	if {$pid != 0} {
-		exit 0
-	}
-}
-
 	# setup adept client early so logger command won't trace back
 	# (this does not initiate a connection, it just creates the object)
     setup_adept_client
