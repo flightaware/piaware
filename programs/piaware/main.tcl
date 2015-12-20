@@ -10,6 +10,7 @@ lappend auto_path /usr/local/lib
 package require piaware
 package require fa_adept_client
 package require fa_adept_config
+package require fa_gps
 #package require BSD
 package require Tclx
 package require cmdline
@@ -109,12 +110,15 @@ if 0 {
 	load_adept_config_and_setup
 	#confirm_nonblank_user_and_password_or_die
 
-	adept connect
+	connect_to_gpsd
 
-    connect_adsb_via_faup1090
-
-	periodically_check_adsb_traffic
-
+	# we stagger this a little to let
+	#  1) gpsd give us a location if it's going to (typically takes up to 1 second to do this)
+	#  2) have the login happen and maybe pass back a receiver location
+	#  3) fire up faup1090 with the new position
+	after 1500 adept connect
+	after 3000 connect_adsb_via_faup1090
+	after 4500 periodically_check_adsb_traffic
 	after 30000 periodically_send_health_information
 
     catch {vwait die}

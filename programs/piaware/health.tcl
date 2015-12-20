@@ -135,11 +135,6 @@ proc construct_health_array {_row} {
 		set row(local_ip) $ip
 		set row(local_iface) $iface
 	}
-
-	set row(type) health
-
-    # do clock last to maximize accurace
-    set row(clock) [clock seconds]
 }
 
 #
@@ -147,15 +142,62 @@ proc construct_health_array {_row} {
 #  health information and forward it
 #
 proc periodically_send_health_information {} {
-    after [expr {$::sendHealthInformationIntervalSeconds * 1000}] periodically_send_health_information
+	if {[info exists ::healthTimer]} {
+		after cancel ::healthTimer
+	}
+
+	set ::healthTimer [after [expr {$::sendHealthInformationIntervalSeconds * 1000}] periodically_send_health_information]
 
 	if {![adept is_logged_in]} {
 		return
 	}
 
     construct_health_array row
+	adept send_health_message row
+	return
+}
 
-	adept send_array row
+set ::gpsLocationValid 0
+proc gps_location_update {lat lon alt} {
+	if {$lat eq "" || $lon eq "" || $alt eq ""} {
+		# not a 3D fix, invalidate any current position and
+		# don't do anything further
+		adept update_location ""
+		set ::gpsLocationValid 0
+		return
+	}
+
+	# valid 3D fix
+	if {!$::gpsLocationValid} {
+		# first time
+		logger [format "GPS: Receiver location: %.5f, %.5f at %.0fm ASL" $lat $lon $alt]
+		set ::gpsLocationValid 1
+	}
+
+	adept update_location [list $lat $lon $alt]
+
+	set last [adept last_reported_location]
+	if {$last ne ""} {
+		lassign $last lastLat lastLon lastAlt
+		set moved [expr {abs($lat - $lastLat) > 0.001 || abs($lon - $lastLon) > 0.001 || abs($alt - $lastAlt) > 50}]
+	} else {
+		# have not yet reported a position
+		set moved 1
+	}
+
+	# record the location and maybe restart faup1090 with the new value
+	update_location $lat $lon
+
+	if {$moved} {
+		# trigger a healthcheck immediately to send the new position
+		# if we didn't move much, it can wait until the next normal health update
+		periodically_send_health_information
+	}
+}
+
+proc connect_to_gpsd {} {
+	::fa_gps::GpsdClient gpsd -callback gps_location_update
+	gpsd connect
 }
 
 # vim: set ts=4 sw=4 sts=4 noet :

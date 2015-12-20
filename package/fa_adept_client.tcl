@@ -26,6 +26,9 @@ set caDir [file join [file dirname [info script]] "ca"]
     public variable loggedIn 0
 	public variable showTraffic 0
 
+	public variable deviceLocation ""
+	public variable lastReportedLocation ""
+
     protected variable writabilityTimerID
     protected variable wasWritable 0
     protected variable loginTimerID
@@ -738,6 +741,11 @@ set caDir [file join [file dirname [info script]] "ca"]
 			}
 		}
 
+		if {$deviceLocation ne ""} {
+			lassign $deviceLocation message(receiverlat) message(receiverlon) message(receiveralt)
+		}
+		set lastReportedLocation $deviceLocation
+
 		catch {set message(uname) [exec /bin/uname --all]}
 
 		if {[info exists ::netstatus(program_30005)]} {
@@ -798,6 +806,23 @@ set caDir [file join [file dirname [info script]] "ca"]
 		send_array message
 	}
 
+	#
+	# send_health_message - upload health message if connected
+	#
+	method send_health_message {_data} {
+		upvar $_data data
+
+		array set row [array get data]
+
+		# fill in device location, clock
+		if {$deviceLocation ne ""} {
+			lassign $deviceLocation row(receiverlat) row(receiverlon) row(receiveralt)
+			set lastReportedLocation $deviceLocation
+		}
+
+		set row(type) health
+		send_array row
+	}
 
 	#
 	# get_mac_address - return the mac address of eth0 as a unique handle
@@ -1024,6 +1049,14 @@ set caDir [file join [file dirname [info script]] "ca"]
 			after cancel $writabilityTimerID
 			unset writabilityTimerID
 		}
+	}
+
+	method update_location {loc} {
+		set deviceLocation $loc
+	}
+
+	method last_reported_location {} {
+		return $lastReportedLocation
 	}
 }
 
