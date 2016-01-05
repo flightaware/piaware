@@ -206,7 +206,7 @@ namespace eval ::fa_gps {
 
 		protected method close_socket {} {
 			if {[info exists sock]} {
-				catch {close $sock}
+				catch {::close $sock} catchResult
 				unset sock
 			}
 			set connected 0
