@@ -138,7 +138,7 @@ proc restart_faup1090 {{delay 30}} {
 
 	if {$delay eq "now" || [clock seconds] - $::lastConnectAttemptClock > $delay} {
 		logger "reconnecting to $::adsbDataProgram"
-		schedule_adsb_connect_attempt idle
+		schedule_adsb_connect_attempt 1
 		return
 	}
 
