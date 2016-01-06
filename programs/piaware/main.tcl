@@ -57,6 +57,8 @@ proc main {{argv ""}} {
 		exit 0
 	}
 
+	interp bgerror {} log_bgerror
+
 	setup_faup1090_vars
 
 	# check what user we're running as

@@ -28,6 +28,11 @@ proc log_locally {text} {
     puts stderr "[clock format [clock seconds] -format "%D %T" -gmt 1] $text"
 }
 
+proc log_bgerror {message _options} {
+	array set options $_options
+	logger "Caught background error: $message: $options(-errorinfo)"
+}
+
 #
 # greetings - issue a startup message
 #
