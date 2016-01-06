@@ -141,7 +141,7 @@ proc start_mlat_client {} {
 	fileevent $rpipe readable [list forward_to_logger [pid $::mlatPipe] $rpipe]
 
 	set ::mlatReady 0
-	fconfigure $::mlatPipe -buffering line -blocking 0 -translation binary
+	fconfigure $::mlatPipe -buffering line -blocking 0 -translation lf
 	fileevent $::mlatPipe readable mlat_data_available
 }
 

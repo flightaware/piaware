@@ -107,7 +107,7 @@ proc connect_adsb_via_faup1090 {} {
 	}
 
 	logger "Started faup1090 (pid [pid $::faupPipe]) to connect to $::adsbDataProgram"
-	fconfigure $::faupPipe -buffering line -blocking 0 -translation binary
+	fconfigure $::faupPipe -buffering line -blocking 0 -translation lf
 	fileevent $::faupPipe readable faup1090_data_available
 
 	# pretend we saw a message so we don't repeatedly restart
@@ -138,7 +138,7 @@ proc restart_faup1090 {{delay 30}} {
 
 	if {$delay eq "now" || [clock seconds] - $::lastConnectAttemptClock > $delay} {
 		logger "reconnecting to $::adsbDataProgram"
-		schedule_adsb_connect_attempt idle
+		schedule_adsb_connect_attempt 1
 		return
 	}
 
