@@ -176,7 +176,7 @@ proc gps_location_update {lat lon alt} {
 		set ::gpsLocationValid 1
 	}
 
-	adept update_location [list $lat $lon $alt]
+	adept update_location [list $lat $lon $alt wgs84_meters]
 
 	set last [adept last_reported_location]
 	if {$last ne ""} {

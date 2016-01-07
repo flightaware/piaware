@@ -742,7 +742,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 		}
 
 		if {$deviceLocation ne ""} {
-			lassign $deviceLocation message(receiverlat) message(receiverlon) message(receiveralt)
+			lassign $deviceLocation message(receiverlat) message(receiverlon) message(receiveralt) message(receiveraltref)
 		}
 		set lastReportedLocation $deviceLocation
 
@@ -816,7 +816,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 
 		# fill in device location, clock
 		if {$deviceLocation ne ""} {
-			lassign $deviceLocation row(receiverlat) row(receiverlon) row(receiveralt)
+			lassign $deviceLocation row(receiverlat) row(receiverlon) row(receiveralt) row(receiveraltref)
 			set lastReportedLocation $deviceLocation
 		}
 
