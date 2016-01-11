@@ -27,6 +27,7 @@ set sendHealthInformationIntervalSeconds 300
 set adsbNoProducerStartDelaySeconds 360
 
 # where we store our location info
-set locationFile "/var/lib/dump1090/latlon"
+set locationFile "/var/cache/piaware/location"
+set locationFileEnv "/var/cache/piaware/location.env"
 
 # vim: set ts=4 sw=4 sts=4 noet :

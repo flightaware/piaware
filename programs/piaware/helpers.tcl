@@ -301,6 +301,12 @@ proc try_save_location_info {lat lon} {
 	puts $fp $lat
 	puts $fp $lon
 	close $fp
+
+	set fp [open $::locationFileEnv w]
+	puts $fp "PIAWARE_LAT=\"$lat\""
+	puts $fp "PIAWARE_LON=\"$lon\""
+	puts $fp "PIAWARE_DUMP1090_LOCATION_OPTIONS=\"--lat $lat --lon $lon\""
+	close $fp
 }
 
 # vim: set ts=4 sw=4 sts=4 noet :
