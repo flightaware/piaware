@@ -65,6 +65,7 @@ proc main {{argv ""}} {
 	user_check
 
 	load_piaware_config_and_stuff
+	load_adept_config_and_setup
 
 	# setup adept client early so logger command won't trace back
 	# (this does not initiate a connection, it just creates the object)
@@ -98,7 +99,6 @@ proc main {{argv ""}} {
 		sleep 1
 	}
 
-	load_adept_config_and_setup
 	#confirm_nonblank_user_and_password_or_die
 
 	connect_to_gpsd
