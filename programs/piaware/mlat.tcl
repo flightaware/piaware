@@ -98,24 +98,43 @@ proc start_mlat_client {} {
 		return
 	}
 
-	inspect_sockets_with_netstat
+	if {[is_local_receiver]} {
+		inspect_sockets_with_netstat
 
-	if {![is_adsb_program_running]} {
-		logger "no ADS-B data program is serving on port 30005, not starting multilateration client yet"
-		schedule_mlat_client_restart
-		return
+		if {![is_adsb_program_running]} {
+			logger "no ADS-B data program is serving on port 30005, not starting multilateration client yet"
+			schedule_mlat_client_restart
+			return
+		}
 	}
 
 	set command $::mlatClientPath
-	lappend command "--input-connect" "localhost:30005"
+	lappend command "--input-connect" "${::receiverHost}:${::receiverPort}"
 
-	if {![info exists ::adeptConfig(mlatResults)] || ([string is boolean $::adeptConfig(mlatResults)] && $::adeptConfig(mlatResults))} {
-		if {![info exists ::adeptConfig(mlatResultsFormat)] || $::adeptConfig(mlatResultsFormat) eq "default"} {
-			lappend command "--results" "beast,connect,localhost:30104"
-		} else {
-			foreach r $::adeptConfig(mlatResultsFormat) {
-				lappend command "--results" $r
-			}
+	switch $::receiverType {
+		rtlsdr {
+			set inputType "dump1090"
+		}
+
+		beast - radarcape {
+			set inputType $::receiverType
+		}
+
+		default {
+			set inputType "auto"
+		}
+	}
+
+	lappend command "--input-type" $inputType
+
+	if {[string is true [get_adept_config mlatResults 1]]} {
+		set results [get_adept_config mlatResultsFormat "default"]
+		if {$results eq "default"} {
+			set results "beast,connect,localhost:30104"
+		}
+
+		foreach r $results {
+			lappend command "--results" $r
 		}
 	}
 

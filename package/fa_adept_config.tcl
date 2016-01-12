@@ -50,6 +50,18 @@ proc set_adept_config {var value} {
 }
 
 #
+# get_adept_config - get an adept config variable if it exists,
+# otherwise return a default
+#
+proc get_adept_config {var {defValue ""}} {
+	if {[info exists ::adeptConfig($var)] && $::adeptConfig($var) ne ""} {
+		return $::adeptConfig($var)
+	} else {
+		return $defValue
+	}
+}
+
+#
 # save_adept_config - write out all the variables found in the adept config
 #  global array to the adept config file.
 #
