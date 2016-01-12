@@ -275,12 +275,8 @@ proc has_invoke_rcd {} {
 proc can_invoke_service_action {service action} {
 	# try to decide if we should invoke the given service/action
 	if {![has_invoke_rcd]} {
-		# no invoke-rc.d, just see if we can run the script
-		if {[auto_execok "/etc/init.d/$service"] eq ""} {
-			return 0
-		} else {
-			return 1
-		}
+		# assume we can
+		return 1
 	}
 
 	set status [system invoke-rc.d --query $service $action]
@@ -298,12 +294,24 @@ proc can_invoke_service_action {service action} {
 }
 
 proc invoke_service_action {service action} {
-	if {![has_invoke_rcd]} {
-		# no invoke-rc.d, just run the script
-		set command [list /etc/init.d/$service $action]
-	} else {
+	if {[is_systemd]} {
+		# this looks confusing, but:
+		#   "systemctl restart" restarts the unit, or starts it if not active
+		#   "systemctl try-restart" restarts the unit only if it is already active
+		# which is what we want for our "start" and "restart" actions respectively
+
+		case $action {
+			restart { set cmd "try-restart" }
+			default { set cmd "restart" }
+		}
+
+		set command [list systemctl --no-block $cmd ${service}.service]
+	} elseif {[has_invoke_rcd]} {
 		# use invoke-rc.d
 		set command [list invoke-rc.d $service $action]
+	} else {
+		# no invoke-rc.d, just run the script
+		set command [list /etc/init.d/$service $action]
 	}
 
 	logger "attempting to $action $service using '$command'..."
@@ -315,9 +323,69 @@ proc invoke_service_action {service action} {
 # attempt_dump1090_restart - restart dump1090 if we can figure out how to
 #
 proc attempt_dump1090_restart {{action restart}} {
-	set scripts [glob -nocomplain -directory /etc/init.d -tails -types {f r x} *dump1090*]
+	logger "attempting to $action dump1090.. "
 
-	foreach script $scripts {
+	if {[is_systemd]} {
+		set candidates [systemd_find_services *dump1090*]
+	} else {
+		set candidates [sysvinit_find_services *dump1090*]
+	}
+
+	set service {}
+	foreach service $candidates {
+		# check invoke-rc.d etc
+		if {[can_invoke_service_action $service $action]} {
+			lappend services $service
+		}
+	}
+
+	if {[llength $services] == 0} {
+		logger "can't $action dump1090, no services that look like dump1090 found"
+	} else {
+		set service [lindex $services 0]
+		if {[llength $services] > 1} {
+			logger "warning, more than one enabled dump1090 service found ($services), proceeding with '$service'..."
+		}
+
+		set exitStatus [invoke_service_action $service $action]
+
+		if {$exitStatus == 0} {
+			logger "dump1090 $action appears to have been successful"
+		} else {
+			logger "got exit status $exitStatus while trying to $action dump1090"
+		}
+	}
+}
+
+# return 1 if it looks like we're using systemd
+proc is_systemd {} {
+	return [file isdirectory /run/systemd/system]
+}
+
+# return a list of systemd service unitfiles matching pattern
+proc systemd_find_services {pattern} {
+	if {[catch {
+		split [exec systemctl list-unit-files --no-legend --no-pager --type=service $pattern] "\n"
+	} result] == 1} {
+		return ""
+	}
+
+	set services {}
+	foreach line $result {
+		set state ""
+		lassign [split $line " "] unitfile state
+		if {$state eq "enabled"} {
+			lappend services [string map {.service {}} $unitfile]
+		}
+	}
+
+	return $services
+}
+
+# return a list of sysvinit-style services matching pattern
+proc sysvinit_find_services {pattern} {
+	set services {}
+	foreach script [glob -nocomplain -directory /etc/init.d -tails -types {f r x} $pattern] {
 		switch -glob $script {
 			*.dpkg*	-
 			*.rpm* -
@@ -333,30 +401,12 @@ proc attempt_dump1090_restart {{action restart}} {
 			}
 
 			default {
-				# check invoke-rc.d etc
-				if {[can_invoke_service_action $script $action]} {
-					lappend acceptableScripts $script
-				}
+				lappend services $script
 			}
 		}
 	}
 
-	if { [info exists acceptableScripts] } {
-		set service [lindex $acceptableScripts 0]
-		if { [llength $acceptableScripts] > 1 } {
-			logger "warning, more than one enabled dump1090 script in /etc/init.d, proceding with '$service'..."
-		}
-
-		set exitStatus [invoke_service_action $service $action]
-
-		if {$exitStatus == 0} {
-			logger "dump1090 $action appears to have been successful"
-		} else {
-			logger "got exit status $exitStatus while trying to $action dump1090"
-		}
-	} else { 
-		logger "can't $action dump1090, no enabled dump1090 script in /etc/init.d"
-	}
+	return $services
 }
 
 #
