@@ -77,7 +77,7 @@ proc connect_adsb_via_faup1090 {} {
 		set secondsSinceListenerSeen [expr {[clock seconds] - $::lastAdsbConnectedClock}]
 		if {$secondsSinceListenerSeen >= $::adsbNoProducerStartDelaySeconds} {
 			logger "no ADS-B data program seen listening on port 30005 for $secondsSinceListenerSeen seconds, trying to start it..."
-			attempt_dump1090_restart start
+			attempt_service_restart dump1090 start
 			# pretend we saw it to reduce restarts if it's failing
 			set ::lastAdsbConnectedClock [clock seconds]
 			schedule_adsb_connect_attempt 10
@@ -248,7 +248,7 @@ proc check_adsb_traffic {} {
 			# force a restart
 			logger "no new messages received in $secondsSinceLastMessage seconds, it might just be that there haven't been any aircraft nearby but I'm going to try to restart dump1090, just in case..."
 			stop_faup1090
-			attempt_dump1090_restart restart
+			attempt_service_restart dump1090 restart
 			schedule_adsb_connect_attempt 10
 		}
 	} else {
@@ -258,155 +258,6 @@ proc check_adsb_traffic {} {
 			schedule_adsb_connect_attempt 5
 		}
 	}
-}
-
-proc has_invoke_rcd {} {
-	if {![info exists ::invoke_rcd_path]} {
-		set ::invoke_rcd_path [auto_execok invoke-rc.d]
-	}
-
-	if {$::invoke_rcd_path ne ""} {
-		return 1
-	} else {
-		return 0
-	}
-}
-
-proc can_invoke_service_action {service action} {
-	# try to decide if we should invoke the given service/action
-	if {![has_invoke_rcd]} {
-		# assume we can
-		return 1
-	}
-
-	set status [system invoke-rc.d --query $service $action]
-	switch $status {
-		104 -
-		105 -
-		106 {
-			return 1
-		}
-
-		default {
-			return 0
-		}
-	}
-}
-
-proc invoke_service_action {service action} {
-	if {[is_systemd]} {
-		# this looks confusing, but:
-		#   "systemctl restart" restarts the unit, or starts it if not active
-		#   "systemctl try-restart" restarts the unit only if it is already active
-		# which is what we want for our "start" and "restart" actions respectively
-
-		case $action {
-			restart { set cmd "try-restart" }
-			default { set cmd "restart" }
-		}
-
-		set command [list systemctl --no-block $cmd ${service}.service]
-	} elseif {[has_invoke_rcd]} {
-		# use invoke-rc.d
-		set command [list invoke-rc.d $service $action]
-	} else {
-		# no invoke-rc.d, just run the script
-		set command [list /etc/init.d/$service $action]
-	}
-
-	logger "attempting to $action $service using '$command'..."
-	return [system $command]
-}
-
-
-#
-# attempt_dump1090_restart - restart dump1090 if we can figure out how to
-#
-proc attempt_dump1090_restart {{action restart}} {
-	logger "attempting to $action dump1090.. "
-
-	if {[is_systemd]} {
-		set candidates [systemd_find_services *dump1090*]
-	} else {
-		set candidates [sysvinit_find_services *dump1090*]
-	}
-
-	set service {}
-	foreach service $candidates {
-		# check invoke-rc.d etc
-		if {[can_invoke_service_action $service $action]} {
-			lappend services $service
-		}
-	}
-
-	if {[llength $services] == 0} {
-		logger "can't $action dump1090, no services that look like dump1090 found"
-	} else {
-		set service [lindex $services 0]
-		if {[llength $services] > 1} {
-			logger "warning, more than one enabled dump1090 service found ($services), proceeding with '$service'..."
-		}
-
-		set exitStatus [invoke_service_action $service $action]
-
-		if {$exitStatus == 0} {
-			logger "dump1090 $action appears to have been successful"
-		} else {
-			logger "got exit status $exitStatus while trying to $action dump1090"
-		}
-	}
-}
-
-# return 1 if it looks like we're using systemd
-proc is_systemd {} {
-	return [file isdirectory /run/systemd/system]
-}
-
-# return a list of systemd service unitfiles matching pattern
-proc systemd_find_services {pattern} {
-	if {[catch {
-		split [exec systemctl list-unit-files --no-legend --no-pager --type=service $pattern] "\n"
-	} result] == 1} {
-		return ""
-	}
-
-	set services {}
-	foreach line $result {
-		set state ""
-		lassign [split $line " "] unitfile state
-		if {$state eq "enabled"} {
-			lappend services [string map {.service {}} $unitfile]
-		}
-	}
-
-	return $services
-}
-
-# return a list of sysvinit-style services matching pattern
-proc sysvinit_find_services {pattern} {
-	set services {}
-	foreach script [glob -nocomplain -directory /etc/init.d -tails -types {f r x} $pattern] {
-		switch -glob $script {
-			*.dpkg*	-
-			*.rpm* -
-			*.ba* -
-			*.old -
-			*.org -
-			*.orig -
-			*.save -
-			*.swp -
-			*.core -
-			*~ {
-				# Skip this
-			}
-
-			default {
-				lappend services $script
-			}
-		}
-	}
-
-	return $services
 }
 
 #
