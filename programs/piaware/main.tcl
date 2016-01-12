@@ -60,13 +60,13 @@ proc main {{argv ""}} {
 
 	interp bgerror {} log_bgerror
 
+	load_piaware_config_and_stuff
+	load_adept_config_and_setup
+
 	setup_faup1090_vars
 
 	# check what user we're running as
 	user_check
-
-	load_piaware_config_and_stuff
-	load_adept_config_and_setup
 
 	# setup adept client early so logger command won't trace back
 	# (this does not initiate a connection, it just creates the object)
