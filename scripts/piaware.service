@@ -4,12 +4,8 @@
 [Unit]
 Description=FlightAware ADS-B uploader
 Documentation=https://flightaware.com/adsb/piaware/
-# network-online target may need to be enabled via:
-# systemctl enable NetworkManager-wait-online.service
-# or:
-# systemctl enable systemd-networkd-wait-online.service
-Wants=dump1090.service network-online.target
-After=dump1090.service network-online.target
+Wants=network-online.target
+After=dump1090-fa.service network-online.target
 
 [Service]
 ExecStart=/usr/bin/piaware -p /var/run/piaware.pid
