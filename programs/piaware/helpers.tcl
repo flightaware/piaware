@@ -21,6 +21,15 @@ proc logger {text} {
 }
 
 #
+# debug - log a debug message locally if enabled
+#
+proc debug {text} {
+	if {$::params(debug)} {
+		log_locally $text
+	}
+}
+
+#
 # log_locally - log a message locally
 #
 proc log_locally {text} {
@@ -30,7 +39,7 @@ proc log_locally {text} {
 
 proc log_bgerror {message _options} {
 	array set options $_options
-	logger "Caught background error: $message: $options(-errorinfo)"
+	logger "Caught background error: $options(-errorinfo)"
 }
 
 #

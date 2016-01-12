@@ -32,7 +32,7 @@ namespace eval ::fa_gps {
 		}
 
 		method debug {msg} {
-			#puts stderr "$this: $msg"
+			::debug "GPS: $this: $msg"
 		}
 
 		method logger {msg} {
