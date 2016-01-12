@@ -172,7 +172,7 @@ proc gps_location_update {lat lon alt} {
 	# valid 3D fix
 	if {!$::gpsLocationValid} {
 		# first time
-		logger [format "GPS: Receiver location: %.5f, %.5f at %.0fm ASL" $lat $lon $alt]
+		logger [format "GPS: Receiver location: %.5f, %.5f at %.0fm height (WGS84)" $lat $lon $alt]
 		set ::gpsLocationValid 1
 	}
 
