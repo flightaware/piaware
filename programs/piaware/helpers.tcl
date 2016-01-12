@@ -34,7 +34,11 @@ proc debug {text} {
 #
 proc log_locally {text} {
 	#::bsd::syslog log info $text
-    puts stderr "[clock format [clock seconds] -format "%D %T" -gmt 1] $text"
+	if {!$::params(plainlog)} {
+		puts stderr "[clock format [clock seconds] -format "%D %T" -gmt 1] $text"
+	} else {
+		puts stderr $text
+	}
 }
 
 proc log_bgerror {message _options} {

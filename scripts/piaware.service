@@ -8,7 +8,7 @@ Wants=network-online.target
 After=dump1090-fa.service network-online.target
 
 [Service]
-ExecStart=/usr/bin/piaware -p /var/run/piaware.pid
+ExecStart=/usr/bin/piaware -p /var/run/piaware.pid -plainlog
 Type=simple
 Restart=on-failure
 RestartSec=30

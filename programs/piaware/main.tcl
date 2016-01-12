@@ -34,7 +34,8 @@ proc main {{argv ""}} {
         {p.arg "" "specify the name of a file to write our pid in"}
         {serverhosts.arg "" "specify alternate server hosts (for FA testing)"}
         {serverport.arg "1200" "specify alternate server port (for FA testing)"}
-        {debug  "log to stdout rather than the log file"}
+        {plainlog "log to stderr without timestamps"}
+        {debug "log to stderr, maybe enable more debugging messages"}
         {showtraffic  "emit traffic to stdout (for debugging)"}
         {debugport.arg "0" "open a localhost-only port to the tcl interpreter"}
         {v  "emit version information and exit"}
@@ -86,7 +87,7 @@ proc main {{argv ""}} {
 	}
 
 	# start logging to a file unless configured for debug
-	if {!$::params(debug)} {
+	if {!$::params(debug) && !$::params(plainlog)} {
 		log_stdout_stderr_to_file
 		schedule_logfile_switch
 	}
