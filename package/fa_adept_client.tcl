@@ -432,7 +432,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 
 			# if we received lat/lon data, handle it
 			if {[info exists row(recv_lat)] && [info exists row(recv_lon)]} {
-				update_location $row(recv_lat) $row(recv_lon)
+				adept_location_changed $row(recv_lat) $row(recv_lon)
 			}
 
 			log_locally "logged in to FlightAware as user $::flightaware_user"
@@ -460,7 +460,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 	#
 	method handle_update_location {_row} {
 		upvar $_row row
-		update_location $row(recv_lat) $row(recv_lon)
+		adept_location_changed [list $row(recv_lat) $row(recv_lon)]
 	}
 
 	#
@@ -1051,7 +1051,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 		}
 	}
 
-	method update_location {loc} {
+	method set_location {loc} {
 		set deviceLocation $loc
 	}
 

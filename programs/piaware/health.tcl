@@ -176,7 +176,7 @@ proc gps_location_update {lat lon alt} {
 		set ::gpsLocationValid 1
 	}
 
-	adept update_location [list $lat $lon $alt wgs84_meters]
+	adept set_location [list $lat $lon $alt wgs84_meters]
 
 	set last [adept last_reported_location]
 	if {$last ne ""} {
@@ -195,6 +195,11 @@ proc gps_location_update {lat lon alt} {
 		# if we didn't move much, it can wait until the next normal health update
 		periodically_send_health_information
 	}
+}
+
+proc adept_location_changed {lat lon} {
+	# record the location and maybe restart faup1090 with the new value
+	update_location $lat $lon
 }
 
 proc connect_to_gpsd {} {
