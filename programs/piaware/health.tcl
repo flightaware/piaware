@@ -198,6 +198,11 @@ proc gps_location_update {lat lon alt} {
 }
 
 proc adept_location_changed {lat lon} {
+	if {$::gpsLocationValid} {
+		# ignore it, we know better
+		return
+	}
+
 	# record the location and maybe restart faup1090 with the new value
 	update_location $lat $lon
 }
