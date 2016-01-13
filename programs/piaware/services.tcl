@@ -59,8 +59,9 @@ proc systemd_find_services {pattern} {
 
 	set services {}
 	foreach line $result {
-		set state ""
-		lassign [split $line " "] unitfile state
+		set parts [split [string trim $line] " "]
+		set unitfile [lindex $parts 0]
+		set state [lindex $parts end]
 		if {$state eq "enabled"} {
 			lappend services [string map {.service {}} $unitfile]
 		}
