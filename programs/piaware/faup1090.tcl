@@ -128,7 +128,7 @@ proc connect_adsb_via_faup1090 {} {
 		if {![is_adsb_program_running]} {
 			# still no listener, consider restarting
 			set secondsSinceListenerSeen [expr {[clock seconds] - $::lastAdsbConnectedClock}]
-			if {$secondsSinceListenerSeen >= $::adsbNoProducerStartDelaySeconds && $::adsbDataService ne ""]} {
+			if {$secondsSinceListenerSeen >= $::adsbNoProducerStartDelaySeconds && $::adsbDataService ne ""} {
 				logger "no ADS-B data program seen listening on port 30005 for $secondsSinceListenerSeen seconds, trying to start it..."
 				attempt_service_restart $::adsbDataService start
 				# pretend we saw it to reduce restarts if it's failing
