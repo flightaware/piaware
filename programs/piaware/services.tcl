@@ -130,9 +130,9 @@ proc attempt_service_restart {basename {action restart}} {
 	logger "attempting to $action $basename.. "
 
 	if {[is_systemd]} {
-		set candidates [systemd_find_services *${basename}*]
+		set candidates [systemd_find_services ${basename}*]
 	} else {
-		set candidates [sysvinit_find_services *${basename}*]
+		set candidates [sysvinit_find_services ${basename}*]
 	}
 
 	set service {}
