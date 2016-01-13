@@ -359,11 +359,14 @@ proc update_location {lat lon} {
 	# changed nontrivially; restart faup1090 to use the new values
 	set ::receiverLat $lat
 	set ::receiverLon $lon
+
+	# speculatively restart dump1090 even if we are not using it as a receiver;
+	# it may be used for display.
+	logger "Receiver location changed, restarting dump1090"
+	attempt_service_restart dump1090 restart
+
 	if {[info exists ::faupPipe]} {
-		# speculatively restart dump1090 even if we are not using it as a receiver;
-		# it may be used for display.
-		logger "Receiver location changed, restarting dump1090/faup1090"
-		attempt_service_restart dump1090 restart
+		logger "Receiver location changed, restarting faup1090"
 		restart_faup1090 5
 	}
 }
