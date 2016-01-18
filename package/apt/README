@@ -1,0 +1,2 @@
+This keyring will be used to configure the FlightAware apt repository
+if not already configured when a manual or auto update request is handled.

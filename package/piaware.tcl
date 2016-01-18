@@ -12,6 +12,8 @@ package require Itcl
 set piawarePidFile /var/run/piaware.pid
 set piawareConfigFile /etc/piaware
 
+set aptConfigDir [file join [file dirname [info script]] "apt"]
+
 #
 # do a pipe open after clearing locale vars
 #
@@ -462,6 +464,58 @@ proc halt {} {
 }
 
 #
+# update_package_lists
+# installs the FA sources.list and key if not present
+# runs apt-get update to update all package lists
+#
+proc update_package_lists {} {
+	# install any missing apt config (for upgrades from older piawares)
+
+	set keyring "/etc/apt/trusted.gpg.d/flightaware-archive-keyring.gpg"
+	set sourcelist "/etc/apt/sources.list.d/flightaware.list"
+
+	if {![file exists $keyring]} {
+		logger "$keyring does not exist, installing the copy supplied with piaware."
+		file link -symbolic $keyring [file join $aptConfigDir "flightaware-archive-keyring.gpg"]
+	}
+
+	if {![file exists $sourcelist]} {
+		logger "$sourcelist does not exist, creating it."
+
+		# identify the OS version, we have different repos for wheezy and jessie
+		catch {get_os_release rel}
+
+		if {![info exists rel(ID)] || ![info exists rel(VERSION_ID)]} {
+			logger "can't identify OS release from /etc/os-release, can't proceed with upgrade"
+			return 0
+		}
+
+		switch $rel(ID):$rel(VERSION_ID) {
+			raspbian:7 {
+				set url "http://flightaware.com/adsb/piaware/files/raspbian"
+				set suite "wheezy"
+			}
+
+			raspbian:8 {
+				set url "http://flightaware.com/adsb/piaware/files/raspbian"
+				set suite "jessie"
+			}
+
+			default {
+				logger "Automatic upgrades not available for OS $rel(ID):$rel(VERSION_ID) ($rel(PRETTY_NAME))"
+				return 0
+			}
+		}
+
+		set fp [open $sourcelist "w" 0644]
+		puts $fp "deb $url $suite flightaware"
+		close $fp
+	}
+
+    return [run_program_log_output "apt-get --quiet --yes update"]
+}
+
+#
 # update_operating_system_and_packages 
 #
 # * upgrade raspbian
@@ -470,43 +524,14 @@ proc halt {} {
 #
 # * reboot
 #
-proc update_operating_system_and_packages {} {
-	logger "updating operating system, packages, kernel, and then rebooting"
-    upgrade_raspbian_packages
-    upgrade_dump1090
-    upgrade_piaware
-	#upgrade_raspbian_kernel
-    reboot
-}
+proc upgrade_all_packages {} {
+    logger "*** attempting to upgrade all packages to the latest"
 
-#
-# upgrade_raspbian_packages - upgrade raspbian packages to the latest
-#
-proc upgrade_raspbian_packages {} {
-    logger "*** attempting to upgrade raspbian packages to the latest"
-
-    if {![run_program_log_output "apt-get --yes update"]} {
-		logger "aborting upgrade..."
-		return 0
-    }
-
-    if {![run_program_log_output "apt-get --yes upgrade"]} {
+    if {![run_program_log_output "apt-get --quiet --yes upgrade"]} {
 		logger "aborting upgrade..."
 		return 0
     }
     return 1
-}
-
-#
-# upgrade_raspbian_kernel - upgrade the raspbian kernel by running rpi-update;
-# requires a reboot to take effect
-#
-proc upgrade_raspbian_kernel {} {
-    logger "*** attempting to upgrade raspbian kernel and boot files to the latest"
-    if {![run_program_log_output "rpi-update"]} {
-		logger "aborting upgrade..."
-		return 0
-    }
 }
 
 #
@@ -528,7 +553,7 @@ proc run_program_log_output {command} {
 	set ::externalProgramStatus ""
 
 	catch {
-		if {[catch {set fp [open "|$command < /dev/null"]} catchResult] == 1} {
+		if {[catch {set fp [open "|$command < /dev/null 2>@1"]} catchResult] == 1} {
 			logger "*** error attempting to start command: $catchResult"
 			return 0
 		}
@@ -555,7 +580,7 @@ proc run_program_log_output {command} {
 #  from some external command we are running
 #
 proc external_program_data_available {fp} {
-	if {[catch [gets $fp line] result] == 1} {
+	if {[catch {gets $fp line} result] == 1} {
 		logger "*** error reading from pipeline: $result"
 		set ::externalProgramStatus -1
 		catch {close $fp}
@@ -585,179 +610,34 @@ proc external_program_data_available {fp} {
 	logger "> $line"
 }
 
-#
-# init_http_client - initialize the http client library
-#
-# can be called multiple times; only does its thing once
-#
-proc init_http_client {} {
-    if {[info exists ::tlsInitialized]} {
-		return
-    }
-
-    ::tls::init -ssl2 0 -ssl3 0 -tls1 1
-    ::http::register https 443 ::tls::socket
-
-    set ::tlsInitialized 1
-}
 
 #
-# fetch_url_as_string - fetch an http[s] URL and return as a string or
-#   return an empty string if it failed or whatever
-#
-proc fetch_url_as_string {url} {
-    init_http_client
-
-    set req [::http::geturl $url -timeout 15000]
-
-    set status [::http::status $req]
-    set data [::http::data $req]
-    ::http::cleanup $req
-
-	logger "got status $status trying to fetch $url"
-
-    if {$status == "ok"} {
-		if {[string index $data end] == "\n"} {
-			return [string range $data 0 end-1]
-		} else {
-			return $data
-		}
-    }
-    return ""
-}
-
-#
-# fetch_url_as_binary_file_callback - callback routine for
-#   fetch_url_as_binary_file_callback for the completion or timeout
-#   of http requests
-#
-proc fetch_url_as_binary_file_callback {sock token} {
-	# ok we got the callback, set the global variable
-	# that fetch_url_as_binary_file is vwaiting on,
-	# so that it can go on
-	set ::fetchUrlVwaitVar 1
-}
-
-
-#
-# fetch_url_as_binary_file - fetch the URL to the file, 1 on success else 0
-#
-proc fetch_url_as_binary_file {url outputFile} {
-    set req [::http::geturl $url -timeout 900000 -binary 1 -strict 0]
-
-    set status [::http::status $req]
-    set data [::http::data $req]
-    ::http::cleanup $req
-
-    if {$status == "ok"} {
-		set ofp [open $outputFile w]
-		fconfigure $ofp -translation binary -encoding binary
-		puts -nonewline $ofp $data
-		close $ofp
-		return 1
-	}
-
-	logger "got status $status trying to fetch $url"
-	return 0
-}
-
-
-#
-# upgrade_piaware - fetch file information about the latest version of piaware
-#
-# check it for reasonability
-#
-# compare it to the version we're running and if it's not current, update
-# the current site
+# upgrade_piaware - upgrade piaware via apt-get; install source lists / keys if missing
 #
 proc upgrade_piaware {} {
-    set debianPackageFile [fetch_url_as_string "https://flightaware.com/adsb/piaware/files/latest"]
-    if {$debianPackageFile == ""} {
-		logger "unable to upgrade piaware: failed to get name of package file"
-		return 0
-    }
-
-    if {[string first / $debianPackageFile] >= 0} {
-		logger "unable to upgrade piaware: illegal character in version '$debianPackageFile'"
-		return 0
-    }
-
-    set requestUrl https://flightaware.com/adsb/piaware/files/$debianPackageFile
-	return [upgrade_dpkg_package piaware $requestUrl]
+	return [single_package_upgrade "piaware"]
 }
 
+
 #
-# upgrade_dump1090 - fetch file information about the latest version of dump1090
-#
-# check it for reasonability
-#
-# compare it to the version we're running and if it's not current, update
-# the current site
+# upgrade_dump1090 - upgrade dump1090-fa via apt-get; install source lists / keys if missing
 #
 proc upgrade_dump1090 {} {
-	logger "upgrade of dump1090 requested"
-
-	if {[glob -nocomplain /etc/init.d/fadump1090.sh] == ""} {
-		logger "you don't appear to have FlightAware's (no /etc/init.d/fadump1090.sh), i'm not going to mess with it"
-		return 0
-	}
-
-    set debianPackageFile [fetch_url_as_string "https://flightaware.com/adsb/piaware/files/latest_dump1090"]
-    if {$debianPackageFile == ""} {
-		logger "unable to upgrade dump1090: failed to get name of package file"
-		return 0
-    }
-
-    if {[string first / $debianPackageFile] >= 0} {
-		logger "unable to upgrade dump1090: illegal character in version '$debianPackageFile'"
-		return 0
-    }
-
-    set requestUrl https://flightaware.com/adsb/piaware/files/$debianPackageFile
-	return [upgrade_dpkg_package dump1090 $requestUrl]
+	return [single_package_upgrade "dump1090-fa"]
 }
 
 #
-# upgrade_dpkg_package - package name needs to be a legit fragment that could
-#  only match one package, url is where to get it from
+# single_package_upgrade: update a single FA package
 #
-proc upgrade_dpkg_package {name url} {
-	logger "considering upgrading $name from $url..."
-	lassign [query_dpkg_names_and_versions $name] currentPackageName currentPackageVersion
-	if {$currentPackageVersion eq ""} {
-		logger "unable to query current version of $name from dpkg. it may not be installed. proceeding with upgrade..."
-	} else {
-		set compare [compare_versions_from_packages $currentPackageVersion $url]
-
-		if {$compare > 0} {
-			logger "current version $currentPackageVersion is newer than requested $url, skipping..."
-			return 0
-		}
-
-		if {$name == "piaware"} {
-			if {[compare_versions_from_packages $::piawareVersion $url] > 0} {
-				logger "current version of piaware $::piawareVersion is newer than requested, skipping..."
-				return 0
-			}
-		}
-	}
-
-    logger "fetching latest $name version from $url"
-
-	set tmpFile "/tmp/[file tail $url]"
-
-	if {![fetch_url_as_binary_file $url $tmpFile]} {
+proc single_package_upgrade {pkg} {
+	# run the update/upgrade
+    if {![run_program_log_output "apt-get --quiet --yes -o DPkg::Options::=--force-confask -o DPkg::Options::=--force-confnew install $pkg"]} {
+		logger "aborting upgrade..."
 		return 0
-	}
+    }
 
-    logger "installing $name..."
-    run_program_log_output "dpkg --force-confnew -i $tmpFile"
-
-    logger "installing any required dependencies"
-    run_program_log_output "apt-get install -fy"
-
-	logger "upgrade of $name complete."
-    return 1
+	logger "upgrade of $pkg seemed to go OK"
+	return 1
 }
 
 #
@@ -935,80 +815,6 @@ catch {::itcl::delete class IpConsole}
 			unset serverSock
 		}
     }
-}
-
-#
-# version_compare - comapre two piaware versions, treating empty as less
-# than anything nonempty.
-#
-# return -1 if the first is less than the second, 1 if the first is great
-# than the second, and 0 if they are equal
-#
-# unlike comparing floating point numbers, with this 1.10 > 1.9
-#
-# FlightAware dev note - this function is copied from the fa_web library
-#
-proc version_compare {v1 v2} {
-    if {$v1 == $v2} {
-        return 0
-    }
-
-    if {$v1 == "" && $v2 != ""} {
-        return -1
-    }
-
-    if {$v1 != "" && $v2 == ""} {
-        return 1
-    }
-
-    foreach x1 [split $v1 ".-"] x2 [split $v2 ".-"] {
-        if {$x1 < $x2} {
-            return -1
-        } elseif {$x1 > $x2} {
-            return 1
-        }
-    }
-    return 0
-}
-
-#
-# extract_version_number - extract a version number from a package string or
-#  something... find stuff like 1.15-3 and 1.16
-#
-# if nothing matched, return an empty string
-#
-proc extract_version_number {string} {
-	set expression {([0-9]*\.[0-9]*-[0-9]*)}
-	if {[regexp $expression $string dummy string]} {
-		return $string
-	}
-
-	set expression {([0-9]*\.[0-9]*)}
-	if {[regexp $expression $string dummy string]} {
-		return $string
-	}
-
-	return ""
-}
-
-#
-# compare_versions_from_packages - extract version numbers from two longer
-#   package names and return version_compare of them
-#
-proc compare_versions_from_packages {v1 v2} {
-	set nv1 [extract_version_number $v1]
-	if {$nv1 == ""} {
-		error "can't get a version number out of $v1"
-	}
-
-	set nv2 [extract_version_number $v2]
-	if {$nv2 == ""} {
-		error "can't get a version number out of $v2"
-	}
-
-	set result [version_compare $nv1 $nv2]
-	#logger "result of version_compare '$v1' '$v2' is $result"
-	return $result
 }
 
 package provide piaware 1.0
