@@ -513,20 +513,41 @@ proc upgrade_raspbian_kernel {} {
 # run_program_log_output - run command with stderr redirected to stdout and
 #   log all the output of the command
 #
+set ::externalProgramRunning 0
 proc run_program_log_output {command} {
     logger "*** running command '$command' and logging output"
 
-    unset -nocomplain ::externalProgramFinished
-
-    if {[catch {set fp [open "|$command"]} catchResult] == 1} {
-		logger "*** error attempting to start command: $catchResult"
+	# safety net
+	if {$::externalProgramRunning} {
+		logger "*** refusing to run command: there is already another command running"
 		return 0
-    }
+	}
 
-    fileevent $fp readable [list external_program_data_available $fp]
+	# poor man's try/finally
+	set ::externalProgramRunning 1
+	set ::externalProgramStatus ""
 
-    vwait ::externalProgramFinished
-    return 1
+	catch {
+		if {[catch {set fp [open "|$command < /dev/null"]} catchResult] == 1} {
+			logger "*** error attempting to start command: $catchResult"
+			return 0
+		}
+
+		fconfigure $fp -blocking 0
+		fileevent $fp readable [list external_program_data_available $fp]
+		while {$::externalProgramStatus eq ""} {
+			vwait ::externalProgramStatus
+		}
+
+		if {$::externalProgramStatus == 0} {
+			return 1
+		} else {
+			return 0
+		}
+	} result options
+
+	set ::externalProgramRunning 0
+	return -options $options $result
 }
 
 #
@@ -534,19 +555,34 @@ proc run_program_log_output {command} {
 #  from some external command we are running
 #
 proc external_program_data_available {fp} {
-    if {[eof $fp]} {
-		if {[catch {close $fp} catchResult] == 1} {
-			logger "*** error closing pipeline to command: $catchResult, continuing..."
+	if {[catch [gets $fp line] result] == 1} {
+		logger "*** error reading from pipeline: $result"
+		set ::externalProgramStatus -1
+		catch {close $fp}
+		return
+	}
+
+	if {$result < 0} {
+		if {[eof $fp]} {
+			# reconfigure for blocking so we see the command result
+			fconfigure $fp -blocking 1
+			if {[catch {close $fp} catchResult] == 1} {
+				if {"CHILDSTATUS" == [lindex $::errorCode 0]} {
+					set ::externalProgramStatus [lindex $::errorCode 2]
+					logger "*** command exited with status $::externalProgramStatus"
+				} else {
+					logger "*** error closing pipeline to command: $catchResult"
+					set ::externalProgramStatus -1
+				}
+			} else {
+				set ::externalProgramStatus 0
+			}
 		}
-		set ::externalProgramFinished 1
-		return
-    }
 
-    if {[gets $fp line] < 0} {
 		return
-    }
+	}
 
-    logger "> $line"
+	logger "> $line"
 }
 
 #
