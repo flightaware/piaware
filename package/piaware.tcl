@@ -43,10 +43,34 @@ proc open_nolocale {cmd {mode r}} {
 # return 1 if it loaded cleanly, 0 if it had a problem or didn't exist
 #
 proc load_piaware_config {} {
-    if {[catch [list uplevel #0 source $::piawareConfigFile]] == 1} {
+	# this previously used "source"
+	# that's horrible for a config file
+	# so parse it as data, allowing only
+	# a constrained syntax ("set foo bar")
+
+	set allowedVars {imageType autoUpdate manualUpdate}
+
+	if {[catch {
+		set fp [open $::piawareConfigFile "r"]
+		while {[gets $fp line] >= 0} {
+			lassign $line setword varname value
+			if {$setword ne "set"} {
+				continue
+			}
+
+			if {$varname ni $allowedVars} {
+				continue
+			}
+
+			set ::$varname $value
+		}
+
+		close $fp
+	} result] == 1} {
 		return 0
-    }
-    return 1
+	} else {
+		return 1
+	}
 }
 
 # query_dpkg_names_and_versions - Match installed package names and return a list
