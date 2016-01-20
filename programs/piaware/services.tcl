@@ -135,7 +135,7 @@ proc attempt_service_restart {basename {action restart}} {
 		set candidates [sysvinit_find_services ${basename}*]
 	}
 
-	set service {}
+	set services {}
 	foreach service $candidates {
 		# check invoke-rc.d etc
 		if {[can_invoke_service_action $service $action]} {
