@@ -8,6 +8,7 @@
 package require http
 package require tls
 package require Itcl
+package require tryfinallyshim
 
 set piawarePidFile /var/run/piaware.pid
 set piawareConfigFile /etc/piaware
@@ -548,11 +549,9 @@ proc run_program_log_output {command} {
 		return 0
 	}
 
-	# poor man's try/finally
-	set ::externalProgramRunning 1
+	incr ::externalProgramRunning
 	set ::externalProgramStatus ""
-
-	catch {
+	try {
 		if {[catch {set fp [open "|$command < /dev/null 2>@1"]} catchResult] == 1} {
 			logger "*** error attempting to start command: $catchResult"
 			return 0
@@ -569,10 +568,9 @@ proc run_program_log_output {command} {
 		} else {
 			return 0
 		}
-	} result options
-
-	set ::externalProgramRunning 0
-	return -options $options $result
+	} finally {
+		incr ::externalProgramRunning -1
+	}
 }
 
 #
