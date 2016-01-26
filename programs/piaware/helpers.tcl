@@ -69,19 +69,16 @@ proc user_check {} {
 # setup_adept_client - adept client-side setup
 #
 proc setup_adept_client {} {
-	if {$::params(serverhosts) == ""} {
-		set hostOptions ""
-	} else {
-		set hostOptions "-hosts $::params(serverhosts)"
-	}
-
     ::fa_adept::AdeptClient adept \
 		-port $::params(serverport) \
 		-showTraffic $::params(showtraffic) \
 		-logCommand ::log_locally \
 		-updateLocationCommand ::adept_location_changed \
-		-mlatCommand ::forward_to_mlat_client \
-		{*}$hostOptions
+		-mlatCommand ::forward_to_mlat_client
+
+	if {$::params(serverhosts) ne ""} {
+		adept configure -hosts $::params(serverhosts)
+	}
 }
 
 #
