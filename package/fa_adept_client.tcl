@@ -25,6 +25,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 
 	# configuration hooks for actions the client wants to trigger
 	public variable logCommand "puts stderr"
+	public variable updateLocationCommand
 
     protected variable host
     protected variable connected 0
@@ -432,9 +433,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 			}
 
 			# if we received lat/lon data, handle it
-			if {[info exists row(recv_lat)] && [info exists row(recv_lon)]} {
-				adept_location_changed $row(recv_lat) $row(recv_lon)
-			}
+			handle_update_location row
 
 			logger "logged in to FlightAware as user $::flightaware_user"
 			cancel_login_timer
@@ -461,7 +460,10 @@ set caDir [file join [file dirname [info script]] "ca"]
 	#
 	method handle_update_location {_row} {
 		upvar $_row row
-		adept_location_changed [list $row(recv_lat) $row(recv_lon)]
+
+		if {[info exists row(recv_lat)] && [info exists row(recv_lon)] && [info exists updateLocationCommand]} {
+			{*}$updateLocationCommand $row(recv_lat) $row(recv_lon)
+		}
 	}
 
 	#
