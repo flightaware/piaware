@@ -147,12 +147,17 @@ proc handle_update_request {type _row} {
 				# try to upgrade dump1090 and if successful, restart it
 				set ok [upgrade_dump1090]
 				if {$ok} {
-					attempt_dump1090_restart
+					attempt_service_restart dump1090
 				}
 			}
 
 			"restart_dump1090" {
-				attempt_dump1090_restart
+				attempt_service_restart dump1090 restart
+				set ok 1
+			}
+
+			"restart_receiver" {
+				attempt_service_restart $::adsbDataService restart
 				set ok 1
 			}
 
