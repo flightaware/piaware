@@ -1087,20 +1087,6 @@ set caDir [file join [file dirname [info script]] "ca"]
 }
 
 #
-# ca_crt_file - dig the location of the ca.crt file shipped inside the
-#  fa_adept_client package and return the path to the ca.crt file
-#
-proc ca_crt_file {} {
-    set loadCommand [package ifneeded fa_adept_client [package require fa_adept_client]]
-
-    if {![regexp {source (.*)} $loadCommand dummy path]} {
-		error "software failure finding ca crt file"
-    }
-
-    return [file dir $path]/ca.crt
-}
-
-#
 # parse_mac_address_from_line - find a mac address free-from in a line and
 #   return it or return the empty string
 #
