@@ -110,17 +110,34 @@ proc invoke_service_action {service action} {
 			default { set cmd "restart" }
 		}
 
-		set command [list systemctl --no-block $cmd ${service}.service]
+		set command [list systemctl --no-block $cmd ${service}.service < /dev/null]
 	} elseif {[has_invoke_rcd]} {
 		# use invoke-rc.d
-		set command [list invoke-rc.d $service $action]
+		set command [list invoke-rc.d $service $action < /dev/null &]
 	} else {
 		# no invoke-rc.d, just run the script
-		set command [list /etc/init.d/$service $action]
+		set command [list /etc/init.d/$service $action < /dev/null &]
 	}
 
 	logger "attempting to $action $service using '$command'..."
-	return [system $command]
+	if {[catch {exec {*}$command} result options] == 1} {
+		switch {[lindex $::errorCode 0]} {
+			CHILDKILLED - CHILDSTATUS - CHILDSUSP {
+				return [lindex $::errorCode 2]
+			}
+
+			POSIX {
+				return [lindex $::errorCode 1]
+			}
+
+			default {
+				# reraise the error
+				return -options $options $result
+			}
+		}
+	} else {
+		return 0
+	}
 }
 
 
