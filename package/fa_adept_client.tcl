@@ -17,18 +17,15 @@ set caDir [file join [file dirname [info script]] "ca"]
 
 ::itcl::class AdeptClient {
     public variable sock
-    public variable host
     public variable hosts [list piaware.flightaware.com piaware.flightaware.com 70.42.6.197 70.42.6.198]
     public variable port 1200
     public variable loginTimeoutSeconds 30
     public variable connectRetryIntervalSeconds 60
-    public variable connected 0
-    public variable loggedIn 0
 	public variable showTraffic 0
 
-	public variable deviceLocation ""
-	public variable lastReportedLocation ""
-
+    protected variable host
+    protected variable connected 0
+    protected variable loggedIn 0
     protected variable writabilityTimerID
     protected variable wasWritable 0
     protected variable loginTimerID
@@ -37,6 +34,8 @@ set caDir [file join [file dirname [info script]] "ca"]
     protected variable nextHostIndex 0
     protected variable lastCompressClock 0
     protected variable flushPending 0
+	protected variable deviceLocation ""
+	protected variable lastReportedLocation ""
 
     constructor {args} {
 		configure {*}$args
