@@ -26,6 +26,7 @@ source $::launchdir/faup1090.tcl
 source $::launchdir/health.tcl
 source $::launchdir/mlat.tcl
 source $::launchdir/services.tcl
+source $::launchdir/update.tcl
 
 #
 # main - the main program
