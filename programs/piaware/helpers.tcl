@@ -80,6 +80,7 @@ proc setup_adept_client {} {
 		-showTraffic $::params(showtraffic) \
 		-logCommand ::log_locally \
 		-updateLocationCommand ::adept_location_changed \
+		-mlatCommand ::forward_to_mlat_client \
 		{*}$hostOptions
 }
 

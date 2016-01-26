@@ -26,6 +26,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 	# configuration hooks for actions the client wants to trigger
 	public variable logCommand "puts stderr"
 	public variable updateLocationCommand
+	public variable mlatCommand
 
     protected variable host
     protected variable connected 0
@@ -392,7 +393,9 @@ set caDir [file join [file dirname [info script]] "ca"]
 			}
 
 			"mlat_*" {
-				forward_to_mlat_client row
+				if {[info exists mlatCommand]} {
+					{*}$mlatCommand row
+				}
 			}
 
 			"update_location" {
