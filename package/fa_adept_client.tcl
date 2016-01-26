@@ -23,6 +23,9 @@ set caDir [file join [file dirname [info script]] "ca"]
     public variable connectRetryIntervalSeconds 60
 	public variable showTraffic 0
 
+	# configuration hooks for actions the client wants to trigger
+	public variable logCommand "puts stderr"
+
     protected variable host
     protected variable connected 0
     protected variable loggedIn 0
@@ -45,8 +48,7 @@ set caDir [file join [file dirname [info script]] "ca"]
     # logger - log a message
     #
     method logger {text} {
-		# can also log $this
-		::logger $text
+		{*}$logCommand $text
     }
 
 	#
@@ -69,10 +71,10 @@ set caDir [file join [file dirname [info script]] "ca"]
 			verify {
 				lassign $args depth cert status err
 				if {!$status} {
-					log_locally "TLS verify failed: $err"
-					log_locally "Failing certificate:"
+					logger "TLS verify failed: $err"
+					logger "Failing certificate:"
 					foreach {k v} $cert {
-						log_locally "  $k: $v"
+						logger "  $k: $v"
 					}
 				}
 				return $status
@@ -80,20 +82,20 @@ set caDir [file join [file dirname [info script]] "ca"]
 
 			error {
 				lassign $args message
-				log_locally "TLS error: $message"
+				logger "TLS error: $message"
 			}
 
 			info {
 				lassign $args major minor message
 				if {$major eq "alert"} {
-					log_locally "TLS alert: $message"
+					logger "TLS alert: $message"
 				} elseif {$major eq "error"} {
-					log_locally "TLS error: $message"
+					logger "TLS error: $message"
 				}
 			}
 
 			default {
-				log_locally "unhandled TLS callback: $cmd $channel $args"
+				logger "unhandled TLS callback: $cmd $channel $args"
 			}
 		}
     }
@@ -141,11 +143,11 @@ set caDir [file join [file dirname [info script]] "ca"]
 		cancel_timers
 		next_host
 
-		log_locally "Connecting to FlightAware adept server at $host/$port"
+		logger "Connecting to FlightAware adept server at $host/$port"
 
 		# start the connection attempt
 		if {[catch {set sock [socket -async $host $port]} catchResult]} {
-			log_locally "Connection to adept server at $host/$port failed: $catchResult"
+			logger "Connection to adept server at $host/$port failed: $catchResult"
 			close_socket_and_reopen
 			return 0
 		}
@@ -168,12 +170,12 @@ set caDir [file join [file dirname [info script]] "ca"]
 
 		set error [fconfigure $sock -error]
 		if {$error ne ""} {
-			log_locally "Connection to adept server at $host/$port failed: $error"
+			logger "Connection to adept server at $host/$port failed: $error"
 			close_socket_and_reopen
 			return
 		}
 
-		log_locally "Connection with adept server at $host/$port established"
+		logger "Connection with adept server at $host/$port established"
 
 		# attempt to connect with TLS negotiation.  Use the included
 		# CA cert file to confirm the cert's signature on the certificate
@@ -186,7 +188,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 						-tls1 1 \
 						-require 1 \
 						-command [list $this tls_callback]} catchResult] == 1} {
-			log_locally "TLS handshake with adept server at $host/$port failed: $catchResult"
+			logger "TLS handshake with adept server at $host/$port failed: $catchResult"
 			close_socket_and_reopen
 			return
 		}
@@ -195,7 +197,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 		# we can get errors from this.  catch them and return failure
 		# if one occurs.
 		if {[catch {::tls::handshake $sock} catchResult] == 1} {
-			log_locally "TLS handshake with adept server at $host/$port failed: $catchResult"
+			logger "TLS handshake with adept server at $host/$port failed: $catchResult"
 			close_socket_and_reopen
 			return
 		}
@@ -206,7 +208,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 
 		# validate the certificate.  error out if it fails.
 		if {![validate_certificate_status $tlsStatus reason]} {
-			log_locally "Certificate validation with adept server at $host/$port failed: $reason"
+			logger "Certificate validation with adept server at $host/$port failed: $reason"
 			close_socket_and_reopen
 			return
 		}
@@ -215,7 +217,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 		# in the session key (sbits) and the cipher used, such
 		# as DHE-RSA-AES256-SHA
 		#logger "TLS local status: [::tls::status -local $sock]"
-		log_locally "encrypted session established with FlightAware"
+		logger "encrypted session established with FlightAware"
 
 		# configure the socket nonblocking full-buffered and
 		# schedule this object's server_data_available method
@@ -280,7 +282,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 			return 0
 		}
 
-		log_locally "FlightAware server SSL certificate validated"
+		logger "FlightAware server SSL certificate validated"
 		return 1
     }
 
@@ -301,9 +303,9 @@ set caDir [file join [file dirname [info script]] "ca"]
 
 	method abort_login_attempt {} {
 		if {![is_connected]} {
-			log_locally "Connection attempt with adept server at $host/$port timed out"
+			logger "Connection attempt with adept server at $host/$port timed out"
 		} else {
-			log_locally "Login attempt with adept server at $host/$port timed out"
+			logger "Login attempt with adept server at $host/$port timed out"
 		}
 		close_socket_and_reopen
 	}
@@ -315,7 +317,7 @@ set caDir [file join [file dirname [info script]] "ca"]
     method server_data_available {} {
 		# if end of file on the socket, close the socket and attempt to reopen
 		if {[eof $sock]} {
-			log_locally "Lost connection to adept server at $host/$port: server closed connection"
+			logger "Lost connection to adept server at $host/$port: server closed connection"
 			close_socket_and_reopen
 			return
 		}
@@ -323,7 +325,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 		# get a line of data from the socket.  if we get an error, close the
 		# socket and attempt to reopen
 		if {[catch {set size [gets $sock line]} catchResult] == 1} {
-			log_locally "Lost connection to adept server at $host/$port: $catchResult"
+			logger "Lost connection to adept server at $host/$port: $catchResult"
 			close_socket_and_reopen
 			return
 		}
@@ -344,13 +346,13 @@ set caDir [file join [file dirname [info script]] "ca"]
 		# response handler
 		#
 		if {[catch {array set response [split $line "\t"]}] == 1} {
-			log_locally "malformed message from server ('$line'), disconnecting and reconnecting..."
+			logger "malformed message from server ('$line'), disconnecting and reconnecting..."
 			close_socket_and_reopen
 			return
 		}
 
 		if {[catch {handle_response response} catchResult] == 1} {
-			log_locally "error handling message '[string map {\n \\n \t \\t} $line]' from server ($catchResult), ([string map {\n \\n \t \\t} [string range $::errorInfo 0 1000]]), disconnecting and reconnecting..."
+			logger "error handling message '[string map {\n \\n \t \\t} $line]' from server ($catchResult), ([string map {\n \\n \t \\t} [string range $::errorInfo 0 1000]]), disconnecting and reconnecting..."
 			close_socket_and_reopen
 			return
 		}
@@ -397,10 +399,10 @@ set caDir [file join [file dirname [info script]] "ca"]
 			}
 
 			default {
-				log_locally "unrecognized message type '$row(type)' from server, ignoring..."
+				logger "unrecognized message type '$row(type)' from server, ignoring..."
 				incr ::nUnrecognizedServerMessages
 				if {$::nUnrecognizedServerMessages > 20} {
-					log_locally "that's too many, i'm disconnecting and reconnecting..."
+					logger "that's too many, i'm disconnecting and reconnecting..."
 					close_socket_and_reopen
 					set ::nUnrecognizedServerMessages 0
 				}
@@ -434,7 +436,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 				adept_location_changed $row(recv_lat) $row(recv_lon)
 			}
 
-			log_locally "logged in to FlightAware as user $::flightaware_user"
+			logger "logged in to FlightAware as user $::flightaware_user"
 			cancel_login_timer
 
 			# modern adept servers always send alive messages within the first
@@ -444,12 +446,12 @@ set caDir [file join [file dirname [info script]] "ca"]
 			}
 		} else {
 			# NB do more here, like UI stuff
-			log_locally "*******************************************"
-			log_locally "LOGIN FAILED: status '$row(status)': reason '$row(reason)'"
-			log_locally "please correct this, possibly using piaware-config"
-			log_locally "to set valid Flightaware user name and password."
-			log_locally "piaware will now exit."
-			log_locally "You can start it up again using 'sudo /etc/init.d/piaware start'"
+			logger "*******************************************"
+			logger "LOGIN FAILED: status '$row(status)': reason '$row(reason)'"
+			logger "please correct this, possibly using piaware-config"
+			logger "to set valid Flightaware user name and password."
+			logger "piaware will now exit."
+			logger "You can start it up again using 'sudo /etc/init.d/piaware start'"
 			exit 4
 		}
 	}
@@ -469,7 +471,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 		upvar $_row row
 
 		if {[info exists row(message)]} {
-			log_locally "NOTICE from adept server: $row(message)"
+			logger "NOTICE from adept server: $row(message)"
 		}
 	}
 
@@ -483,7 +485,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 		if {![info exists row(reason)]} {
 			set row(reason) "unknown"
 		}
-		log_locally "NOTICE adept server is shutting down.  reason: $row(reason)"
+		logger "NOTICE adept server is shutting down.  reason: $row(reason)"
 	}
 
 	#
@@ -693,12 +695,12 @@ set caDir [file join [file dirname [info script]] "ca"]
 	#
 	method cancel_alive_timer {} {
 		if {![info exists aliveTimerID]} {
-			#log_locally "cancel_alive_timer: no extant timer ID, doing nothing..."
+			#logger "cancel_alive_timer: no extant timer ID, doing nothing..."
 		} else {
 			if {[catch {after cancel $aliveTimerID} catchResult] == 1} {
-				#log_locally "cancel_alive_timer: cancel failed: $catchResult"
+				#logger "cancel_alive_timer: cancel failed: $catchResult"
 			} else {
-				#log_locally "cancel_alive_timer: canceled $aliveTimerID"
+				#logger "cancel_alive_timer: canceled $aliveTimerID"
 			}
 			unset aliveTimerID
 		}
@@ -709,7 +711,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 	#  it goes off
 	#
 	method alive_timeout {} {
-		log_locally "timed out waiting for alive message from FlightAware, reconnecting..."
+		logger "timed out waiting for alive message from FlightAware, reconnecting..."
 		close_socket_and_reopen
 	}
 
@@ -739,7 +741,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 		cancel_timers
 
 		set interval [expr {round(($connectRetryIntervalSeconds * (1 + rand())))}]
-		log_locally "reconnecting in $interval seconds..."
+		logger "reconnecting in $interval seconds..."
 
 		set reconnectTimerID [after [expr {$interval * 1000}] [list $this connect]]
     }
@@ -885,7 +887,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 			if {$mac != ""} {
 				# gotcha
 				set ::macAddress $mac
-				log_locally "no eth0 device, using $mac from device '$device'"
+				logger "no eth0 device, using $mac from device '$device'"
 				break
 			}
 		}
@@ -937,7 +939,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 		}
 
 		if {[catch {puts $sock $text} catchResult] == 1} {
-			log_locally "got '$catchResult' writing to FlightAware socket, reconnecting..."
+			logger "got '$catchResult' writing to FlightAware socket, reconnecting..."
 			close_socket_and_reopen
 			return
 		}
@@ -953,7 +955,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 		set flushPending 0
 		if {[info exists sock]} {
 			if {[catch {flush $sock} catchResult] == 1} {
-				log_locally "got '$catchResult' writing to FlightAware socket, reconnecting..."
+				logger "got '$catchResult' writing to FlightAware socket, reconnecting..."
 				close_socket_and_reopen
 				return
 			}
@@ -1059,7 +1061,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 
 	method check_writability {} {
 		if {!$wasWritable} {
-			log_locally "data isn't making it to FlightAware, reconnecting..."
+			logger "data isn't making it to FlightAware, reconnecting..."
 			close_socket_and_reopen
 		} else {
 			schedule_writability_check

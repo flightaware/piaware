@@ -78,6 +78,7 @@ proc setup_adept_client {} {
     ::fa_adept::AdeptClient adept \
 		-port $::params(serverport) \
 		-showTraffic $::params(showtraffic) \
+		-logCommand ::log_locally \
 		{*}$hostOptions
 }
 
