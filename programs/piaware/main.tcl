@@ -98,7 +98,7 @@ proc main {{argv ""}} {
 
 	# attempt to kill any extant copies of faup1090
 	if {[is_process_running faup1090]} {
-		system "killall faup1090"
+		catch {exec pkill faup1090}
 		sleep 1
 	}
 
