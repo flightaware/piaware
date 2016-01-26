@@ -648,7 +648,7 @@ proc restart_piaware {} {
 	unlock_pidfile
 
 	logger "restarting piaware. hopefully i'll be right back..."
-	system "/etc/init.d/piaware restart &"
+	invoke_service_action piaware restart
 
 	# sleep apparently restarts on signals, we want to process them,
 	# so use after/vwait so the event loop runs.
