@@ -22,12 +22,14 @@ set caDir [file join [file dirname [info script]] "ca"]
     public variable loginTimeoutSeconds 30
     public variable connectRetryIntervalSeconds 60
 	public variable showTraffic 0
+	public variable mac
 
 	# configuration hooks for actions the client wants to trigger
 	public variable logCommand "puts stderr"
 	public variable updateLocationCommand
 	public variable mlatCommand
 	public variable updateCommand
+	public variable loginCommand
 
     protected variable host
     protected variable connected 0
@@ -590,50 +592,16 @@ set caDir [file join [file dirname [info script]] "ca"]
 		}
 
 		set message(type) login
-
-		# construct some key-value pairs to be included.
-		foreach var "user password image_type piaware_version piaware_version_full piaware_package_version dump1090_packages" globalVar "::flightaware_user ::flightaware_password ::imageType ::piawareVersion ::piawareVersionFull ::piawarePackageVersion ::dump1090Packages" {
-			if {[info exists $globalVar] && [set $globalVar] ne ""} {
-				set message($var) [set $globalVar]
-			}
-		}
+		set message(mac) $mac
+		set message(compression_version) 1.2
 
 		if {$deviceLocation ne ""} {
 			lassign $deviceLocation message(receiverlat) message(receiverlon) message(receiveralt) message(receiveraltref)
 		}
 		set lastReportedLocation $deviceLocation
 
-		catch {set message(uname) [exec /bin/uname --all]}
-
-		if {[info exists ::netstatus(program_30005)]} {
-			set message(adsbprogram) $::netstatus(program_30005)
-		}
-
-		set message(transprogram) "faup1090"
-
-		set message(mac) [get_mac_address_or_quit]
-
-		catch {
-			if {[get_default_gateway_interface_and_ip gateway iface ip]} {
-				set message(local_ip) $ip
-				set message(local_iface) $iface
-			}
-		}
-
-		catch {
-			get_os_release rel
-			foreach {k1 k2} {ID os_id VERSION_ID os_version_id VERSION os_version} {
-				if {[info exists rel($k1)]} {
-					set message($k2) $rel($k1)
-				}
-			}
-		}
-
-		set message(local_auto_update_enable) [update_check autoUpdate]
-		set message(local_manual_update_enable) [update_check manualUpdate]
-		set message(local_mlat_enable) [mlat_is_configured]
-
-		set message(compression_version) 1.2
+		# gather additional login info
+		{*}$loginCommand message
 
 		send_array message
 	}
@@ -648,7 +616,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 
 		set message(type) log
 		set message(message) [string map {\n \\n \t \\t} $text]
-		set message(mac) [get_mac_address_or_quit]
+		set message(mac) $mac
 
 		if {[info exists ::myClockOffset]} {
 			set message(offset) $::myClockOffset
@@ -679,67 +647,6 @@ set caDir [file join [file dirname [info script]] "ca"]
 
 		set row(type) health
 		send_array row
-	}
-
-	#
-	# get_mac_address - return the mac address of eth0 as a unique handle
-	#  to this device.
-	#
-	#  if there is no eth0 tries to find another mac address to use that it
-	#  can hopefully repeatably find in the future
-	#
-	#  if we can't find any mac address at all then return an empty string
-	#
-	method get_mac_address {} {
-		if {[info exists ::macAddress]} {
-			return $::macAddress
-		}
-
-		set macFile /sys/class/net/eth0/address
-		if {[file readable $macFile]} {
-			set fp [open $macFile]
-			gets $fp mac
-			set ::macAddress $mac
-			close $fp
-			return $mac
-		}
-
-		# well, that didn't work, look at the entire output of ifconfig
-		# for a MAC address and use the first one we find
-
-		if {[catch {set fp [open "|ifconfig"]} catchResult] == 1} {
-			puts stderr "ifconfig command not found on this version of Linux, you may need to install the net-tools package and try again"
-			return ""
-		}
-
-		set mac ""
-		while {[gets $fp line] >= 0} {
-			set mac [::fa_adept::parse_mac_address_from_line $line]
-			set device ""
-			regexp {^([^ ]*)} $line dummy device
-			if {$mac != ""} {
-				# gotcha
-				set ::macAddress $mac
-				logger "no eth0 device, using $mac from device '$device'"
-				break
-			}
-		}
-
-		catch {close $fp}
-		return $mac
-	}
-
-	#
-	# get_mac_address_or_quit - return the mac address of eth0 or if unable
-	#  to, emit a message to stderr and exit
-	#
-	method get_mac_address_or_quit {} {
-		set mac [get_mac_address]
-		if {$mac == ""} {
-			puts stderr "software failed to determine MAC address of the device.  cannot proceed without it."
-			exit 6
-		}
-		return $mac
 	}
 
     #
@@ -915,17 +822,6 @@ set caDir [file join [file dirname [info script]] "ca"]
 	method last_reported_location {} {
 		return $lastReportedLocation
 	}
-}
-
-#
-# parse_mac_address_from_line - find a mac address free-from in a line and
-#   return it or return the empty string
-#
-proc parse_mac_address_from_line {line} {
-	if {[regexp {(([0-9a-fA-F]{2}[:-]){5}([0-9a-fA-F]{2}))} $line dummy mac]} {
-		return $mac
-	}
-	return ""
 }
 
 } ;# namespace fa_adept
