@@ -437,6 +437,59 @@ proc get_os_release {_out} {
 }
 
 #
+# get_mac_address - return the mac address of eth0 as a unique handle
+#  to this device.
+#
+#  if there is no eth0 tries to find another mac address to use that it
+#  can hopefully repeatably find in the future
+#
+#  if we can't find any mac address at all then return an empty string
+#
+proc get_mac_address {} {
+	set macFile /sys/class/net/eth0/address
+	if {[file readable $macFile]} {
+		set fp [open $macFile]
+		gets $fp mac
+		close $fp
+		return $mac
+	}
+
+	# well, that didn't work, look at the entire output of ifconfig
+	# for a MAC address and use the first one we find
+
+	if {[catch {set fp [open "|ifconfig"]} catchResult] == 1} {
+		puts stderr "ifconfig command not found on this version of Linux, you may need to install the net-tools package and try again"
+		return ""
+	}
+
+	set mac ""
+	while {[gets $fp line] >= 0} {
+		set mac [parse_mac_address_from_line $line]
+		set device ""
+		regexp {^([^ ]*)} $line dummy device
+		if {$mac != ""} {
+			# gotcha
+			logger "no eth0 device, using $mac from device '$device'"
+			break
+		}
+	}
+
+	catch {close $fp}
+	return $mac
+}
+
+#
+# parse_mac_address_from_line - find a mac address free-from in a line and
+#   return it or return the empty string
+#
+proc parse_mac_address_from_line {line} {
+	if {[regexp {(([0-9a-fA-F]{2}[:-]){5}([0-9a-fA-F]{2}))} $line dummy mac]} {
+		return $mac
+	}
+	return ""
+}
+
+#
 # warn_once - issue a warning message but only once
 #
 proc warn_once {message args} {
