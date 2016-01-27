@@ -103,8 +103,6 @@ proc main {{argv ""}} {
 		sleep 1
 	}
 
-	#confirm_nonblank_user_and_password_or_die
-
 	connect_to_gpsd
 
 	# we stagger this a little to let

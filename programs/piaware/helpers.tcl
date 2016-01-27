@@ -103,37 +103,6 @@ proc load_adept_config_and_setup {} {
 	return 1
 }
 
-#
-# user_password_sanity_check - return 0 if either of the variables
-#  flightaware_user and flightaware_password don't exist or are
-#  empty, else 1.
-#
-proc user_password_sanity_check {} {
-	foreach var "::flightaware_user ::flightaware_password" {
-		if {![info exists $var]} {
-			return 0
-		}
-
-		if {[set $var] == ""} {
-			return 0
-		}
-	}
-
-	return 1
-}
-
-#
-# confirm_nonblank_user_and_password_or_die - either we have existant, non-blank
-#  passwords or we die
-#
-proc confirm_nonblank_user_and_password_or_die {} {
-	if {![user_password_sanity_check]} {
-		puts stdout "FlightAware account user and password settings are empty or missing"
-		puts stdout "Please run piaware-config to update"
-		exit 1
-	}
-}
-
 # log_stdout_stderr_to_file - redirect stdout and stderr to a log file
 #
 proc log_stdout_stderr_to_file {} {
