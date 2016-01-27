@@ -22,21 +22,21 @@ proc open_nolocale {cmd {mode r}} {
 	set oldenv [array get ::env]
 	array unset ::env LANG
 	array unset ::env LC_*
-	catch {open $cmd $mode} result options
+	try {
+		return [open $cmd $mode]
+	} finally {
+		# work around http://core.tcl.tk/tcl/info/bc1a96407a
+		# (::env is internally a traced variable, so trying to
+		# "array set ::env" will trigger the bug)
+		#
+		# this bug is not present in 8.5 (Raspbian wheezy),
+		# and was fixed in 8.6.3, but Raspbian jessie has 8.6.2.
 
-	# work around http://core.tcl.tk/tcl/info/bc1a96407a
-	# (::env is internally a traced variable, so trying to
-	# "array set ::env" will trigger the bug)
-	#
-	# this bug is not present in 8.5 (Raspbian wheezy),
-	# and was fixed in 8.6.3, but Raspbian jessie has 8.6.2.
-
-	#array set ::env $oldenv
-	foreach {k v} $oldenv {
-		set ::env($k) $v
+		#array set ::env $oldenv
+		foreach {k v} $oldenv {
+			set ::env($k) $v
+		}
 	}
-
-	return -options $options $result
 }
 
 #
