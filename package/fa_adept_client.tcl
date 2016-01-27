@@ -435,17 +435,10 @@ set caDir [file join [file dirname [info script]] "ca"]
 			# start again from the start of the host list next time.
 			set nextHostIndex 0
 
-			# if the login response contained a user, that's what we're
-			# logged in as even if it's not what we might've said or
-			# more likely we didn't say
-			if {[info exists row(user)]} {
-				set ::flightaware_user $row(user)
-			}
-
 			# if we received lat/lon data, handle it
 			handle_update_location row
 
-			logger "logged in to FlightAware as user $::flightaware_user"
+			logger "logged in to FlightAware as user $row(user)"
 			cancel_login_timer
 
 			# modern adept servers always send alive messages within the first
@@ -620,12 +613,6 @@ set caDir [file join [file dirname [info script]] "ca"]
 
 		if {[info exists ::myClockOffset]} {
 			set message(offset) $::myClockOffset
-		}
-
-		foreach var "user" globalVar "::flightaware_user" {
-			if {[info exists $globalVar]} {
-				set message($var) [set $globalVar]
-			}
 		}
 
 		send_array message
