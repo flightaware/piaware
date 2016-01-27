@@ -23,7 +23,7 @@ proc setup_faup1090_vars {} {
 	set ::lastAdsbConnectedClock [clock seconds]
 
 	# receiver config
-	set ::receiverType [get_adept_config receiverType "rtlsdr"]
+	set ::receiverType [piawareConfig get receiver-type]
 	switch $::receiverType {
 		rtlsdr {
 			set ::receiverHost "localhost"
@@ -40,24 +40,15 @@ proc setup_faup1090_vars {} {
 		}
 
 		radarcape {
-			set ::receiverHost [get_adept_config receiverHost ""]
-			if {$::receiverHost eq ""} {
-				error "Missing receiverHost configuration option, required when receiverType is 'radarcape'"
-			}
-			set ::receiverPort [get_adept_config receiverPort 10003]
+			set ::receiverHost [piawareConfig get radarcape-host]
+			set ::receiverPort 10003
 			set ::adsbDataService ""
-			set ::adsbDataProgram "the Radarcape at $::receiverHost/$::receiverPort"
+			set ::adsbDataProgram "the Radarcape at $::receiverHost"
 		}
 
 		other {
-			set ::receiverHost [get_adept_config receiverHost "localhost"]
-			if {$::receiverHost eq ""} {
-				error "Missing receiverHost configuration option, required when receiverType is 'other'"
-			}
-			set ::receiverPort [get_adept_config receiverPort ""]
-			if {$::receiverHost eq ""} {
-				error "Missing receiverPort configuration option, required when receiverType is 'other'"
-			}
+			set ::receiverHost [piawareConfig get receiver-host]
+			set ::receiverPort [piawareConfig get receiver-port]
 			set ::adsbDataService ""
 			set ::adsbDataProgram "the ADS-B data program at $::receiverHost/$::receiverPort"
 		}

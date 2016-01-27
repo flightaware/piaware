@@ -6,6 +6,7 @@
 #
 
 package require tls
+package require fa_piaware_config
 
 #
 # logger - log a message
@@ -85,22 +86,18 @@ proc setup_adept_client {} {
 }
 
 #
-# load_adept_config_and_setup - load config and massage if necessary
+# load_config - set up our config files
 #
-proc load_adept_config_and_setup {} {
-	load_adept_config
-
-	if {[info exists ::adeptConfig(user)]} {
-		set ::flightaware_user $::adeptConfig(user)
-	}
-
-	if {[info exists ::adeptConfig(password)]} {
-		set ::flightaware_password $::adeptConfig(password)
-	}
-
+proc setup_config {} {
+	::fa_piaware_config::new_combined_config piawareConfig
 	lassign [load_location_info] ::receiverLat ::receiverLon
+}
 
-	return 1
+proc reread_piaware_config {} {
+	set problems [piawareConfig read_config]
+	foreach problem $problems {
+		log_locally "warning: $problem"
+	}
 }
 
 # log_stdout_stderr_to_file - redirect stdout and stderr to a log file

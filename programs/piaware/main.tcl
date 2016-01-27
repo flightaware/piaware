@@ -9,7 +9,6 @@ lappend auto_path /usr/local/lib
 
 package require piaware
 package require fa_adept_client
-package require fa_adept_config
 package require fa_gps
 #package require BSD
 package require Tclx
@@ -63,9 +62,7 @@ proc main {{argv ""}} {
 
 	interp bgerror {} log_bgerror
 
-	load_piaware_config_and_stuff
-	load_adept_config_and_setup
-
+	setup_config
 	setup_faup1090_vars
 
 	# check what user we're running as

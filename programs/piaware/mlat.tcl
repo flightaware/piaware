@@ -16,16 +16,9 @@ set ::mlatUdpTransport {}
 set ::mlatClientPath [auto_execok "/usr/lib/piaware/helpers/fa-mlat-client"]
 
 proc mlat_is_configured {} {
-	if {[info exists ::adeptConfig(mlat)]} {
-		if {![string is boolean $::adeptConfig(mlat)]} {
-			logger "multilateration support disabled (config setting should be a boolean, but isn't)"
-			return 0
-		}
-
-		if {!$::adeptConfig(mlat)} {
-			logger "multilateration support disabled (explicitly disabled in config)"
-			return 0
-		}
+	if {![piawareConfig get allow-mlat]} {
+		logger "multilateration support disabled by local configuration ([piawareConfig origin allow-mlat])"
+		return 0
 	}
 
 	# check for existence of fa-mlat-client
@@ -35,11 +28,12 @@ proc mlat_is_configured {} {
 	}
 
 	# all ok
-	logger "multilateration support enabled (use piaware-config to disable)"
 	return 1
 }
 
 proc enable_mlat {udp_transport} {
+	logger "multilateration data requested"
+
 	if {![mlat_is_configured]} {
 		return
 	}
@@ -49,7 +43,6 @@ proc enable_mlat {udp_transport} {
 		return
 	}
 
-	logger "multilateration data requested, enabling mlat client"
 	set ::mlatEnabled 1
 	set ::mlatUdpTransport $udp_transport
 	start_mlat_client
@@ -127,13 +120,8 @@ proc start_mlat_client {} {
 
 	lappend command "--input-type" $inputType
 
-	if {[string is true [get_adept_config mlatResults 1]]} {
-		set results [get_adept_config mlatResultsFormat "default"]
-		if {$results eq "default"} {
-			set results "beast,connect,localhost:30104"
-		}
-
-		foreach r $results {
+	if {[piawareConfig get mlat-results]} {
+		foreach r [piawareConfig get mlat-results-format] {
 			lappend command "--results" $r
 		}
 	}
@@ -270,7 +258,8 @@ proc mlat_data_available {} {
 	}
 
 	if {[catch {process_mlat_message message}] == 1} {
-		logger "error handling message '[string map {\n \\n \t \\t} $line]' from multilateration client ($catchResult), ([string map {\n \\n \t \\t} [string range $::errorInfo 0 1000]]), restarting.."
+		logger "error handling message '[string map {\n \\n \t \\t} $line]' from multilateration client ($catchResult), restarting client.."
+		logger "traceback: [string range $::errorInfo 0 1000]"
 		close_and_restart_mlat_client
 		return
 	}

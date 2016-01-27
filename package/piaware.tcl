@@ -39,43 +39,6 @@ proc open_nolocale {cmd {mode r}} {
 	}
 }
 
-#
-# load_piaware_config - load the piaware config file.  don't stop if it
-#  doesn't exist
-#
-# return 1 if it loaded cleanly, 0 if it had a problem or didn't exist
-#
-proc load_piaware_config {} {
-	# this previously used "source"
-	# that's horrible for a config file
-	# so parse it as data, allowing only
-	# a constrained syntax ("set foo bar")
-
-	set allowedVars {imageType autoUpdate manualUpdate}
-
-	if {[catch {
-		set fp [open $::piawareConfigFile "r"]
-		while {[gets $fp line] >= 0} {
-			lassign $line setword varname value
-			if {$setword ne "set"} {
-				continue
-			}
-
-			if {$varname ni $allowedVars} {
-				continue
-			}
-
-			set ::$varname $value
-		}
-
-		close $fp
-	} result] == 1} {
-		return 0
-	} else {
-		return 1
-	}
-}
-
 # query_dpkg_names_and_versions - Match installed package names and return a list
 # of names and versions.
 proc query_dpkg_names_and_versions {pattern} {
@@ -94,27 +57,6 @@ proc query_dpkg_names_and_versions {pattern} {
 
 	catch {close $fp}
 	return $results
-}
-
-#
-# load_piaware_config_and_stuff - invoke load_piaware_config and if it
-#   doesn't define imageType then see if the piaware package is installed
-#   and if it is then set imageType to package
-#
-proc load_piaware_config_and_stuff {} {
-    load_piaware_config
-
-    if {![info exists ::imageType]} {
-		set res [query_dpkg_names_and_versions "*piaware*"]
-		if {[llength $res] == 2} {
-			# only if it's unambiguous
-			lassign $res packageName packageVersion
-			set ::imageType "${packageName}_package"
-			set ::piawarePackageVersion $packageVersion
-		}
-	}
-
-	set ::dump1090Packages [query_dpkg_names_and_versions "*dump1090*"]
 }
 
 # is_pid_running - return 1 if the specified process ID is running, else 0

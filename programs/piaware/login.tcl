@@ -11,14 +11,26 @@ proc gather_login_info {_message} {
 
 	# message type, mac are already populated by the adept client
 
+	# refresh everything so we're up to date
+	reread_piaware_config
+	inspect_sockets_with_netstat
+
 	# construct some key-value pairs to be included.
-	foreach var "user password image_type piaware_version piaware_version_full piaware_package_version dump1090_packages" globalVar "::flightaware_user ::flightaware_password ::imageType ::piawareVersion ::piawareVersionFull ::piawarePackageVersion ::dump1090Packages" {
-		if {[info exists $globalVar] && [set $globalVar] ne ""} {
-			set message($var) [set $globalVar]
-		}
+	catch {set message(uname) [exec /bin/uname --all]}
+
+	# from config.tcl
+	set message(piaware_version) $::piawareVersion
+	set message(piaware_version_full) $::piawareVersionFull
+
+	set res [query_dpkg_names_and_versions "*piaware*"]
+	if {[llength $res] == 2} {
+		# only if it's unambiguous
+		lassign $res packageName packageVersion
+		set message(piaware_package_version) $packageVersion
+		set message(image_type) "${packageName}_package"
 	}
 
-	catch {set message(uname) [exec /bin/uname --all]}
+	set message(dump1090_packages) [query_dpkg_names_and_versions "*dump1090*"]
 
 	if {[info exists ::netstatus(program_30005)]} {
 		set message(adsbprogram) $::netstatus(program_30005)
@@ -42,7 +54,20 @@ proc gather_login_info {_message} {
 		}
 	}
 
-	set message(local_auto_update_enable) [update_check autoUpdate]
-	set message(local_manual_update_enable) [update_check manualUpdate]
-	set message(local_mlat_enable) [mlat_is_configured]
+	set message(local_auto_update_enable) [piawareConfig get allow-auto-updates]
+	set message(local_manual_update_enable) [piawareConfig get allow-manual-updates]
+	set message(local_mlat_enable) [piawareConfig get allow-mlat]
+
+	foreach {msgVar configKey} {
+		user flightaware-user
+		password flightaware-password
+		image_type image-type
+		local_auto_update_enable allow-auto-updates
+		local_manual_update_enable allow-manual-updates
+		local_mlat_enable allow-mlat
+	} {
+		if {[piawareConfig exists $configKey]} {
+			set message($msgVar) [piawareConfig get $configKey]
+		}
+	}
 }

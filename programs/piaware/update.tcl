@@ -6,86 +6,28 @@
 #
 
 #
-# update_check - see if the requested update type (manualUpdate or
-#   autoUpdate) is allowed.
-#
-#   you should be able to inspect this and handle_update_request
-#   and how they're invoked to assure yourself that if there is
-#   no autoUpdate or manualUpdate in /etc/piaware configured true
-#   or by piaware-config configured true, the update cannot occur.
-#
-proc update_check {varName} {
-	# if there is no matching update variable in the adept config or
-	# a global variable set by /etc/piaware, bail
-	if {![info exists ::adeptConfig($varName)] && ![info exists ::$varName]} {
-		logger "$varName is not configured in /etc/piaware or by piaware-config"
-		return 0
-	}
-
-	#
-	# if there is a var in the adept config and it's not a boolean or
-	# it's false, bail.
-	#
-	if {![info exists ::adeptConfig($varName)]} {
-		logger "$varName is not set in adept config, looking further..."
-	} else {
-		if {![string is boolean $::adeptConfig($varName)]} {
-			logger "$varName in adept config isn't a boolean, bailing on update request"
-			return 0
-		}
-
-		if {!$::adeptConfig($varName)} {
-			logger "$varName in adept config is disabled, disallowing update"
-			return 0
-		} else {
-			# the var is there and set to true, we proceed with the update
-			logger "$varName in adept config is enabled, allowing update"
-			return 1
-		}
-	}
-
-	if {[info exists ::$varName]} {
-		set val [set ::$varName]
-		if {![string is boolean $val]} {
-			logger "$varName in /etc/piaware isn't a boolean, bailing on update request"
-			return 0
-		} else {
-			if {$val} {
-				# the var is there and true, proceed
-				logger "$varName in /etc/piaware is enabled, allowing update"
-				return 1
-			} else {
-				# the var is there and false, bail
-				logger "$varName in /etc/piaware is disabled, disallowing update"
-				return 0
-			}
-		}
-	}
-
-	# this shouldn't happen
-	logger "software error detected in update_check, disallowing update"
-	return 0
-}
-
-#
 # handle_update_request - handle a message from the server requesting
 #   that we update the software
+#
+#   you should be able to inspect this to assure yourself that if
+#   there is no allow-auto-updates or allow-manual-updates in
+#   the piaware config files, the update cannot occur.
 #
 proc handle_update_request {type _row} {
 	upvar $_row row
 
-	# force piaware config and adept config reload in case user changed
-	# config since we last looked
-	load_piaware_config
-	load_adept_config
+	# make sure our copy of the config is up to date
+	reread_piaware_config
 
 	switch $type {
 		"auto" {
 			logger "auto update (flightaware-initiated) requested by adept server"
+			set key "allow-auto-updates"
 		}
 
 		"manual" {
 			logger "manual update (user-initiated via their flightaware control page) requested by adept server"
+			set key "allow-manual-updates"
 		}
 
 		default {
@@ -95,8 +37,9 @@ proc handle_update_request {type _row} {
 	}
 
 	# see if we are allowed to do this
-	if {![update_check ${type}Update]} {
+	if {![piawareConfig get $key]} {
 		# no
+		logger "update denied by local configuration ([piaware origin $key])"
 		return
 	}
 
