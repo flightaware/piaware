@@ -344,7 +344,7 @@ namespace eval ::fa_piaware_config {
 				}
 			}
 
-			set temppath [file join $filename ".new"]
+			set temppath "${filename}.new"
 			set f [open $temppath "w" $perms]
 			try {
 				fconfigure $f -encoding ascii -translation auto
@@ -422,8 +422,12 @@ namespace eval ::fa_piaware_config {
 				set fileKey $configKey
 			}
 
+			if {![$metadata validate $configKey $value]} {
+				error "not a valid value for this key"
+			}
+
 			set value [$metadata normalize $configKey $value]
-			if {[info exists values($configKey)] && values($configKey) eq $value} {
+			if {[info exists values($configKey)] && $values($configKey) eq $value} {
 				# unchanged
 				return 0
 			}
@@ -437,7 +441,7 @@ namespace eval ::fa_piaware_config {
 				set valueSourceLine($configKey) [llength $lines]
 			}
 
-			set values($key) $value
+			set values($configKey) $value
 			return 1
 		}
 
@@ -643,7 +647,7 @@ namespace eval ::fa_piaware_config {
 				error "cannot update option $configKey as all config files are read-only"
 			}
 
-			if {[$target set $configKey $value]} {
+			if {[$target set_option $configKey $value]} {
 				set dirty($target) 1
 			}
 
