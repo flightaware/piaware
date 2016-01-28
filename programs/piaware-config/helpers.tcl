@@ -57,7 +57,11 @@ proc update_config_values {argv} {
 			continue
 		}
 
-		puts stderr "Set $key to $displayVal in [$result origin $key]"
+		if {$result ne ""}  {
+			puts stderr "Set $key to $displayVal in [$result origin $key]"
+		} else {
+			puts stderr "$key is unchanged"
+		}
 	}
 
 	if {[catch {$config write_config} result]} {

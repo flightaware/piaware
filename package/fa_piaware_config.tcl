@@ -9,8 +9,11 @@
 
 package require Itcl
 package require tryfinallyshim
+package require fa_sudo
 
 namespace eval ::fa_piaware_config {
+	set helperPath [file join [file dirname [info script]] "helpers" "update-piaware-config"]
+
 	proc new {klass name args} {
 		# blergh. itcl makes this difficult
 		# acts like running $klass $name $args directly,
@@ -215,6 +218,7 @@ namespace eval ::fa_piaware_config {
 		public variable metadata
 		public variable readonly 0
 		public variable priority 0
+		public variable writeHelper
 
 		private variable lines
 		private variable values
@@ -299,18 +303,22 @@ namespace eval ::fa_piaware_config {
 		# (either configured as readonly, or target file is not writable)
 		method readonly {} {
 			if {$readonly} {
-				return 1;
+				return 1
+			}
+
+			if {[info exists writeHelper] && [::fa_sudo::can_sudo $writeHelper $filename]} {
+				return 0
 			}
 
 			if {[file exists $filename] && ![file writable $filename]} {
 				return 1
 			}
 
-			if {[file writable [file dirname $filename]]} {
-				return 0
-			} else {
+			if {![file writable [file dirname $filename]]} {
 				return 1
 			}
+
+			return 0
 		}
 
 		# returns the priority of this file, either that explicitly set
@@ -335,17 +343,32 @@ namespace eval ::fa_piaware_config {
 				error "config file $filename is readonly"
 			}
 
-			# work out permissions
-			set perms 0644
-			foreach key [array names values] {
-				if {[$metadata protect $key]} {
-					set perms 0600
-					break
+			if {![file writable [file dirname $filename]] || ([file exists $filename] && ![file writable $filename])} {
+				# we cannot write the file directly
+				if {[info exists writeHelper] && [::fa_sudo::can_sudo $writeHelper $filename]} {
+					# send the new file via a pipe to the helper
+					# which will do the actual work
+					set f [::fa_sudo::sudo_open "|$writeHelper $filename" "w"]
+				} else {
+					error "can't directly write config file $filename, and no helper is available"
 				}
+			} else {
+				# write the file directly ourselves
+
+				# work out permissions: 0600 if it has anything sensitive
+				set perms 0644
+				foreach key [array names values] {
+					if {[$metadata protect $key]} {
+						set perms 0600
+						break
+					}
+				}
+
+				set temppath "${filename}.new"
+				set f [open $temppath "w" $perms]
 			}
 
-			set temppath "${filename}.new"
-			set f [open $temppath "w" $perms]
+			# write the new data
 			try {
 				fconfigure $f -encoding ascii -translation auto
 				foreach line $lines {
@@ -354,14 +377,21 @@ namespace eval ::fa_piaware_config {
 				close $f
 				unset f
 
-				file rename -force $temppath $filename
+				if {[info exists temppath]} {
+					# not using a helper
+					file rename -force -- $temppath $filename
+					unset temppath
+				}
 			} finally {
 				if {[info exists f]} {
-					close $f
+					catch {close $f}
 				}
 
-				catch {file delete $temppath}
+				if {[info exists temppath]} {
+					catch {file delete -- $temppath}
+				}
 			}
+
 		}
 
 		protected method parse_line {line} {
@@ -649,9 +679,10 @@ namespace eval ::fa_piaware_config {
 
 			if {[$target set_option $configKey $value]} {
 				set dirty($target) 1
+				return $target
+			} else {
+				return ""
 			}
-
-			return $target
 		}
 
 		# return the origin of a config key (where it was set from)
@@ -759,9 +790,9 @@ namespace eval ::fa_piaware_config {
 		$c alias "password" "flightaware-password"
 		$combined add $c
 
-		$combined add [new ConfigFile #auto -filename "/etc/piaware.conf" -metadata $metadata -priority 0]
+		$combined add [new ConfigFile #auto -filename "/etc/piaware.conf" -metadata $metadata -priority 0 -writeHelper $::fa_piaware_config::helperPath]
 
-		$combined add [new ConfigFile #auto -filename "/boot/piaware-config.txt" -metadata $metadata -priority 50]
+		$combined add [new ConfigFile #auto -filename "/boot/piaware-config.txt" -metadata $metadata -priority 50 -writeHelper $::fa_piaware_config::helperPath]
 
 		set prio 100
 		foreach f [lsort [glob -nocomplain -types f "/media/usb/*/piaware-config.txt"]] {
