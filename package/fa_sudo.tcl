@@ -5,6 +5,8 @@
 #
 #
 
+package require Tclx
+
 namespace eval ::fa_sudo {
 	proc _can_sudo {args} {
 		set command [lindex $args 0]
