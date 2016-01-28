@@ -3,20 +3,13 @@
 #  configure and do other stuff as a FlightAware adept client
 #
 
-LIB=$(PREFIX_DIR)/lib
-BIN=$(PREFIX_DIR)/bin
-
-CLIENT_INSTALLFILES= *.tcl
-
-PROGNAME=piaware-config
+PREFIX=/usr
+TCLLAUNCHER := $(shell which tcllauncher)
 
 all:
-	@echo "'make install' to install $(PROGNAME)"
+	@echo "'make install' to install piaware-config"
 
-install-client:
-	@echo ---- installing client
-	-install $(BIN)/tcllauncher $(BIN)/$(PROGNAME)
-	mkdir -p $(LIB)/$(PROGNAME)
-	cp $(CLIENT_INSTALLFILES) $(LIB)/$(PROGNAME)
-
-install: install-client
+install:
+	install -d $(DESTDIR)$(PREFIX)/bin $(DESTDIR)$(PREFIX)/lib/piaware-config
+	install -m 0755 $(TCLLAUNCHER) $(DESTDIR)$(PREFIX)/bin/piaware-config
+	install *.tcl $(DESTDIR)$(PREFIX)/lib/piaware-config

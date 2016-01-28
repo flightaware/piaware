@@ -1,18 +1,18 @@
-
-
-
-LIB=$(PREFIX_DIR)/lib/fa_adept_packages
+PREFIX=/usr
+LIB=$(PREFIX)/lib/fa_adept_packages
+TCLSH=$(shell which tclsh || which tclsh8.6 || which tclsh8.5)
 
 FILES=fa_piaware_config.tcl fa_adept_client.tcl piaware.tcl gps.tcl tryfinallyshim.tcl
 
-all:	pkgIndex.tcl
+all:
 	@echo '"make install" to install'
 
-pkgIndex.tcl:	$(FILES)
+pkgIndex.tcl: $(FILES)
 	echo 'pkg_mkIndex .' | $(TCLSH)
 
-install:    all
-	mkdir -p $(LIB) $(LIB)/ca
-	cp $(FILES) pkgIndex.tcl $(LIB)
-	cp ca/*.pem $(LIB)/ca
-	c_rehash $(LIB)/ca
+install: pkgIndex.tcl
+	install -d $(DESTDIR)$(LIB) $(DESTDIR)$(LIB)/ca $(DESTDIR)$(LIB)/apt
+	install $(FILES) pkgIndex.tcl $(DESTDIR)$(LIB)
+	install ca/*.pem $(DESTDIR)$(LIB)/ca
+	install apt/* $(DESTDIR)$(LIB)/apt
+	c_rehash $(DESTDIR)$(LIB)/ca
