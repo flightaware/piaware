@@ -1,0 +1,57 @@
+#!/bin/sh
+
+# This script is intended to be run via sudo by the config package when
+# less-privileged processes need to update a piaware config file. It is
+# invoked with one argument: the config file path that the caller wants to
+# update, either /etc/piaware.conf or /boot/piaware-config.txt. The new
+# contents are read from stdin.
+
+# bail if anything goes even slightly wrong
+set -e
+
+# validate args
+if [ $# -ne 1 ]
+then
+  echo "$0: exactly one argument expected" >&2
+  exit 1
+fi
+
+# be really explicit about paths here, just to be sure
+case "$1" in
+    /etc/piaware.conf)
+        TARGET=/etc/piaware.conf
+        TEMPFILE=/etc/piaware.conf.new
+        ;;
+
+    /boot/piaware-config.txt)
+        TARGET=/boot/piaware-config.txt
+        TEMPFILE=/boot/piaware-config.txt.new
+        ;;
+
+    *)
+        # anything else is not allowed
+        echo "$0: refusing to update that path" >&2
+        exit 1
+esac
+
+# refuse to create new files, it's too hard to work out what the
+# permissions should be here
+if [ ! -f $TARGET ]
+then
+    echo "$0: refusing to create $TARGET, it does not exist" >&2
+    exit 2
+fi
+
+# read from stdin, write to tempfile
+# set permissions first so we don't leak data while writing the file
+rm -f $TEMPFILE
+touch $TEMPFILE
+chown --reference=$TARGET $TEMPFILE
+chmod --reference=$TARGET $TEMPFILE
+cat >>$TEMPFILE
+
+# move the tempfile into place
+mv $TEMPFILE $TARGET
+
+# ok!
+exit 0
