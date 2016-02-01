@@ -4,6 +4,8 @@
 # This bridges multilateration messages between a
 # mlat-client subprocess and the adept server.
 
+package require fa_sudo
+
 # does the server want mlat data?
 set ::mlatEnabled 0
 # is our client ready for data?
@@ -72,7 +74,9 @@ proc close_mlat_client {} {
 	}
 
 	set ::mlatReady 0
-	catch {close $::mlatPipe}
+	lassign $::mlatPipe mlatRead mlatWrite
+	catch {close $mlatRead}
+	catch {close $mlatWrite}
 	unset ::mlatPipe
 	reap_any_dead_children
 }
@@ -133,22 +137,20 @@ proc start_mlat_client {} {
 
 	logger "Starting multilateration client: $command"
 
-	pipe rpipe wpipe
-	lappend command "2>@$wpipe"
-	if {[catch {set ::mlatPipe [open |$command r+]} catchResult] == 1} {
-		logger "got '$catchResult' starting multilateration client"
+	if {[catch {::fa_sudo::popen_as -noroot -stdin mlatStdin -stdout mlatStdout -stderr mlatStderr {*}$command} result]} {
+		logger "got '$result' starting multilateration client"
 		schedule_mlat_client_restart
-		catch {close $rpipe}
-		catch {close $wpipe}
 		return
 	}
 
-	close $wpipe
+	fconfigure $mlatStdin -buffering line -blocking 0 -translation lf
 
-	log_subprocess_output "mlat-client([pid $::mlatPipe])" $rpipe
+	fconfigure $mlatStdout -buffering line -blocking 0 -translation lf
+	fileevent $mlatStdout readable mlat_data_available
+
+	log_subprocess_output "mlat-client($result)" $mlatStderr
 	set ::mlatReady 0
-	fconfigure $::mlatPipe -buffering line -blocking 0 -translation lf
-	fileevent $::mlatPipe readable mlat_data_available
+	set ::mlatPipe [list $mlatStdout $mlatStdin]
 }
 
 
@@ -203,7 +205,9 @@ proc forward_to_mlat_client {_row} {
 	}
 
 	set message [string range $message 1 end]
-	if {[catch {puts $::mlatPipe $message} catchResult] == 1} {
+
+	lassign $::mlatPipe mlatRead mlatWrite
+	if {[catch {puts $mlatWrite $message} catchResult] == 1} {
 		logger "got '$catchResult' writing to multilateration client, restarting.."
 		close_and_restart_mlat_client
 		return
@@ -211,13 +215,15 @@ proc forward_to_mlat_client {_row} {
 }
 
 proc mlat_data_available {} {
-	if ([eof $::mlatPipe]) {
+	lassign $::mlatPipe mlatRead mlatWrite
+
+	if ([eof $mlatRead]) {
 		logger "got EOF from multilateration client"
 		close_and_restart_mlat_client
 		return
 	}
 
-	if {[catch {set size [gets $::mlatPipe line]} catchResult] == 1} {
+	if {[catch {set size [gets $mlatRead line]} catchResult] == 1} {
 		logger "got '$catchResult' reading from multilateration client, restarting.."
 		close_and_restart_mlat_client
 		return
