@@ -53,7 +53,7 @@ set caDir [file join [file dirname [info script]] "ca"]
     # logger - log a message
     #
     method logger {text} {
-		{*}$logCommand $text
+		catch { {*}$logCommand $text }
     }
 
 	#
