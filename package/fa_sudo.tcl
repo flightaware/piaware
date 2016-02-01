@@ -399,7 +399,7 @@ namespace eval ::fa_sudo {
 	# Like regular exec, but allows changing user/group (and doesn't gobble child status for other processes)
 	#
 	# exec_as
-	#  ?-user user|uid? ?-group group|gid? ?-root? ?-nonroot?      # as for popen_as
+	#  ?-user user? ?-root? ?-nonroot?                             # as for popen_as
 	#  ?-returnall?                                                # return a 3-tuple: exit status, stdout, stderr
 	#  ?-ignorestderr? ?-keepnewline? ?--?                         # as for exec
 	#  program ?arg? ?arg?                                         # as for exec
@@ -417,7 +417,7 @@ namespace eval ::fa_sudo {
 		for {set i 0} {$i < [llength $args]} {incr i} {
 			set arg [lindex $args $i]
 			switch -glob $arg {
-				-user - -group {
+				-user {
 					incr i
 					set popts($arg) [lindex $args $i]
 				}
@@ -548,7 +548,7 @@ namespace eval ::fa_sudo {
 	# gobble child status for other processes)
 	#
 	# open_as
-	#  ?-user user|uid? ?-group group|gid? ?-root? ?-nonroot?      # as for popen_as
+	#  ?-user user? ?-root? ?-nonroot?                             # as for popen_as
 	#  ?-ignorestderr?                                             # as for exec
 	#  ?--?                                                        # end of options
 	#  file ?mode?                                                 # as for open
@@ -568,7 +568,7 @@ namespace eval ::fa_sudo {
 		for {set i 0} {$i < [llength $args]} {incr i} {
 			set arg [lindex $args $i]
 			switch -glob $arg {
-				-user - -group {
+				-user {
 					incr i
 					set popts($arg) [lindex $arg $i]
 				}
