@@ -11,7 +11,6 @@ proc filesystem_usage {} {
 	set result [list]
 	set fp [open_nolocale "|/bin/df --local --portability"]
 	gets $fp ;# skip header line
-	gets $fp ;# skip semi-replicated line
 	while {[gets $fp line] >= 0} {
 		lassign $line filesystem blocks used available percent point
 		if {$filesystem == "unionfs-fuse"} {
