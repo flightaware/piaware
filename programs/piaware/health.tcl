@@ -163,7 +163,7 @@ proc gps_location_update {lat lon alt} {
 	if {$lat eq "" || $lon eq "" || $alt eq ""} {
 		# not a 3D fix, invalidate any current position and
 		# don't do anything further
-		adept update_location ""
+		adept set_location ""
 		set ::gpsLocationValid 0
 		return
 	}
