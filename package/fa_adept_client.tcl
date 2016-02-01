@@ -357,7 +357,8 @@ set caDir [file join [file dirname [info script]] "ca"]
 		}
 
 		if {[catch {handle_response response} catchResult] == 1} {
-			logger "error handling message '[string map {\n \\n \t \\t} $line]' from server ($catchResult), ([string map {\n \\n \t \\t} [string range $::errorInfo 0 1000]]), disconnecting and reconnecting..."
+			logger "error handling message '[string map {\n \\n \t \\t} $line]' from server: $catchResult, disconnecting and reconnecting.."
+			logger "traceback: [string range $::errorInfo 0 1000]"
 			close_socket_and_reopen
 			return
 		}
