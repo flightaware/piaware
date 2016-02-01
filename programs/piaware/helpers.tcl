@@ -7,6 +7,7 @@
 
 package require tls
 package require fa_piaware_config
+package require fa_sudo
 
 #
 # logger - log a message
@@ -53,7 +54,7 @@ proc log_bgerror {message _options} {
 proc greetings {} {
 	log_locally "****************************************************"
 	log_locally "piaware version $::piawareVersionFull is running, process ID [pid]"
-	log_locally "your system info is: [exec /bin/uname --all]"
+	log_locally "your system info is: [::fa_sudo::exec_as /bin/uname --all]"
 }
 
 #

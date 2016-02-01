@@ -23,7 +23,7 @@ proc open_nolocale {cmd {mode r}} {
 	array unset ::env LANG
 	array unset ::env LC_*
 	try {
-		return [open $cmd $mode]
+		return [::fa_sudo::open_as -- $cmd $mode]
 	} finally {
 		# work around http://core.tcl.tk/tcl/info/bc1a96407a
 		# (::env is internally a traced variable, so trying to
@@ -90,7 +90,7 @@ proc is_pid_running {pid} {
 #
 proc find_processes {name} {
 	set pidlist {}
-    set fp [open "|pgrep --exact $name"]
+    set fp [::fa_sudo::open_as "|pgrep --exact $name"]
     while {[gets $fp line] >= 0} {
 		set pid [string trim $line]
 		lappend pidlist $pid

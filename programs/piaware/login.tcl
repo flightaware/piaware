@@ -5,6 +5,8 @@
 # Copyright (C) 2014-2016 FlightAware LLC, All Rights Reserved
 #
 
+package require fa_sudo
+
 # populates the initial login message
 proc gather_login_info {_message} {
 	upvar $_message message
@@ -16,7 +18,7 @@ proc gather_login_info {_message} {
 	inspect_sockets_with_netstat
 
 	# construct some key-value pairs to be included.
-	catch {set message(uname) [exec /bin/uname --all]}
+	catch {set message(uname) [::fa_sudo::exec_as /bin/uname --all]}
 
 	# from config.tcl
 	set message(piaware_version) $::piawareVersion
