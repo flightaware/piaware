@@ -373,7 +373,7 @@ proc get_mac_address {} {
 	# well, that didn't work, look at the entire output of ifconfig
 	# for a MAC address and use the first one we find
 
-	if {[catch {set fp [open "|ifconfig"]} catchResult] == 1} {
+	if {[catch {set fp [open_nolocale "|ifconfig"]} catchResult] == 1} {
 		puts stderr "ifconfig command not found on this version of Linux, you may need to install the net-tools package and try again"
 		return ""
 	}
