@@ -144,7 +144,7 @@ proc construct_health_array {_row} {
 #
 proc periodically_send_health_information {} {
 	if {[info exists ::healthTimer]} {
-		after cancel ::healthTimer
+		after cancel $::healthTimer
 	}
 
 	set ::healthTimer [after [expr {$::sendHealthInformationIntervalSeconds * 1000}] periodically_send_health_information]
