@@ -3,7 +3,7 @@ LIB=$(PREFIX)/lib/fa_adept_packages
 
 CFLAGS=-Wall -Werror -O
 
-all:
+all: droproot
 	@echo '"make install" to install'
 
 droproot:
