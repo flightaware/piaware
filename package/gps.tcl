@@ -7,7 +7,6 @@
 # open source in accordance with the Berkeley license
 #
 
-package require tls
 package require Itcl
 package require json
 
