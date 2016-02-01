@@ -306,7 +306,7 @@ namespace eval ::fa_piaware_config {
 				return 1
 			}
 
-			if {[info exists writeHelper] && [::fa_sudo::can_sudo $writeHelper $filename]} {
+			if {[info exists writeHelper] && [::fa_sudo::can_sudo 0 0 $writeHelper $filename]} {
 				return 0
 			}
 
@@ -345,10 +345,10 @@ namespace eval ::fa_piaware_config {
 
 			if {![file writable [file dirname $filename]] || ([file exists $filename] && ![file writable $filename])} {
 				# we cannot write the file directly
-				if {[info exists writeHelper] && [::fa_sudo::can_sudo $writeHelper $filename]} {
+				if {[info exists writeHelper] && [::fa_sudo::can_sudo 0 0 $writeHelper $filename]} {
 					# send the new file via a pipe to the helper
 					# which will do the actual work
-					set f [::fa_sudo::sudo_open "|$writeHelper $filename" "w"]
+					set f [::fa_sudo::open_as -root "|$writeHelper $filename" "w"]
 				} else {
 					error "can't directly write config file $filename, and no helper is available"
 				}
