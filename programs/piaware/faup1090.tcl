@@ -5,6 +5,8 @@
 # Copyright (C) 2014 FlightAware LLC, All Rights Reserved
 #
 
+package require fa_sudo
+
 #
 # setup_faup1090_vars - setup vars but don't start faup1090
 #
@@ -145,15 +147,20 @@ proc connect_adsb_via_faup1090 {} {
 	}
 
 	logger "Starting faup1090: $args"
-	if {[catch {set ::faupPipe [open |$args]} catchResult] == 1} {
-		logger "got '$catchResult' starting faup1090, will try again in 60s"
+
+	if {[catch {::fa_sudo::popen_as -noroot -stdout faupStdout -stderr faupStderr {*}$args} result] == 1} {
+		logger "got '$result' starting faup1090, will try again in 60s"
 		schedule_adsb_connect_attempt 60
 		return
 	}
 
-	logger "Started faup1090 (pid [pid $::faupPipe]) to connect to $::adsbDataProgram"
-	fconfigure $::faupPipe -buffering line -blocking 0 -translation lf
-	fileevent $::faupPipe readable faup1090_data_available
+	logger "Started faup1090 (pid $result) to connect to $::adsbDataProgram"
+	fconfigure $faupStdout -buffering line -blocking 0 -translation lf
+	fileevent $faupStdout readable faup1090_data_available
+
+	log_subprocess_output "faup1090($result)" $faupStderr
+
+	set ::faupPipe $faupStdout
 
 	# pretend we saw a message so we don't repeatedly restart
 	set ::lastFaupMessageClock [clock seconds]
