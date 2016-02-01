@@ -305,4 +305,44 @@ proc get_mac_address_or_quit {} {
 	return $mac
 }
 
+#
+# read from the given channel (which should be a child process stderr)
+# and log the output via our logger
+#
+proc log_subprocess_output {name channel {closeScript ""}} {
+	fconfigure $channel -buffering line -blocking 0
+	fileevent $channel readable [list subprocess_logger $name $channel $closeScript]
+}
+
+proc subprocess_logger {name channel closeScript} {
+	while 1 {
+		if {[catch {set size [gets $channel line]}] == 1} {
+			catch {close $channel}
+			if {$closeScript ne ""} {
+				{*}$closeScript
+			}
+			reap_any_dead_children
+			return
+		}
+
+		if {$size < 0} {
+			break
+		}
+
+		if {$line ne ""} {
+			logger "$name: $line"
+		}
+	}
+
+	if {[eof $channel]} {
+		catch {close $channel}
+		if {$closeScript ne ""} {
+			{*}$closeScript
+		}
+		reap_any_dead_children
+	}
+}
+
+
+
 # vim: set ts=4 sw=4 sts=4 noet :
