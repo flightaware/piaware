@@ -9,7 +9,7 @@
 #Filesystem     1K-blocks    Used Available Use% Mounted on
 proc filesystem_usage {} {
 	set result [list]
-	set fp [open "|/bin/df --local --portability"]
+	set fp [open_nolocale "|/bin/df --local --portability"]
 	gets $fp ;# skip header line
 	gets $fp ;# skip semi-replicated line
 	while {[gets $fp line] >= 0} {
