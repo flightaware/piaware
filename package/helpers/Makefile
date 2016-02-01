@@ -11,4 +11,4 @@ droproot:
 
 install: droproot
 	install -d $(DESTDIR)$(LIB)/helpers
-	install -m 0755 update-piaware-config droproot $(DESTDIR)$(LIB)/helpers
+	install -m 0755 update-piaware-config droproot run-apt-get $(DESTDIR)$(LIB)/helpers
