@@ -14,6 +14,7 @@ set piawarePidFile /var/run/piaware.pid
 set piawareConfigFile /etc/piaware
 
 set aptConfigDir [file join [file dirname [info script]] "apt"]
+set aptRunScript [file join [file dirname [info script]] "helpers" "run-apt-get"]
 
 #
 # do a pipe open after clearing locale vars
@@ -232,6 +233,9 @@ proc netstat_report {} {
 # reap_any_dead_children - wait without delay until we reap no children
 #
 proc reap_any_dead_children {} {
+	# NOPE
+	return
+
     # try to reap any dead children
     while {true} {
 		if {[catch {wait -nohang} catchResult] == 1} {
@@ -435,69 +439,38 @@ proc halt {} {
 
 #
 # update_package_lists
-# installs the FA sources.list and key if not present
 # runs apt-get update to update all package lists
 #
 proc update_package_lists {} {
-	# install any missing apt config (for upgrades from older piawares)
-
-	set keyring "/etc/apt/trusted.gpg.d/flightaware-archive-keyring.gpg"
-	set sourcelist "/etc/apt/sources.list.d/flightaware.list"
-
-	if {![file exists $keyring]} {
-		logger "$keyring does not exist, installing the copy supplied with piaware."
-		file link -symbolic $keyring [file join $aptConfigDir "flightaware-archive-keyring.gpg"]
+	if {![run_apt_get setup-fa-repository [file join $::aptConfigDir "flightaware-archive-keyring.gpg"]]} {
+		return 0
 	}
-
-	if {![file exists $sourcelist]} {
-		logger "$sourcelist does not exist, creating it."
-
-		# identify the OS version, we have different repos for wheezy and jessie
-		catch {get_os_release rel}
-
-		if {![info exists rel(ID)] || ![info exists rel(VERSION_ID)]} {
-			logger "can't identify OS release from /etc/os-release, can't proceed with upgrade"
-			return 0
-		}
-
-		switch $rel(ID):$rel(VERSION_ID) {
-			raspbian:7 {
-				set url "http://flightaware.com/adsb/piaware/files/raspbian"
-				set suite "wheezy"
-			}
-
-			raspbian:8 {
-				set url "http://flightaware.com/adsb/piaware/files/raspbian"
-				set suite "jessie"
-			}
-
-			default {
-				logger "Automatic upgrades not available for OS $rel(ID):$rel(VERSION_ID) ($rel(PRETTY_NAME))"
-				return 0
-			}
-		}
-
-		set fp [open $sourcelist "w" 0644]
-		puts $fp "deb $url $suite flightaware"
-		close $fp
-	}
-
-    return [run_program_log_output "apt-get --quiet --yes update"]
+	
+    return [run_apt_get update]
 }
 
 #
 # update_operating_system_and_packages 
 #
-# * upgrade raspbian
-#
-# * upgrade piaware
+# * upgrade raspbian (retain local changes, upgrade unchanged config files)
 #
 # * reboot
 #
 proc upgrade_all_packages {} {
     logger "*** attempting to upgrade all packages to the latest"
 
-    if {![run_program_log_output "apt-get --quiet --yes upgrade"]} {
+	# do these separately as they have different configfile requirements
+	if {![upgrade_piaware]} {
+		logger "aborting upgrade..."
+		return 0
+	}
+
+	if {![upgrade_dump1090]} {
+		logger "aborting upgrade..."
+		return 0
+	}
+
+    if {![run_apt_get upgrade-raspbian]} {
 		logger "aborting upgrade..."
 		return 0
     }
@@ -505,76 +478,50 @@ proc upgrade_all_packages {} {
 }
 
 #
-# run_program_log_output - run command with stderr redirected to stdout and
-#   log all the output of the command
+# run_apt_get - run the apt-get helper script as root
+# and log all the output
 #
-set ::externalProgramRunning 0
-proc run_program_log_output {command} {
-    logger "*** running command '$command' and logging output"
+proc run_apt_get {args} {
+	run_command_as_root_log_output $::aptRunScript {*}$args
+}
 
-	# safety net
-	if {$::externalProgramRunning} {
-		logger "*** refusing to run command: there is already another command running"
+proc run_command_as_root_log_output {args} {
+    logger "*** running command '$args' and logging output"
+	if {[catch {set fp [::fa_sudo::popen_as -root -stdin "</dev/null" -stdout stdoutPipe -stderr stderrPipe -- {*}$args]} result]} {
+		logger "*** error attempting to start command: $result"
 		return 0
 	}
 
-	incr ::externalProgramRunning
-	set ::externalProgramStatus ""
-	try {
-		if {[catch {set fp [open "|$command < /dev/null 2>@1"]} catchResult] == 1} {
-			logger "*** error attempting to start command: $catchResult"
-			return 0
-		}
+	set name [file tail [lindex $args 0]]
+	set childpid $result
+	set ::pipesRunning($childpid) 2
 
-		fconfigure $fp -blocking 0
-		fileevent $fp readable [list external_program_data_available $fp]
-		while {$::externalProgramStatus eq ""} {
-			vwait ::externalProgramStatus
-		}
+	log_subprocess_output "${name}($childpid)" $stdoutPipe [list incr ::pipesRunning($childpid) -1]
+	log_subprocess_output "${name}($childpid)" $stderrPipe [list incr ::pipesRunning($childpid) -1]
 
-		if {$::externalProgramStatus == 0} {
+	while {$::pipesRunning($childpid) > 0} {
+		vwait ::pipesRunning($childpid)
+	}
+
+	unset ::pipesRunning($childpid)
+
+	if {[catch {wait $childpid} result]} {
+		if {[lindex $::errorCode 0] eq "POSIX" && [lindex $::errorCode 1]  eq "ECHILD"} {
+			logger "missed child termination status for pid $childpid, assuming all is OK"
 			return 1
 		} else {
+			logger "unexpected error waiting for child: $::errorCode"
 			return 0
 		}
-	} finally {
-		incr ::externalProgramRunning -1
-	}
-}
-
-#
-# external_program_data_available - callback routine when data is available
-#  from some external command we are running
-#
-proc external_program_data_available {fp} {
-	if {[catch {gets $fp line} result] == 1} {
-		logger "*** error reading from pipeline: $result"
-		set ::externalProgramStatus -1
-		catch {close $fp}
-		return
 	}
 
-	if {$result < 0} {
-		if {[eof $fp]} {
-			# reconfigure for blocking so we see the command result
-			fconfigure $fp -blocking 1
-			if {[catch {close $fp} catchResult] == 1} {
-				if {"CHILDSTATUS" == [lindex $::errorCode 0]} {
-					set ::externalProgramStatus [lindex $::errorCode 2]
-					logger "*** command exited with status $::externalProgramStatus"
-				} else {
-					logger "*** error closing pipeline to command: $catchResult"
-					set ::externalProgramStatus -1
-				}
-			} else {
-				set ::externalProgramStatus 0
-			}
-		}
-
-		return
+	lassign $result deadpid type code
+	if {$type eq "EXIT" && $code eq 0} {
+		return 1
+	} else {
+		logger "child process $deadpid exited with status $type $code"
+		return 0
 	}
-
-	logger "> $line"
 }
 
 
@@ -594,11 +541,11 @@ proc upgrade_dump1090 {} {
 }
 
 #
-# single_package_upgrade: update a single FA package
+# single_package_upgrade: update a single FA package, force package config files
 #
 proc single_package_upgrade {pkg} {
 	# run the update/upgrade
-    if {![run_program_log_output "apt-get --quiet --yes -o DPkg::Options::=--force-confask -o DPkg::Options::=--force-confnew install $pkg"]} {
+    if {![run_apt_get upgrade-fa $pkg]} {
 		logger "aborting upgrade..."
 		return 0
     }

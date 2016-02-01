@@ -1,0 +1,81 @@
+#!/bin/sh
+
+# A helper script to run apt-get noninteractively with the right settings.
+# Run as one of:
+#   run-apt-get setup-fa-repository keyring-path
+#   run-apt-get update
+#   run-apt-get upgrade-fa packagename
+#   run-apt-get upgrade-raspian
+
+set -e
+
+DEBIAN_FRONTEND=noninteractive
+export DEBIAN_FRONTEND
+
+keyring=/etc/apt/trusted.gpg.d/flightaware-archive-keyring.gpg
+sourceslist=/etc/apt/sources.list.d/flightaware.list
+
+action="$1"
+shift
+case "$action" in
+    setup-fa-repository)
+        . /etc/os-release
+        case "$ID:$VERSION_ID" in
+            raspbian:7)
+                url=http://flightaware.com/adsb/piaware/files/raspbian
+                suite=wheezy
+                ;;
+
+            raspbian:8)
+                url=http://flightaware.com/adsb/piaware/files/raspbian
+                suite=jessie
+                ;;
+
+            *)
+                echo "Automatic updates not available for OS $ID:$VERSION_ID ($PRETTY_NAME)" >&2
+                exit 1
+        esac
+
+        if [ ! -f "$keyring" ]
+        then
+            echo "$keyring does not exist; installing it"
+            ln -s "$1" "$keyring"
+        fi
+
+        if [ ! -f "$sourceslist" ]
+        then
+            echo "$sourceslist does not exist; creating it"
+            echo "deb $url $suite flightaware" >$sourceslist
+        fi
+
+        exit 0
+        ;;
+
+
+    update)
+        exec apt-get -q -y \
+            -o DPkgPM::Progress=0 \
+            update
+        ;;
+
+    upgrade-fa)
+        exec apt-get -q -y \
+            -o DPkg::Options::=--force-confask \
+            -o DPkg::Options::=--force-confnew \
+            -o DPkgPM::Progress=0 \
+            install "$@"
+        ;;
+
+    upgrade-raspbian)
+        exec apt-get -q -y \
+            -o DPkg::Options::=--force-confdef \
+            -o DPkg::Options::=--force-confold \
+            -o DPkgPM::Progress=0 \
+            upgrade
+        ;;
+
+    *)
+        echo "Unhandled action: $action"
+        exit 1
+        ;;
+esac
