@@ -5,6 +5,8 @@
 # Copyright (C) 2016 FlightAware LLC, All Rights Reserved
 #
 
+package require fa_sudo
+
 # Utilities to invoke rc.d scripts or systemctl to start/restart system services
 # todo: upstart?
 
@@ -30,7 +32,7 @@ proc can_invoke_service_action {service action} {
 		return 1
 	}
 
-	set status [system invoke-rc.d --query $service $action]
+	lassign [::fa_sudo::exec_as -root -returnall -ignorestderr -- invoke-rc.d --query $service $action </dev/null] status out err
 	switch $status {
 		104 -
 		105 -
@@ -52,7 +54,7 @@ proc is_systemd {} {
 # return a list of systemd service unitfiles matching pattern
 proc systemd_find_services {pattern} {
 	if {[catch {
-		split [exec systemctl list-unit-files --no-legend --no-pager --type=service $pattern] "\n"
+		split [::fa_sudo::exec_as systemctl list-unit-files --no-legend --no-pager --type=service $pattern] "\n"
 	} result] == 1} {
 		return ""
 	}
@@ -120,24 +122,8 @@ proc invoke_service_action {service action} {
 	}
 
 	logger "attempting to $action $service using '$command'..."
-	if {[catch {exec {*}$command} result options] == 1} {
-		switch {[lindex $::errorCode 0]} {
-			CHILDKILLED - CHILDSTATUS - CHILDSUSP {
-				return [lindex $::errorCode 2]
-			}
-
-			POSIX {
-				return [lindex $::errorCode 1]
-			}
-
-			default {
-				# reraise the error
-				return -options $options $result
-			}
-		}
-	} else {
-		return 0
-	}
+	lassign [::fa_sudo::exec_as -root -returnall -ignorestderr -- {*}$command] status out err
+	return $status
 }
 
 
