@@ -95,8 +95,18 @@ proc main {{argv ""}} {
 	greetings
 
 	# attempt to kill any extant copies of faup1090
-	if {[is_process_running faup1090]} {
-		catch {exec pkill faup1090}
+	#
+	# TODO: This is probably a bad idea now since they are
+	# subprocesses of piaware and should die when the parent
+	# does when their pipe is closed; if we have multiple
+	# piawares then we don't want to kill off the faup1090
+	# that belongs to another one!
+	set pidlist [find_processes faup1090]
+	if {[llength $pidlist] > 0} {
+		foreach faupPid $pidlist {
+			logger "trying to kill old faup1090 pid $faupPid"
+			catch {kill $faupPid}
+		}
 		sleep 1
 	}
 

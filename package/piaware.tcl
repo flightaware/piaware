@@ -86,20 +86,17 @@ proc is_pid_running {pid} {
 }
 
 #
-# is_process_running - return 1 if at least one process named "name" is
-#  running, else 0
+# find_processes - return a list of pids running with a command of exactly "name"
 #
-proc is_process_running {name} {
-    set fp [open "|ps -C $name -o pid="]
+proc find_processes {name} {
+	set pidlist {}
+    set fp [open "|pgrep --exact $name"]
     while {[gets $fp line] >= 0} {
 		set pid [string trim $line]
-		if {[is_pid_running $pid]} {
-			catch {close $fp}
-			return 1
-		}
+		lappend pidlist $pid
 	}
     catch {close $fp}
-    return 0
+	return $pidlist
 }
 
 #
