@@ -11,9 +11,9 @@ pkgIndex.tcl: $(FILES)
 	echo 'pkg_mkIndex .' | $(TCLSH)
 
 install: pkgIndex.tcl
-	install -d $(DESTDIR)$(LIB) $(DESTDIR)$(LIB)/ca $(DESTDIR)$(LIB)/apt $(DESTDIR)$(LIB)/helpers
+	install -d $(DESTDIR)$(LIB) $(DESTDIR)$(LIB)/ca $(DESTDIR)$(LIB)/apt
 	install $(FILES) pkgIndex.tcl $(DESTDIR)$(LIB)
 	install ca/*.pem $(DESTDIR)$(LIB)/ca
 	install apt/* $(DESTDIR)$(LIB)/apt
-	install -m 0755 helpers/update-piaware-config $(DESTDIR)$(LIB)/helpers
 	c_rehash $(DESTDIR)$(LIB)/ca
+	$(MAKE) -C helpers install

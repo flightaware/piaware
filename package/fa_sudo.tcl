@@ -26,14 +26,57 @@ namespace eval ::fa_sudo {
 		}
 	}
 
-	proc _can_sudo {uid gid args} {
-		set command [lindex $args 0]
-		if {[auto_execok $command] eq ""} {
+	set dropRootHelper [file join [file dirname [info script]] "helpers" "droproot"]
+	set audit 0
+
+	proc _shellquote_arg {arg} {
+		return [concat \" [string map {\\ {\\} ` {\`} \$ {\$} \" {\"}} $arg] \"]
+	}
+
+	proc _shellquote {args} {
+		set l {}
+		foreach arg $args {
+			lappend l [_shellquote_arg $arg]
+		}
+		return [join $l " "]
+	}
+
+	proc _make_droproot_args {user argv0 args} {
+		# try a few different things to drop root
+		set path [auto_execok $::fa_sudo::dropRootHelper]
+		if {$path ne ""} {
+			return [list {*}$path $user $argv0 {*}$args]
+		}
+
+		set path [auto_execok "chpst"]
+		if {$path ne ""} {
+			return [list {*}$path -u $user -b $argv0 {*}$args]
+		}
+
+		set path [auto_execok "sudo"]
+		if {$path ne ""} {
+			# sudo doesn't have an option to set argv[0]
+			return [list {*}$path -u $user {*}$args]
+		}
+
+		set path [auto_execok "su"]
+		if {$path ne ""} {
+			# su will pass the args to a shell, make sure it's suitably quoted
+			return [list {*}path $user -- -c [_shellquote {*}$args]]
+		}
+
+		error "can't work out a way to drop root privileges (no droproot, chpst, or sudo found)"
+	}
+
+	proc _can_sudo {user args} {
+		if {[catch {exec_as -returnall -ignorestderr -- {*}[auto_execok sudo] -n -u $user -l -- {*}$args </dev/null >/dev/null} result]} {
+			# failed
 			return 0
 		}
 
-		if {[catch {exec_as -- sudo -n -u \#$uid -g \#$gid -l -- {*}$args </dev/null >/dev/null 2>/dev/null} result]} {
-			# failed
+		lassign $result status out err
+		if {$status ne "0"} {
+			# return code says it failed
 			return 0
 		}
 
@@ -41,8 +84,8 @@ namespace eval ::fa_sudo {
 		return 1
 	}
 
-	proc can_sudo {uid gid args} {
-		if {[id userid] == $uid && [id groupid] == $gid} {
+	proc can_sudo {user args} {
+		if {[_is_user $user]} {
 			# already the right user/group
 			return 1
 		}
@@ -58,9 +101,9 @@ namespace eval ::fa_sudo {
 		}
 
 		# ask sudo if this is OK
-		set key [list $uid $gid {*}$args]
+		set key [list $user {*}$args]
 		if {![info exists ::fa_sudo::cache($key)]} {
-			set ::fa_sudo::cache($key) [_can_sudo $uid $gid {*}$args]
+			set ::fa_sudo::cache($key) [_can_sudo $user {*}$args]
 		}
 
 		return $::fa_sudo::cache($key)
@@ -128,7 +171,6 @@ namespace eval ::fa_sudo {
 	}
 
 	variable unprivilegedUser "nobody"
-	variable unprivilegedGroup "nogroup"
 
 	proc _parse_popen_options {_options args} {
 		upvar $_options options
@@ -144,7 +186,7 @@ namespace eval ::fa_sudo {
 					array set options [lindex $args $i]
 				}
 
-				-stdout - -stderr - -stdin - -argv0 - -user - -group {
+				-stdout - -stderr - -stdin - -argv0 - -user {
 					incr i
 					set options($arg) [lindex $args $i]
 				}
@@ -172,46 +214,26 @@ namespace eval ::fa_sudo {
 
 		# final tweaks
 		if {[info exists options(-root)]} {
-			set options(-user) 0
-			set options(-group) 0
+			set options(-user) "root"
 		}
 
 		if {[info exists options(-noroot)]} {
 			if {![info exists options(-user)]} {
 				set options(-user) $::fa_sudo::unprivilegedUser
 			}
-
-			if {![info exists options(-group)]} {
-				set options(-group) $::fa_sudo::unprivilegedGroup
-			}
-		}
-
-		if {[info exists options(-user)]} {
-			if {![string is integer -strict $options(-user)]} {
-				set options(-user) [id convert user $options(-user)]
-			}
-		} else {
-			set options(-user) [id userid]
-		}
-
-		if {[info exists options(-group)]} {
-			if {![string is integer -strict $options(-group)]} {
-				set options(-group) [id convert group $options(-group)]
-			}
-		} else {
-			set options(-group) [id groupid]
 		}
 
 		return $arglist
 	}
 
-	# return 1 if current process credentials match the given uid/gid
-	proc _matches_uid_gid {uid gid} {
-		if {[id userid] != $uid} {
+	# return 1 if current process credentials match the given user
+	proc _is_user {user} {
+		if {[catch {id convert user $user} uid]} {
+			# user doesn't exist?
 			return 0
 		}
 
-		if {[id groupid] != $gid && $gid ni [id groupids]} {
+		if {[id userid] != $uid} {
 			return 0
 		}
 
@@ -221,9 +243,9 @@ namespace eval ::fa_sudo {
 	# Start a single subprocess with redirections and possibly changing UID/GID.
 	#
 	# popen_as
-	#   ?-root?                                           # try to run as UID 0 GID 0, using sudo if necessary
-	#   ?-noroot?                                         # if we are UID 0, switch to unprivilegedUser/unprivilegedGroup
-	#   ?-user user|uid? ?-group group|gid?               # try to run as the given user/group, using sudo if necessary
+	#   ?-root?                                           # try to run as root, using sudo if necessary
+	#   ?-noroot?                                         # if we are root, switch to unprivilegedUser
+	#   ?-user user?                                      # try to run as the given user, using sudo or dropping privileges as necessary
 	#   ?-argv0 argv0?                                    # set argv[0] of process to exec
 	#   ?-stdin where? ?-stdout where? ?-stderr where?    # redirect stdin/stdout/stderr in child
 	#   ?--?                                              # end of options
@@ -245,46 +267,34 @@ namespace eval ::fa_sudo {
 		set options(-stderr) "@stderr"
 		set arglist [_parse_popen_options options {*}$args]
 
-		# default to current settings if not given
-
-		if {[info exists options(-user)]} {
-			set uid $options(-user)
+		if {[info exists options(-argv0)]} {
+			set argv0 $options(-argv0)
 		} else {
-			set uid [id userid]
+			set argv0 [lindex $arglist 0]
 		}
 
-		if {[info exists options(-group)]} {
-			set gid $options(-user)
-		} else {
-			set gid [id userid]
-		}
+		if {[info exists options(-user)] && ![_is_user $options(-user)]} {
+			# we want to change user
 
-		if {![_matches_uid_gid $uid $gid]} {
-			# we should be able to just setreuid/setregid if we are root here
-			# but Tclx gives us no way to drop supplementary groups so
-			# we have to always use sudo
+			if {[id userid] == 0} {
+				# we are root, run something that switches to the right user then runs the target
+				# (we can't do this directly due to tclx limitations - it has no interface for
+				# setgroups or initgroups, so we cannot drop/add subsidiary groups, which is a
+				# security hole)
+				set arglist [_make_droproot_args $options(-user) $argv0 {*}$arglist]
+				set argv0 [lindex $arglist 0]
+			} else {
+				# we are not root, try to use sudo to change user
+				# (except if -noroot was given, in which case all we care about
+				# is that we're not root, so don't use sudo)
+				if {![info exists options(-noroot)]} {
+					if {![can_sudo $options(-user) {*}$arglist]} {
+						error "sudo refused for command $arglist"
+					}
 
-			if {[id userid] == 0 || ![info exists options(-noroot)]} {
-				if {![can_sudo $options(-user) $options(-group) {*}$arglist]} {
-					error "sudo refused for command $arglist"
+					set arglist [list {*}[auto_execok sudo] -n -u $options(-user) -- {*}$arglist]
 				}
-
-				set sudoargs {}
-				if {[info exists options(-user)]} {
-					lappend sudoargs -u \#$options(-user)
-				}
-				if {[info exists options(-group)]} {
-					lappend sudoargs -g \#$options(-group)
-				}
-
-				set arglist [list sudo -n {*}$sudoargs -- {*}$arglist]
 			}
-		}
-
-		set program [lindex $arglist 0]
-		set arglist [lrange $arglist 1 end]
-		if {![info exists options(-argv0)]} {
-			set options(-argv0) $program
 		}
 
 		# parse the redirects, open any files we need to, create pipes
@@ -292,6 +302,10 @@ namespace eval ::fa_sudo {
 		_prepare_read_redirect $options(-stdin) stdinChild cleanupList
 		_prepare_write_redirect $options(-stdout) stdoutChild cleanupList
 		_prepare_write_redirect $options(-stderr) stderrChild cleanupList
+
+		if {$::fa_sudo::audit} {
+			puts stderr "AUDIT: Going to run $arglist with stdin:$options(-stdin) stdout:$options(-stdout) stderr:$options(-stderr)"
+		}
 
 		# spawn things
 		set childpid [fork]
@@ -325,7 +339,7 @@ namespace eval ::fa_sudo {
 
 			# do the exec
 			# and hope that CLOEXEC is set on everything that matters
-			execl -argv0 $options(-argv0) $program $arglist
+			execl -argv0 $argv0 [lindex $arglist 0] [lrange $arglist 1 end]
 		}
 
 		# if we got here, we are the child but we failed to exec, so
@@ -862,3 +876,4 @@ namespace eval ::fa_sudo {
 } ;# namespace eval ::fa_sudo
 
 package provide fa_sudo 0.1
+
