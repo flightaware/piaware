@@ -179,7 +179,7 @@ proc piaware_status {} {
 	}
 }
 
-proc show_piaware_config {{showProtected 0}} {
+proc show_piaware_config {{showAll 0}} {
 	global config
 	load_config
 
@@ -194,12 +194,15 @@ proc show_piaware_config {{showProtected 0}} {
 			set val [$config metadata format $key [$config get $key]]
 			set origin "using default value"
 		} else {
+			if {!$showAll} {
+				continue
+			}
 			set displayKey "#$key"
 			set val ""
 			set origin "not set, no default"
 		}
 
-		if {[$config metadata protect $key] && !$showProtected} {
+		if {[$config metadata protect $key] && !$showAll} {
 			set val "<hidden>"
 		}
 
