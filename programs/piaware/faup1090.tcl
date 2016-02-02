@@ -290,8 +290,6 @@ proc periodically_check_adsb_traffic {} {
 # restart stuff as necessary
 #
 proc check_adsb_traffic {} {
-	reap_any_dead_children
-
 	set secondsSinceLastMessage [expr {[clock seconds] - $::lastFaupMessageClock}]
 
 	if {[info exists ::faupPipe]} {

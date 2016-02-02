@@ -78,7 +78,6 @@ proc close_mlat_client {} {
 	catch {close $mlatRead}
 	catch {close $mlatWrite}
 	unset ::mlatPipe
-	reap_any_dead_children
 }
 
 proc start_mlat_client {} {

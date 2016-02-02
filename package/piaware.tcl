@@ -230,60 +230,6 @@ proc netstat_report {} {
 }
 
 #
-# reap_any_dead_children - wait without delay until we reap no children
-#
-proc reap_any_dead_children {} {
-	# NOPE
-	return
-
-    # try to reap any dead children
-    while {true} {
-		if {[catch {wait -nohang} catchResult] == 1} {
-			# got an error, probably no children
-			return
-		}
-
-		# didn't get an error
-		if {$catchResult == ""} {
-			# and it didn't return anything, we have extant children but
-			# none have exited (or died from a signal) right now
-			return
-		}
-
-		#logger "reaped child $catchResult"
-
-		lassign $catchResult pid type code
-
-		switch $type {
-			"EXIT" {
-				switch $code {
-					default {
-						logger "the system told us that process $pid exited due to some general error"
-					}
-
-					0 {
-						logger "the system told us that process $pid exited cleanly"
-					}
-				}
-				logger "the system confirmed that process $pid exited with an exit status of $code"
-			}
-
-			"SIG" {
-				if {$code == "SIGHUP"} {
-					logger "the system confirmed that process $pid exited after receiving a hangup signal"
-				} else {
-					logger "this is a little unexpected: the system told us that process $pid exited after receiving a $code signal"
-				}
-			}
-
-			default {
-				logger "the system told us one of our child processes exited but i didn't understand what it said: $catchResult"
-			}
-		}
-    }
-}
-
-#
 # get_local_device_ip_address - figure out the specified device's IP address
 #
 # note - does not cache, returns empty string if the machine doesn't

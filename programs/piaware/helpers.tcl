@@ -322,7 +322,6 @@ proc subprocess_logger {name channel closeScript} {
 			if {$closeScript ne ""} {
 				{*}$closeScript
 			}
-			reap_any_dead_children
 			return
 		}
 
@@ -340,7 +339,6 @@ proc subprocess_logger {name channel closeScript} {
 		if {$closeScript ne ""} {
 			{*}$closeScript
 		}
-		reap_any_dead_children
 	}
 }
 
