@@ -77,6 +77,17 @@ proc close_mlat_client {} {
 	lassign $::mlatPipe mlatRead mlatWrite
 	catch {close $mlatRead}
 	catch {close $mlatWrite}
+
+	catch {
+		lassign [timed_waitpid 15000 $::mlatPid] deadpid why code
+		if {$code ne "0"} {
+			logger "fa-mlat-client exited with $why $code"
+		} else {
+			logger "fa-mlat-client exited normally"
+		}
+	}
+
+	unset ::mlatPid
 	unset ::mlatPipe
 }
 
@@ -150,6 +161,7 @@ proc start_mlat_client {} {
 	log_subprocess_output "mlat-client($result)" $mlatStderr
 	set ::mlatReady 0
 	set ::mlatPipe [list $mlatStdout $mlatStdin]
+	set ::mlatPid $result
 }
 
 

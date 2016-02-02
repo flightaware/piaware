@@ -161,6 +161,7 @@ proc connect_adsb_via_faup1090 {} {
 	log_subprocess_output "faup1090($result)" $faupStderr
 
 	set ::faupPipe $faupStdout
+	set ::faupPid $result
 
 	# pretend we saw a message so we don't repeatedly restart
 	set ::lastFaupMessageClock [clock seconds]
@@ -179,7 +180,18 @@ proc stop_faup1090 {} {
 	set ::lastAdsbConnectedClock [clock seconds]
 	catch {kill HUP [pid $::faupPipe]}
 	catch {close $::faupPipe}
+
+	catch {
+		lassign [timed_waitpid 15000 $::faupPid] deadpid why code
+		if {$code ne "0"} {
+			logger "faup1090 exited with $why $code"
+		} else {
+			logger "faup1090 exited normally"
+		}
+	}
+
 	unset ::faupPipe
+	unset ::faupPid
 }
 
 #

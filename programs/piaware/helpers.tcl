@@ -342,6 +342,29 @@ proc subprocess_logger {name channel closeScript} {
 	}
 }
 
+# wait for a child to die with a timeout
+proc timed_waitpid {timeout childpid} {
+	set deadline [expr {[clock milliseconds] + $timeout}]
+	while {[clock milliseconds] < $deadline} {
+		if {![catch {wait -nohang $childpid} result options]} {
+			lassign $::errorCode type subtype
+			if {$type eq "POSIX" && $subtype eq "ECHILD"} {
+				# child went missing
+				return "$childpid EXIT unknown"
+			}
 
+			# reraise error
+			return -options $options $result
+		}
+
+		if {$result ne ""} {
+			# child status available
+			return $result
+		}
+
+		# still waiting
+		sleep 1
+	}
+}
 
 # vim: set ts=4 sw=4 sts=4 noet :
