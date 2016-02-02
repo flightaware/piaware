@@ -60,8 +60,8 @@ case "$action" in
 
     upgrade-fa)
         exec apt-get -q -y \
-            -o DPkg::Options::=--force-confask \
-            -o DPkg::Options::=--force-confnew \
+            -o DPkg::Options::=--force-confdef \
+            -o DPkg::Options::=--force-confold \
             -o DPkgPM::Progress=0 \
             install "$@"
         ;;
