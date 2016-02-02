@@ -9,9 +9,6 @@ all:
 	@echo "'make install' to install scripts"
 
 install:
-	install -d $(DESTDIR)$(PREFIX)/lib/piaware/helpers
-	install -m 0755 update-piaware-config $(DESTDIR)$(PREFIX)/lib/piaware/helpers
-
 # conditionally install init services
 ifdef SYSVINIT
 	install -d $(DESTDIR)$(SYSVINIT)
