@@ -16,5 +16,5 @@ ifdef SYSVINIT
 endif
 ifdef SYSTEMD
 	install -d $(DESTDIR)$(SYSTEMD)
-	install scripts/piaware.service $(DESTDIR)$(SYSTEMD)/piaware.service
+	install piaware.service $(DESTDIR)$(SYSTEMD)/piaware.service
 endif
