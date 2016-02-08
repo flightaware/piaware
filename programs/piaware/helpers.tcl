@@ -92,6 +92,7 @@ proc setup_adept_client {} {
 proc setup_config {} {
 	::fa_piaware_config::new_combined_config piawareConfig
 	lassign [load_location_info] ::receiverLat ::receiverLon
+	reread_piaware_config
 }
 
 proc reread_piaware_config {} {
