@@ -297,6 +297,10 @@ namespace eval ::fa_sudo {
 					}
 
 					set arglist [list {*}[auto_execok sudo] -n -u $options(-user) -- {*}$arglist]
+					# we can't pass argv0 through sudo, and if we set argv0 then sudo itself will
+					# use that when reporting errors which is really confusing, so reset it to
+					# just "sudo"
+					set argv0 "sudo"
 				}
 			}
 		}
