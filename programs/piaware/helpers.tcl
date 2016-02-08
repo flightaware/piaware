@@ -92,52 +92,23 @@ proc reread_piaware_config {} {
 	}
 }
 
-# log_stdout_stderr_to_file - redirect stdout and stderr to a log file
-#
-proc log_stdout_stderr_to_file {} {
-	# log to /tmp/piaware.out
-	set fp [open /tmp/piaware.out a]
+# reopen_logfile - open a logfile (for append) and redirect stdout and stderr there,
+# closing the old stdout/stderr
+proc reopen_logfile {} {
+	if {$::params(debug) || $::params(plainlog)} {
+		# not logging to a file
+		return
+	}
+
+	if {[catch {set fp [open $::logFile a]} result]} {
+		logger "failed to reopen logfile: $result"
+		return
+	}
+
 	fconfigure $fp -buffering line
 	dup $fp stdout
 	dup $fp stderr
 	close $fp
-}
-
-#
-# switch_logfile - close and rename the log file and open a new one
-#
-proc switch_logfile {} {
-	log_locally "switching log files"
-	file rename -force -- /tmp/piaware.out /tmp/piaware.out.yesterday
-	log_stdout_stderr_to_file
-}
-
-#
-# schedule_logfile_switch - schedule a logfile switch in the appropriate number
-#  of milliseconds that it's at midnight
-#
-proc schedule_logfile_switch {} {
-	set now [clock seconds]
-
-	if {$now < 1423000000} {
-		log_locally "schedule_logfile_switch: system clock isn't current ($now), should be at least 1423000000, maybe ntpd hasn't synchronized time yet, will check again in a minute"
-		after 60000 schedule_logfile_switch
-		return
-	}
-
-	set secsPerDay 86400
-	set clockAtNextMidnight [expr {(((($now + 60) / $secsPerDay) + 1) * $secsPerDay) - 1}]
-	set secondsUntilMidnight [expr {$clockAtNextMidnight - $now}]
-	after [expr {$secondsUntilMidnight * 1000}] schedule_logfile_switch_and_switch_logfile
-}
-
-#
-# schedule_logfile_switch_and_switch_logfile - schedule the next logfile
-#  switch and perform the current logfile switch
-#
-proc schedule_logfile_switch_and_switch_logfile {} {
-	schedule_logfile_switch
-	switch_logfile
 }
 
 #
@@ -210,6 +181,7 @@ proc remove_pidfile {} {
 #
 proc setup_signals {} {
 	signal trap HUP "shutdown %S"
+	signal trap USR1 reopen_logfile
 	signal trap TERM "shutdown %S"
 	signal trap INT "shutdown %S"
 }

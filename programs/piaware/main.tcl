@@ -84,10 +84,7 @@ proc main {{argv ""}} {
 	}
 
 	# start logging to a file unless configured for debug
-	if {!$::params(debug) && !$::params(plainlog)} {
-		log_stdout_stderr_to_file
-		schedule_logfile_switch
-	}
+	reopen_logfile
 
 	greetings
 
