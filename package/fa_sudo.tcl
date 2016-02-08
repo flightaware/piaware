@@ -515,7 +515,7 @@ namespace eval ::fa_sudo {
 
 		if {$childpid == 0} {
 			# failed to start because sudo refused to run it for us
-			set result [list 0 SUDOFAILED ""]
+			set result [list 0 SUDOFAILED SUDOFAILED]
 		} else {
 			set result [wait $childpid]
 		}
