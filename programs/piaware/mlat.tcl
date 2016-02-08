@@ -153,6 +153,12 @@ proc start_mlat_client {} {
 		return
 	}
 
+	if {$result == 0} {
+		logger "could not start multilateration client: sudo refused to start the command"
+		schedule_mlat_client_restart
+		return
+	}
+
 	fconfigure $mlatStdin -buffering line -blocking 0 -translation lf
 
 	fconfigure $mlatStdout -buffering line -blocking 0 -translation lf

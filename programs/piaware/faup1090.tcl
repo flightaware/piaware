@@ -154,6 +154,13 @@ proc connect_adsb_via_faup1090 {} {
 		return
 	}
 
+	if {$result == 0} {
+		logger "could not start faup1090: sudo refused to start the command, will try again in 5 minutes"
+		schedule_adsb_connect_attempt 300
+		return
+	}
+
+
 	logger "Started faup1090 (pid $result) to connect to $::adsbDataProgram"
 	fconfigure $faupStdout -buffering line -blocking 0 -translation lf
 	fileevent $faupStdout readable faup1090_data_available

@@ -32,8 +32,9 @@ proc can_invoke_service_action {service action} {
 		return 1
 	}
 
-	lassign [::fa_sudo::exec_as -root -returnall -ignorestderr -- invoke-rc.d --query $service $action </dev/null] status out err
+	lassign [::fa_sudo::exec_as -root -returnall -ignorestderr -- invoke-rc.d --query $service $action </dev/null] childpid status out err
 	switch $status {
+		SUDOFAILED -
 		104 -
 		105 -
 		106 {
@@ -113,16 +114,22 @@ proc invoke_service_action {service action} {
 		}
 
 		set command [list systemctl --no-block $cmd ${service}.service < /dev/null]
+		set reap 0
 	} elseif {[has_invoke_rcd]} {
 		# use invoke-rc.d
 		set command [list invoke-rc.d $service $action < /dev/null &]
+		set reap 1
 	} else {
 		# no invoke-rc.d, just run the script
 		set command [list /etc/init.d/$service $action < /dev/null &]
+		set reap 1
 	}
 
 	logger "attempting to $action $service using '$command'..."
-	lassign [::fa_sudo::exec_as -root -returnall -ignorestderr -- {*}$command] status out err
+	lassign [::fa_sudo::exec_as -root -returnall -ignorestderr -- {*}$command] childpid status out err
+	if {$reap && $childpid != 0} {
+		reap_child_later $childpid
+	}
 	return $status
 }
 

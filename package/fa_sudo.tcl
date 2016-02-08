@@ -74,7 +74,7 @@ namespace eval ::fa_sudo {
 			return 0
 		}
 
-		lassign $result status out err
+		lassign $result deadpid status out err
 		if {$status ne "0"} {
 			# return code says it failed
 			return 0
@@ -257,7 +257,7 @@ namespace eval ::fa_sudo {
 	#   any other value names a variable in the caller to place a pipe channel in;
 	#    the child FD is connected to the other end of the pipe
 	#
-	# Returns the child PID
+	# Returns the child PID, or 0 if the command could not be started because we couldn't switch users
 	#
 	# If not redirected, stdin/stdout/stderr use parent stdin/stdout/stderr
 	#
@@ -289,7 +289,7 @@ namespace eval ::fa_sudo {
 				# is that we're not root, so don't use sudo)
 				if {![info exists options(-noroot)]} {
 					if {![can_sudo $options(-user) {*}$arglist]} {
-						error "sudo refused for command $arglist"
+						return 0
 					}
 
 					set arglist [list {*}[auto_execok sudo] -n -u $options(-user) -- {*}$arglist]
@@ -399,10 +399,11 @@ namespace eval ::fa_sudo {
 	# Like regular exec, but allows changing user/group (and doesn't gobble child status for other processes)
 	#
 	# exec_as
-	#  ?-user user? ?-root? ?-nonroot?                             # as for popen_as
-	#  ?-returnall?                                                # return a 3-tuple: exit status, stdout, stderr
-	#  ?-ignorestderr? ?-keepnewline? ?--?                         # as for exec
-	#  program ?arg? ?arg?                                         # as for exec
+	#  ?-user user? ?-root? ?-nonroot?          # as for popen_as
+	#  ?-returnall?                             # return a 4-tuple: pid, exit status, stdout, stderr.
+	#                                           # For backgrounded pipelines on successful background start the "exit status" is 0 and stdout/stderr are empty.
+	#  ?-ignorestderr? ?-keepnewline? ?--?      # as for exec
+	#  program ?arg? ?arg?                      # as for exec
 	#
 	# limitations:
 	#   << redirection not supported
@@ -485,12 +486,8 @@ namespace eval ::fa_sudo {
 
 		# fire it up
 		set childpid [popen_as -options [array get popts] -- {*}$arglist]
-		if {$background} {
-			return $childpid
-		}
 
 		set stdoutResult {}
-		set stderrResult {}
 		if {[info exists stdoutPipe]} {
 			fconfigure $stdoutPipe -translation binary
 			if {$keepnewline} {
@@ -501,6 +498,7 @@ namespace eval ::fa_sudo {
 			close $stdoutPipe
 		}
 
+		set stderrResult {}
 		if {[info exists stderrPipe]} {
 			fconfigure $stderrPipe -translation binary
 			if {$keepnewline} {
@@ -511,28 +509,52 @@ namespace eval ::fa_sudo {
 			close $stderrPipe
 		}
 
-		lassign [wait $childpid] deadpid status code
+		if {$childpid == 0} {
+			# failed to start because sudo refused to run it for us
+			set result [list 0 SUDOFAILED ""]
+		} else {
+			set result [wait $childpid]
+		}
+
+		lassign $result deadpid status code
 
 		if {$returnall} {
-			return [list $code $stdoutResult $stderrResult]
+			return [list $deadpid $code $stdoutResult $stderrResult]
 		} else {
+			set errcode NONE
 			set errmsg $stderrResult
-			set errcode "NONE"
-			switch $status {
-				EXIT {
+
+			set exitmsg ""
+			switch -glob $status:$code {
+				EXIT:* {
 					if {$code != 0} {
-						append errmsg "\n" "child process $childpid exited with status $code"
-						set errcode [list CHILDSTATUS $childpid $code]
+						set exitmsg "child process $childpid exited with status $code"
+						set errcode [list CHILDSTATUS $childpid $code "exited with status $code"]
 					}
 				}
 
-				SIG {
-					append errmsg "\n" "child process $childpid killed by uncaught signal $code"
+				SIG:* {
+					set exitmsg "$stderrResult\nchild process $childpid killed by uncaught signal $code"
 					set errcode [list CHILDKILLED $childpid $code "uncaught signal $code"]
 				}
 
+				SUDOFAILED:* {
+					set exitmsg "$stderrResult\nsudo refused to start the command"
+					set errcode [list SUDOFAILED $childpid 0 "sudo refused to start the command"]
+				}
+
 				default {
-					append errmsg "\n" "exited with unexpected status $status $code"
+					set exitmsg "exited with unexpected status $status $code"
+				}
+			}
+
+			if {$exitmsg ne ""} {
+				if {$errmsg ne ""} {
+					append errmsg "\n"
+				}
+				append errmsg $exitmsg
+				if {$keepnewline} {
+					append errmsg "\n"
 				}
 			}
 
@@ -657,6 +679,9 @@ namespace eval ::fa_sudo {
 
 		# fire it up
 		set childpid [popen_as -options [array get popts] -- {*}$arglist]
+		if {$childpid == 0} {
+			error "failed to open pipeline: sudo refused to run the command"
+		}
 
 		# wrap the results in a channel
 		set f [chan create $chanmode ::fa_sudo::pipeline]

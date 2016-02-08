@@ -455,6 +455,11 @@ proc run_command_as_root_log_output {args} {
 		return 0
 	}
 
+	if {$childpid == 0} {
+		logger "*** sudo refused to start command"
+		return 0
+	}
+
 	set name [file tail [lindex $args 0]]
 	set childpid $result
 	set ::pipesRunning($childpid) 2
