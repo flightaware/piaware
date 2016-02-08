@@ -19,12 +19,12 @@ set aptRunScript [file join [file dirname [info script]] "helpers" "run-apt-get"
 #
 # do a pipe open after clearing locale vars
 #
-proc open_nolocale {cmd {mode r}} {
+proc open_nolocale {args} {
 	set oldenv [array get ::env]
 	array unset ::env LANG
 	array unset ::env LC_*
 	try {
-		return [::fa_sudo::open_as -- $cmd $mode]
+		return [::fa_sudo::open_as {*}$args]
 	} finally {
 		# work around http://core.tcl.tk/tcl/info/bc1a96407a
 		# (::env is internally a traced variable, so trying to
@@ -158,7 +158,17 @@ proc test_port_callback {timer sock status callback} {
 #
 proc process_netstat_socket_line {line} {
     lassign $line proto recvq sendq localAddress foreignAddress state pidProg
-    lassign [split $pidProg "/"] pid prog
+
+	if {$proto ne "tcp" && $proto ne "tcp6"} {
+		return
+	}
+
+	if {$pidProg eq ""} {
+		set pid "unknown"
+		set prog "unknown"
+	} else {
+		lassign [split $pidProg "/"] pid prog
+	}
 
     if {[string match "*:30005" $localAddress] && $state == "LISTEN"} {
 		set ::netstatus(program_30005) $prog
@@ -188,8 +198,15 @@ proc inspect_sockets_with_netstat {} {
     set ::netstatus(faup1090_30005) 0
     set ::netstatus(piaware_1200) 0
 
-	# We must do this to get the expected socket state strings.
-	set fp [open_nolocale "|netstat --program --protocol=inet --tcp --wide --all --numeric"]
+	# try to run as root if we can, to get the program names
+	set command [list netstat --program --protocol=inet --tcp --wide --all --numeric]
+	if {[::fa_sudo::can_sudo root {*}$command]} {
+		set fp [open_nolocale -root "|$command"]
+	} else {
+		# discard the warning about not being able to see all data
+		set fp [open_nolocale "|$command 2>/dev/null"]
+	}
+
     # discard two header lines
     gets $fp
     gets $fp
