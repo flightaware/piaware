@@ -109,6 +109,10 @@ namespace eval ::fa_sudo {
 		return $::fa_sudo::cache($key)
 	}
 
+	proc clear_sudo_cache {} {
+		array unset ::fa_sudo::cache
+	}
+
 	proc _prepare_read_redirect {where _child _cleanup} {
 		upvar 1 $_child child
 		upvar 1 $_cleanup cleanup

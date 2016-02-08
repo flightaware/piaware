@@ -375,6 +375,7 @@ proc reload_config {} {
 	reread_piaware_config
 
 	# re-init derived values
+	::fa_sudo::clear_sudo_cache
 	setup_faup1090_vars
 
 	# shut down existing stuff and reconnect
