@@ -180,7 +180,7 @@ proc remove_pidfile {} {
 # setup_signals - arrange for common signals to shutdown the program
 #
 proc setup_signals {} {
-	signal trap HUP "shutdown %S"
+	signal trap HUP reload_config
 	signal trap USR1 reopen_logfile
 	signal trap TERM "shutdown %S"
 	signal trap INT "shutdown %S"
@@ -365,6 +365,23 @@ proc try_to_reap_child {childpid} {
 			logger "child pid $deadpid exited with unexpected status $status $code"
 		}
 	}
+}
+
+# called on SIGUSR1
+proc reload_config {} {
+	logger "Reloading configuration and reconnecting."
+
+	# load new config values
+	reread_piaware_config
+
+	# re-init derived values
+	setup_faup1090_vars
+
+	# shut down existing stuff and reconnect
+	reopen_logfile
+	disable_mlat
+	adept reconnect
+	restart_faup1090 now
 }
 
 # vim: set ts=4 sw=4 sts=4 noet :

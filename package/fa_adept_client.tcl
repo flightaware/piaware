@@ -576,6 +576,15 @@ set caDir [file join [file dirname [info script]] "ca"]
     }
 
 	#
+	# reconnect - close any existing connection and immediately reconnect
+	#
+	method reconnect {} {
+		close_socket
+		cancel_timers
+		connect
+	}
+
+	#
 	# login - attempt to login
 	#
 	# invoked from connect after successful TLS negotiation
