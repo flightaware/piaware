@@ -55,7 +55,7 @@ proc is_systemd {} {
 # return a list of systemd service unitfiles matching pattern
 proc systemd_find_services {pattern} {
 	if {[catch {
-		split [::fa_sudo::exec_as systemctl list-unit-files --no-legend --no-pager --type=service $pattern] "\n"
+		split [::fa_sudo::exec_as -- systemctl list-unit-files --no-legend --no-pager ${pattern}.service] "\n"
 	} result] == 1} {
 		return ""
 	}
