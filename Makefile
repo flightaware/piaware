@@ -21,3 +21,4 @@ install:
 	$(MAKE) -C programs/piaware-status install
 	$(MAKE) -C doc install
 	$(MAKE) -C scripts install
+	$(MAKE) -C etc install
