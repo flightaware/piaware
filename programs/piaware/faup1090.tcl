@@ -149,8 +149,8 @@ proc connect_adsb_via_faup1090 {} {
 	logger "Starting faup1090: $args"
 
 	if {[catch {::fa_sudo::popen_as -noroot -stdout faupStdout -stderr faupStderr {*}$args} result] == 1} {
-		logger "got '$result' starting faup1090, will try again in 60s"
-		schedule_adsb_connect_attempt 60
+		logger "got '$result' starting faup1090, will try again in 5 minutes"
+		schedule_adsb_connect_attempt 300
 		return
 	}
 
