@@ -54,6 +54,13 @@ reload() {
     return
 }
 
+rotate() {
+    log_daemon_msg "Rotating piaware server logfiles" "piaware"
+    /sbin/start-stop-daemon --stop --quiet --oknodo --user $RUNAS --pidfile $PIDFILE --exec $DAEMON --signal USR1
+    log_end_msg $?
+    return
+}
+
 status() {
 	/usr/bin/piaware-config -status
 }
@@ -74,11 +81,14 @@ case "$1" in
     reload|force-reload)
         reload
 	;;
+    rotate)
+        rotate
+	;;
     status)
 	status_of_proc $DAEMON "piaware server"
 	;;
     *)
-	echo "Usage: $0 {start|stop|restart|reload|force-reload|status}"
+	echo "Usage: $0 {start|stop|restart|reload|force-reload|rotate|status}"
 	exit 2
 	;;
 esac
