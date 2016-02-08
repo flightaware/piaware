@@ -5,7 +5,7 @@
 Description=FlightAware ADS-B uploader
 Documentation=https://flightaware.com/adsb/piaware/
 Wants=network-online.target
-After=dump1090-fa.service network-online.target
+After=dump1090-fa.service network-online.target time-sync.target
 
 [Service]
 ExecStart=/usr/bin/piaware -p /var/run/piaware.pid -plainlog
