@@ -30,7 +30,4 @@ set adsbNoProducerStartDelaySeconds 360
 set locationFile "/var/cache/piaware/location"
 set locationFileEnv "/var/cache/piaware/location.env"
 
-# where we log to
-set logFile "/var/log/piaware.log"
-
 # vim: set ts=4 sw=4 sts=4 noet :

@@ -38,6 +38,7 @@ proc main {{argv ""}} {
         {serverport.arg "1200" "specify alternate server port (for FA testing)"}
         {plainlog "log to stderr without timestamps"}
         {debug "log to stderr, maybe enable more debugging messages"}
+		{logfile "/var/log/piaware.log" "set logfile location (not used if -debug or -plainlog are given)"}
         {showtraffic  "emit traffic to stdout (for debugging)"}
         {debugport.arg "0" "open a localhost-only port to the tcl interpreter"}
         {v  "emit version information and exit"}

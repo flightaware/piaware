@@ -100,8 +100,8 @@ proc reopen_logfile {} {
 		return
 	}
 
-	if {[catch {set fp [open $::logFile a]} result]} {
-		logger "failed to reopen logfile: $result"
+	if {[catch {set fp [open $::params(logfile) a]} result]} {
+		logger "failed to reopen $::params(logfile): $result"
 		return
 	}
 
