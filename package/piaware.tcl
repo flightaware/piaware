@@ -163,7 +163,7 @@ proc process_netstat_socket_line {line} {
 		return
 	}
 
-	if {$pidProg eq ""} {
+	if {$pidProg eq "-"} {
 		set pid "unknown"
 		set prog "unknown"
 	} else {
