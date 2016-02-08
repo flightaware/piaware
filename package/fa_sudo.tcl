@@ -610,7 +610,7 @@ namespace eval ::fa_sudo {
 		}
 
 		if {$chanmode eq ""} {
-			error "unrecognized access mode $access"
+			error "unrecognized access mode $mode"
 		}
 
 		if {[string index $pipeline 0] ne "|"} {
