@@ -16,15 +16,24 @@
 
 DAEMON=/usr/bin/piaware
 PIDFILE=/var/run/piaware.pid
+LOGFILE=/var/log/piaware.log
+RUNAS=piaware
 
 test -x $DAEMON || exit 5
 
-LOCKFILE=/var/lock/piaware
-
 start() {
     log_daemon_msg "Starting piaware server" "piaware"
-# --quiet
-    /sbin/start-stop-daemon --start --oknodo --background --pidfile $PIDFILE --exec $DAEMON -- -p $PIDFILE
+
+    # ensure the logfile and pidfile exist with the right ownership
+    # so piaware can modify them
+    for f in $LOGFILE $PIDFILE
+    do
+        touch $f
+        chown $RUNAS $f
+        chmod u+rw $f
+    done
+
+    /sbin/start-stop-daemon --start --oknodo --background --user $RUNAS --pidfile $PIDFILE --chuid $RUNAS --exec $DAEMON -- -p $PIDFILE -logfile $LOGFILE
     status=$?
     log_end_msg $status
     return
@@ -32,11 +41,17 @@ start() {
 
 stop() {
     log_daemon_msg "Stopping piaware server" "piaware"
-    /sbin/start-stop-daemon --stop --quiet --oknodo --pidfile $PIDFILE --retry 5
+    /sbin/start-stop-daemon --stop --quiet --oknodo --user $RUNAS --pidfile $PIDFILE --exec $DAEMON --retry 5
     log_end_msg $?
     rm -f $PIDFILE
     return
 }
+
+reload() {
+    log_daemon_msg "Reloading piaware server configuration" "piaware"
+    /sbin/start-stop-daemon --stop --quiet --oknodo --user $RUNAS --pidfile $PIDFILE --exec $DAEMON --signal HUP
+    log_end_msg $?
+    return
 
 status() {
 	/usr/bin/piaware-config -status
@@ -52,17 +67,17 @@ case "$1" in
     status)
 	status
         ;;
-    restart|force-reload)
+    restart)
         stop && sleep 2 && start
         ;;
-    reload)
-	exit 3
+    reload|force-reload)
+        reload
 	;;
     status)
 	status_of_proc $DAEMON "piaware server"
 	;;
     *)
-	echo "Usage: $0 {start|stop|restart|try-restart|force-reload|status}"
+	echo "Usage: $0 {start|stop|restart|reload|force-reload|status}"
 	exit 2
 	;;
 esac
