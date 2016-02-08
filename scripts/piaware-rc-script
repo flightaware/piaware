@@ -52,6 +52,7 @@ reload() {
     /sbin/start-stop-daemon --stop --quiet --oknodo --user $RUNAS --pidfile $PIDFILE --exec $DAEMON --signal HUP
     log_end_msg $?
     return
+}
 
 status() {
 	/usr/bin/piaware-config -status
