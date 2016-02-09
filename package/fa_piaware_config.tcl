@@ -343,29 +343,49 @@ namespace eval ::fa_piaware_config {
 				error "config file $filename is readonly"
 			}
 
-			if {![file writable [file dirname $filename]] || ([file exists $filename] && ![file writable $filename])} {
-				# we cannot write the file directly
-				if {[info exists writeHelper] && [::fa_sudo::can_sudo root $writeHelper $filename]} {
-					# send the new file via a pipe to the helper
-					# which will do the actual work
-					set f [::fa_sudo::open_as -root "|$writeHelper $filename" "w"]
-				} else {
-					error "can't directly write config file $filename, and no helper is available"
+			if {![file exists $filename]} {
+				error "config file $filename does not exist, cannot update it"
+			}
+
+
+			# get current ownership/permissions
+			set fp [open $filename "r"]
+			fstat $fp stat fpstat
+			close $fp
+
+			if {[id userid] == 0} {
+				# we are root, just check for readonly dir
+				if {![file writable [file dirname $filename]]} {
+					error "can't write config file $filename, containing directory is readonly"
 				}
+				set useHelper 0
+			} else {
+				# check that we can set the same ownership
+				if {![file writable [file dirname $filename]] ||
+					$fpstat(uid) != [id userid] ||
+					($fpstat(gid) != [id groupid] && $fpstat(gid) ni [id groupids])} {
+					# we cannot write the file directly
+					if {[info exists writeHelper] && [::fa_sudo::can_sudo root $writeHelper $filename]} {
+						set useHelper 1
+					} else {
+						error "can't directly write config file $filename, and no helper is available"
+					}
+				} else {
+					set useHelper 0
+				}
+			}
+
+			if {$useHelper} {
+				# send the new file via a pipe to the helper
+				# which will do the actual work
+				set f [::fa_sudo::open_as -root "|$writeHelper $filename" "w"]
 			} else {
 				# write the file directly ourselves
-
-				# work out permissions: 0600 if it has anything sensitive
-				set perms 0644
-				foreach key [array names values] {
-					if {[$metadata protect $key]} {
-						set perms 0600
-						break
-					}
-				}
-
 				set temppath "${filename}.new"
-				set f [open $temppath "w" $perms]
+				set f [open $temppath "w" $fpstat(mode)]
+
+				# fix the ownership to match the old file
+				chown -fileid [list $fpstat(uid) $fpstat(gid)] $f
 			}
 
 			# write the new data
@@ -374,11 +394,11 @@ namespace eval ::fa_piaware_config {
 				foreach line $lines {
 					puts $f $line
 				}
+
 				close $f
 				unset f
 
-				if {[info exists temppath]} {
-					# not using a helper
+				if {!$useHelper} {
 					file rename -force -- $temppath $filename
 					unset temppath
 				}
