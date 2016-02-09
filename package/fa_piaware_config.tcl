@@ -763,14 +763,33 @@ namespace eval ::fa_piaware_config {
 	#  priority 100..199: any config files found in /media/usb/*/piaware-config.txt, ordered arbitrarily (readonly)
 	#  priority 50:       /boot/piaware-config.txt (readwrite)
 	#  priority 0:        /etc/piaware.conf (readwrite)
-	#  priority -50:      /root/.piaware (legacy format, readonly)
-	#  priority -100:     /etc/piaware (legacy format, readonly)
 	#
 	# which means that in general changes will be written to /etc/piaware.conf where possible, or
 	# /boot/piaware-config.txt if the setting was set there.
 	#
 	# Provide a itcl name pattern (e.g. #auto) as "name"
 	proc new_combined_config {name} {
+		set metadata [new_standard_settings #auto]
+		set combined [uplevel 1 ::fa_piaware_config::new ::fa_piaware_config::ConfigGroup $name -metadata $metadata]
+
+		$combined add [new ConfigFile #auto -filename "/etc/piaware.conf" -metadata $metadata -priority 0 -writeHelper $::fa_piaware_config::helperPath]
+
+		$combined add [new ConfigFile #auto -filename "/boot/piaware-config.txt" -metadata $metadata -priority 50 -writeHelper $::fa_piaware_config::helperPath]
+
+		set prio 100
+		foreach f [lsort [glob -nocomplain -types f "/media/usb/*/piaware-config.txt"]] {
+			$combined add [new ConfigFile #auto -filename $f -metadata $standardSettings -priority $prio -readonly 1]
+			incr prio
+		}
+
+		$combined add [new ConfigFile #auto -filename "/run/piaware/override.conf" -metadata $metadata -priority 200 -readonly 1]
+
+		return $combined
+	}
+
+	# Return a new ConfigGroup that gives readonly access to the legacy config files
+	# in /root/.piaware and /etc/piaware
+	proc new_legacy_config {name} {
 		set metadata [new_standard_settings #auto]
 		set combined [uplevel 1 ::fa_piaware_config::new ::fa_piaware_config::ConfigGroup $name -metadata $metadata]
 
@@ -789,18 +808,6 @@ namespace eval ::fa_piaware_config {
 		$c alias "user" "flightaware-user"
 		$c alias "password" "flightaware-password"
 		$combined add $c
-
-		$combined add [new ConfigFile #auto -filename "/etc/piaware.conf" -metadata $metadata -priority 0 -writeHelper $::fa_piaware_config::helperPath]
-
-		$combined add [new ConfigFile #auto -filename "/boot/piaware-config.txt" -metadata $metadata -priority 50 -writeHelper $::fa_piaware_config::helperPath]
-
-		set prio 100
-		foreach f [lsort [glob -nocomplain -types f "/media/usb/*/piaware-config.txt"]] {
-			$combined add [new ConfigFile #auto -filename $f -metadata $standardSettings -priority $prio -readonly 1]
-			incr prio
-		}
-
-		$combined add [new ConfigFile #auto -filename "/run/piaware/override.conf" -metadata $metadata -priority 200 -readonly 1]
 
 		return $combined
 	}
