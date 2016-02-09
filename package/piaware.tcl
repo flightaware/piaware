@@ -455,7 +455,7 @@ proc run_command_as_root_log_output {args} {
 		return 0
 	}
 
-	if {$childpid == 0} {
+	if {$result == 0} {
 		logger "*** sudo refused to start command"
 		return 0
 	}
