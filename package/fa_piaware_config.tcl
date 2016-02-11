@@ -761,7 +761,7 @@ namespace eval ::fa_piaware_config {
 			"wireless-netmask"
 			"wireless-broadcast"
 			"wireless-gateway"
-			"dns-nameservers"        -default {8.8.8.8 8.8.4.4}
+			{"dns-nameservers"       -default {8.8.8.8 8.8.4.4}}
 			{"receiver-type"         -default rtlsdr}
 			{"rtlsdr-device-index"   -type integer -default 0}
 			{"rtlsdr-ppm"            -type integer -default 0}
