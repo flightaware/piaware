@@ -213,6 +213,7 @@ namespace eval ::fa_piaware_config {
 	::itcl::class ConfigFile {
 		private common reCommentLine {^\s*#.*}
 		private common reOptionLine {^\s*([a-zA-Z0-9_-]+)\s+([^#]+)(?:#.*)?$}
+		private common reEmptyOptionLine {^\s*([a-zA-Z0-9_-]+)\s*(?:#.*)?$}
 
 		public variable filename
 		public variable metadata
@@ -421,6 +422,10 @@ namespace eval ::fa_piaware_config {
 
 			if {[regexp $reOptionLine $line -> key value]} {
 				return [list $key [string trim $value]]
+			}
+
+			if {[regexp $reEmptyOptionLine $line -> key]} {
+				return [list $key ""]
 			}
 
 			return {}
