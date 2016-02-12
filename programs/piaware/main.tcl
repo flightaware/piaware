@@ -27,6 +27,7 @@ source $::launchdir/mlat.tcl
 source $::launchdir/services.tcl
 source $::launchdir/update.tcl
 source $::launchdir/login.tcl
+source $::launchdir/statusfile.tcl
 
 #
 # main - the main program
@@ -41,6 +42,7 @@ proc main {{argv ""}} {
 		{logfile.arg "/var/log/piaware.log" "set logfile location (not used if -debug or -plainlog are given)"}
         {showtraffic  "emit traffic to stdout (for debugging)"}
         {debugport.arg "0" "open a localhost-only port to the tcl interpreter"}
+		{statusfile.arg "" "periodically write json status to this location"}
         {v  "emit version information and exit"}
     }
 
@@ -86,6 +88,9 @@ proc main {{argv ""}} {
 
 	# start logging to a file unless configured for debug
 	reopen_logfile
+
+	# write json status if configured
+	periodically_update_status_file
 
 	greetings
 
