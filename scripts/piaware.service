@@ -9,7 +9,8 @@ After=dump1090-fa.service network-online.target time-sync.target
 
 [Service]
 User=piaware
-ExecStart=/usr/bin/piaware -plainlog
+RuntimeDirectory=piaware
+ExecStart=/usr/bin/piaware -plainlog -statusfile %t/piaware/status.json
 ExecReload=/bin/kill -HUP $MAINPID
 Type=simple
 Restart=on-failure

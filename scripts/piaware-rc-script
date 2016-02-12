@@ -15,7 +15,9 @@
 . /lib/lsb/init-functions
 
 DAEMON=/usr/bin/piaware
-PIDFILE=/var/run/piaware.pid
+RUNDIR=/run/piaware
+PIDFILE=$RUNDIR/piaware.pid
+STATUSFILE=$RUNDIR/status.json
 LOGFILE=/var/log/piaware.log
 RUNAS=piaware
 
@@ -24,16 +26,18 @@ test -x $DAEMON || exit 5
 start() {
     log_daemon_msg "Starting piaware server" "piaware"
 
-    # ensure the logfile and pidfile exist with the right ownership
-    # so piaware can modify them
-    for f in $LOGFILE $PIDFILE
-    do
-        touch $f
-        chown $RUNAS $f
-        chmod u+rw $f
-    done
+    # ensure the logfile exists with the right ownership
+    # so piaware can modify it
+    touch $LOGFILE
+    chown $RUNAS $LOGFILE
+    chmod u+rw $LOGFILE
 
-    /sbin/start-stop-daemon --start --oknodo --background --user $RUNAS --pidfile $PIDFILE --chuid $RUNAS --exec $DAEMON -- -p $PIDFILE -logfile $LOGFILE
+    # create $RUNDIR for $STATUSFILE, $PIDFILE
+    mkdir -p $RUNDIR
+    chown $RUNAS $RUNDIR
+    chmod 0755 $RUNDIR
+
+    /sbin/start-stop-daemon --start --oknodo --background --user $RUNAS --pidfile $PIDFILE --chuid $RUNAS --exec $DAEMON -- -p $PIDFILE -logfile $LOGFILE -statusfile $STATUSFILE
     status=$?
     log_end_msg $status
     return
