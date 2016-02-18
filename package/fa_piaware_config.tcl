@@ -752,6 +752,7 @@ namespace eval ::fa_piaware_config {
 			{"flightaware-password"  -protect 1}
 			{"allow-auto-updates"    -type boolean -default no}
 			{"allow-manual-updates"  -type boolean -default no}
+
 			{"wired-network"         -type boolean -default yes}
 			{"wired-type"            -default "dhcp"}
 			"wired-address"
@@ -759,6 +760,7 @@ namespace eval ::fa_piaware_config {
 			"wired-broadcast"
 			"wired-gateway"
 			{"wired-nameservers"     -default {8.8.8.8 8.8.4.4}}
+
 			{"wireless-network"      -type boolean -default no}
 			"wireless-ssid"
 			{"wireless-password"     -protect 1}
@@ -768,6 +770,12 @@ namespace eval ::fa_piaware_config {
 			"wireless-broadcast"
 			"wireless-gateway"
 			{"wireless-nameservers"  -default {8.8.8.8 8.8.4.4}}
+
+			"http-proxy-host"
+			"http-proxy-port"
+			"http-proxy-user"
+			{"http-proxy-password"   -protect 1}
+
 			{"receiver-type"         -default rtlsdr}
 			{"rtlsdr-device-index"   -type integer -default 0}
 			{"rtlsdr-ppm"            -type integer -default 0}
