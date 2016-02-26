@@ -30,11 +30,11 @@ proc main {{argv ""}} {
 		{stop "attempt to stop the ADS-B client"}
 		{restart "attempt to restart the ADS-B client"}
 		{status "get the status of the ADS-B client"}
-		{show "show current config settings"}
+		{show "show current config settings (or just the specified keys)"}
 		{showall "show all config settings including passwords and unset values"}
 	}
 
-	set usage ": $::argv0 -help|-start|-stop|-restart|-status|-show ?key=value ...?\n"
+	set usage ": $::argv0 -help|-start|-stop|-restart|-status|-showall|-show ?key?|?key value?\n"
 
 	if {[catch {array set ::params [::cmdline::getoptions argv $options $usage]} catchResult] == 1} {
 		puts stderr $catchResult
@@ -59,10 +59,10 @@ proc main {{argv ""}} {
 		piaware_status
     }
 
-	update_config_values $argv
-
 	if {$::params(show) || $::params(showall) || $argv == ""} {
-		show_piaware_config $::params(showall)
+		show_piaware_config $::params(showall) $argv
+	} else {
+		update_config_values $argv
 	}
 }
 

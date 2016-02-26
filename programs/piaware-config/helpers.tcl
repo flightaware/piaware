@@ -179,12 +179,19 @@ proc piaware_status {} {
 	}
 }
 
-proc show_piaware_config {{showAll 0}} {
+proc show_piaware_config {showAll keys} {
 	global config
 	load_config
 
-	puts "# Current piaware settings:"
-	foreach key [lsort [$config metadata all_settings]] {
+	if {$keys eq ""} {
+		set keys [lsort [$config metadata all_settings]]
+		set verbose 1
+	} else {
+		set verbose 0
+		set showAll 1
+	}
+
+	foreach key $keys {
 		if {[$config exists $key]} {
 			set displayKey $key
 			set val [$config metadata format $key [$config get $key]]
@@ -206,7 +213,11 @@ proc show_piaware_config {{showAll 0}} {
 			set val "<hidden>"
 		}
 
-		puts stderr [format "%-30s %-30s # %s" $displayKey $val $origin]
+		if {$verbose} {
+			puts stderr [format "%-30s %-30s # %s" $displayKey $val $origin]
+		} else {
+			puts stdout $val
+		}
 	}
 }
 
