@@ -24,7 +24,6 @@ source $::launchdir/helpers.tcl
 source $::launchdir/faup1090.tcl
 source $::launchdir/health.tcl
 source $::launchdir/mlat.tcl
-source $::launchdir/services.tcl
 source $::launchdir/update.tcl
 source $::launchdir/login.tcl
 source $::launchdir/statusfile.tcl

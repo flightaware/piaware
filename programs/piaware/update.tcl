@@ -5,6 +5,8 @@
 # Copyright (C) 2014-2016 FlightAware LLC, All Rights Reserved
 #
 
+package require fa_services
+
 #
 # handle_update_request - handle a message from the server requesting
 #   that we update the software
@@ -90,17 +92,17 @@ proc handle_update_request {type _row} {
 				# try to upgrade dump1090 and if successful, restart it
 				set ok [upgrade_dump1090]
 				if {$ok} {
-					attempt_service_restart dump1090
+					::fa_services::attempt_service_restart dump1090 restart
 				}
 			}
 
 			"restart_dump1090" {
-				attempt_service_restart dump1090 restart
+				::fa_services::attempt_service_restart dump1090 restart
 				set ok 1
 			}
 
 			"restart_receiver" {
-				attempt_service_restart $::adsbDataService restart
+				::fa_services::attempt_service_restart $::adsbDataService restart
 				set ok 1
 			}
 

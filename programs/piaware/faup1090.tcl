@@ -6,6 +6,7 @@
 #
 
 package require fa_sudo
+package require fa_services
 
 #
 # setup_faup1090_vars - setup vars but don't start faup1090
@@ -123,7 +124,7 @@ proc connect_adsb_via_faup1090 {} {
 			set secondsSinceListenerSeen [expr {[clock seconds] - $::lastAdsbConnectedClock}]
 			if {$secondsSinceListenerSeen >= $::adsbNoProducerStartDelaySeconds && $::adsbDataService ne ""} {
 				logger "no ADS-B data program seen listening on port 30005 for $secondsSinceListenerSeen seconds, trying to start it..."
-				attempt_service_restart $::adsbDataService start
+				::fa_services::attempt_service_restart $::adsbDataService start
 				# pretend we saw it to reduce restarts if it's failing
 				set ::lastAdsbConnectedClock [clock seconds]
 				schedule_adsb_connect_attempt 10
@@ -318,7 +319,7 @@ proc check_adsb_traffic {} {
 			logger "no new messages received in $secondsSinceLastMessage seconds, it might just be that there haven't been any aircraft nearby but I'm going to try to restart everything, just in case..."
 			stop_faup1090
 			if {$::adsbDataService ne ""} {
-				attempt_service_restart $::adsbDataService restart
+				::fa_services::attempt_service_restart $::adsbDataService restart
 			}
 			schedule_adsb_connect_attempt 10
 		}
@@ -378,7 +379,7 @@ proc update_location {lat lon} {
 	# speculatively restart dump1090 even if we are not using it as a receiver;
 	# it may be used for display.
 	logger "Receiver location changed, restarting dump1090"
-	attempt_service_restart dump1090 restart
+	::fa_services::attempt_service_restart dump1090 restart
 
 	if {[info exists ::faupPipe]} {
 		logger "Receiver location changed, restarting faup1090"
