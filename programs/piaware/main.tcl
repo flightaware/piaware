@@ -40,7 +40,6 @@ proc main {{argv ""}} {
         {debug "log to stderr, maybe enable more debugging messages"}
 		{logfile.arg "/var/log/piaware.log" "set logfile location (not used if -debug or -plainlog are given)"}
         {showtraffic  "emit traffic to stdout (for debugging)"}
-        {debugport.arg "0" "open a localhost-only port to the tcl interpreter"}
 		{statusfile.arg "" "periodically write json status to this location"}
         {v  "emit version information and exit"}
     }
@@ -77,13 +76,6 @@ proc main {{argv ""}} {
 	# maintain a pidfile so we don't get multiple copies of ourself
 	# (only does anything if we were invoked with the -p option)
 	create_pidfile
-
-	# if they requested a debug port, give them one
-	if {$::params(debugport) != 0} {
-		logger "starting console server on port $::params(debugport) due to -debugport argument to piaware"
-		IpConsole console
-		console setup_server -port $::params(debugport)
-	}
 
 	# start logging to a file unless configured for debug
 	reopen_logfile
