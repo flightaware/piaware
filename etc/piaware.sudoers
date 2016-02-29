@@ -15,6 +15,7 @@ piaware ALL = NOPASSWD: /bin/netstat
 piaware ALL = NOPASSWD: /usr/sbin/invoke-rc.d
 piaware ALL = NOPASSWD: /bin/systemctl --no-block restart *
 piaware ALL = NOPASSWD: /bin/systemctl --no-block try-restart *
+piaware ALL = NOPASSWD: /bin/systemctl is-active *
 
 # if manual or automatic upgrades are enabled, piaware runs this helper script
 # as root to do the privileged upgrade work
