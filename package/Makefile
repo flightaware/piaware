@@ -1,5 +1,5 @@
 PREFIX=/usr
-LIB=$(PREFIX)/lib/fa_adept_packages
+LIB=$(PREFIX)/lib/piaware_packages
 TCLSH=$(shell which tclsh || which tclsh8.6 || which tclsh8.5)
 
 FILES=fa_piaware_config.tcl fa_adept_client.tcl fa_sudo.tcl piaware.tcl gps.tcl tryfinallyshim.tcl
