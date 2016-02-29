@@ -93,16 +93,6 @@ proc get_value {prompt} {
 }
 
 #
-# user_check - ensure they're running as root
-#
-proc user_check {} {
-	if {[id user] != "root"} {
-		puts stderr "$::argv0 must be run as user 'root', try 'sudo $::argv0...'"
-		exit 4
-	}
-}
-
-#
 # piaware_pid - get the pid of piaware or return 0
 #
 proc piaware_pid {} {

@@ -41,8 +41,6 @@ proc main {{argv ""}} {
 		exit 1
 	}
 
-	#user_check
-
     if {$::params(start)} {
 		start_piaware
     }
