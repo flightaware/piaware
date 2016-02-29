@@ -9,6 +9,9 @@ package require tls
 package require fa_piaware_config
 package require fa_sudo
 
+# speculatively try to load the extra FF config options
+catch {package require fa_flightfeeder_config}
+
 #
 # logger - log a message
 #

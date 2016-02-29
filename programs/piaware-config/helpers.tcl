@@ -8,6 +8,9 @@
 package require fa_piaware_config
 package require tryfinallyshim
 
+# speculatively try to load the extra FF config options
+catch {package require fa_flightfeeder_config}
+
 proc load_config {} {
 	global config
 

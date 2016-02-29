@@ -743,7 +743,7 @@ namespace eval ::fa_piaware_config {
 	}
 
 	# Build a metadata instance for the standard Piaware config settings
-	proc new_standard_settings {name} {
+	proc piaware_standard_settings {name} {
 		set settings {
 			{"priority"              -type integer}
 			{"image-type"            -type string}
@@ -790,6 +790,9 @@ namespace eval ::fa_piaware_config {
 
 		return [uplevel 1 ::fa_piaware_config::new ::fa_piaware_config::ConfigMetadata [list $name] [list $settings]]
 	}
+
+	# point standard settings at piaware
+	interp alias {} ::fa_piaware_config::new_standard_settings {} ::fa_piaware_config::piaware_standard_settings
 
 	# Return a new ConfigGroup that handles the standard piaware config location, which are
 	# (starting from the highest priority):
