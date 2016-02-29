@@ -522,27 +522,6 @@ proc single_package_upgrade {pkg} {
 	return 1
 }
 
-#
-# restart_piaware - restart the piaware program, called from the piaware
-# program, so it's a bit tricky
-#
-proc restart_piaware {} {
-	# unlock the pidfile if we have a lock, so that the new piaware can
-	# get the lock even if we're still running.
-	unlock_pidfile
-
-	logger "restarting piaware. hopefully i'll be right back..."
-	invoke_service_action piaware restart
-
-	# sleep apparently restarts on signals, we want to process them,
-	# so use after/vwait so the event loop runs.
-	after 10000 [list set ::die 1]
-	vwait ::die
-
-	logger "piaware failed to die, pid [pid], that's me, i'm gonna kill myself"
-	exit 0
-}
-
 package provide piaware 1.0
 
 # vim: set ts=4 sw=4 sts=4 noet :

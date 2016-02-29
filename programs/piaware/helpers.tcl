@@ -7,6 +7,7 @@
 
 package require tls
 package require fa_piaware_config
+package require fa_services
 package require fa_sudo
 
 # speculatively try to load the extra FF config options
@@ -178,6 +179,28 @@ proc remove_pidfile {} {
 	unset ::pidfileIsMine
 	unlock_pidfile
 }
+
+#
+# restart_piaware - restart the piaware program, called from the piaware
+# program, so it's a bit tricky
+#
+proc restart_piaware {} {
+	# unlock the pidfile if we have a lock, so that the new piaware can
+	# get the lock even if we're still running.
+	unlock_pidfile
+
+	logger "restarting piaware. hopefully i'll be right back..."
+	::fa_services::invoke_service_action piaware restart
+
+	# sleep apparently restarts on signals, we want to process them,
+	# so use after/vwait so the event loop runs.
+	after 10000 [list set ::die 1]
+	vwait ::die
+
+	logger "piaware failed to die, pid [pid], that's me, i'm gonna kill myself"
+	exit 0
+}
+
 
 #
 # setup_signals - arrange for common signals to shutdown the program
