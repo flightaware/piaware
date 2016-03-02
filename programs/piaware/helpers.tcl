@@ -296,6 +296,55 @@ proc get_mac_address_or_quit {} {
 }
 
 #
+# run the given command and log any output to our logfile
+# return 1 if it ran OK, 0 if there was a problem
+#
+proc run_command_as_root_log_output {args} {
+    logger "*** running command '$args' and logging output"
+	if {[catch {set fp [::fa_sudo::popen_as -root -stdin "</dev/null" -stdout stdoutPipe -stderr stderrPipe -- {*}$args]} result]} {
+		logger "*** error attempting to start command: $result"
+		return 0
+	}
+
+	if {$result == 0} {
+		logger "*** sudo refused to start command"
+		return 0
+	}
+
+	set name [file tail [lindex $args 0]]
+	set childpid $result
+	set ::pipesRunning($childpid) 2
+
+	log_subprocess_output "${name}($childpid)" $stdoutPipe [list incr ::pipesRunning($childpid) -1]
+	log_subprocess_output "${name}($childpid)" $stderrPipe [list incr ::pipesRunning($childpid) -1]
+
+	while {$::pipesRunning($childpid) > 0} {
+		vwait ::pipesRunning($childpid)
+	}
+
+	unset ::pipesRunning($childpid)
+
+	if {[catch {wait $childpid} result]} {
+		if {[lindex $::errorCode 0] eq "POSIX" && [lindex $::errorCode 1]  eq "ECHILD"} {
+			logger "missed child termination status for pid $childpid, assuming all is OK"
+			return 1
+		} else {
+			logger "unexpected error waiting for child: $::errorCode"
+			return 0
+		}
+	}
+
+	lassign $result deadpid type code
+	if {$type eq "EXIT" && $code eq 0} {
+		return 1
+	} else {
+		logger "child process $deadpid exited with status $type $code"
+		return 0
+	}
+}
+
+
+#
 # read from the given channel (which should be a child process stderr)
 # and log the output via our logger
 #

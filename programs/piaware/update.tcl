@@ -6,6 +6,9 @@
 #
 
 package require fa_services
+package require fa_sudo
+
+set ::aptRunScript [file join [file dirname [info script]] "helpers" "run-apt-get"]
 
 #
 # handle_update_request - handle a message from the server requesting
@@ -131,3 +134,83 @@ proc handle_update_request {type _row} {
 		restart_piaware
 	}
 }
+
+#
+# reboot - reboot the machine
+#
+proc reboot {} {
+    logger "rebooting..."
+	::fa_sudo::exec_as -root -- /sbin/reboot &
+}
+
+#
+# halt - halt the machine
+#
+proc halt {} {
+	logger "halting..."
+	::fa_sudo::exec_as -root -- /sbin/halt &
+}
+
+#
+# run_apt_get - run the apt-get helper script as root
+# and log all the output
+#
+proc run_apt_get {args} {
+	run_command_as_root_log_output $::aptRunScript {*}$args
+}
+
+#
+# update_package_lists
+# runs apt-get update to update all package lists
+# installs the FA repository config if it's not present
+#
+proc update_package_lists {} {
+    return [run_apt_get update]
+}
+
+#
+# update_operating_system_and_packages 
+#
+# * upgrade raspbian (retain local changes, upgrade unchanged config files)
+#
+# * reboot
+#
+proc upgrade_all_packages {} {
+    logger "*** attempting to upgrade all packages to the latest"
+
+    if {![run_apt_get upgrade-all]} {
+		logger "aborting upgrade..."
+		return 0
+    }
+    return 1
+}
+
+#
+# upgrade_piaware - upgrade piaware via apt-get
+#
+proc upgrade_piaware {} {
+	return [single_package_upgrade "piaware"]
+}
+
+
+#
+# upgrade_dump1090 - upgrade dump1090-fa via apt-get
+#
+proc upgrade_dump1090 {} {
+	return [single_package_upgrade "dump1090-fa"]
+}
+
+#
+# single_package_upgrade: update a single FA package
+#
+proc single_package_upgrade {pkg} {
+	# run the update/upgrade
+    if {![run_apt_get upgrade-package $pkg]} {
+		logger "aborting upgrade..."
+		return 0
+    }
+
+	logger "upgrade of $pkg seemed to go OK"
+	return 1
+}
+
