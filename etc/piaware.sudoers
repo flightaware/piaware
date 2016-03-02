@@ -20,3 +20,8 @@ piaware ALL = NOPASSWD: /bin/systemctl is-active *
 # if manual or automatic upgrades are enabled, piaware runs this helper script
 # as root to do the privileged upgrade work
 piaware ALL = NOPASSWD: /usr/lib/piaware/helpers/run-apt-get
+
+# if manual or automatic upgrades are enabled, piaware might want to run
+# halt or shutdown in response to a remote command
+piaware ALL = NOPASSWD: /sbin/halt
+piaware ALL = NOPASSWD: /sbin/shutdown
