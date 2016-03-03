@@ -1,5 +1,5 @@
 PREFIX=/usr
-LIB=$(PREFIX)/lib/fa_adept_packages
+LIB=$(PREFIX)/lib/piaware_packages
 
 CFLAGS=-Wall -Werror -O
 
