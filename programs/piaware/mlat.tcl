@@ -16,6 +16,12 @@ set ::mlatRestartMillis 60000
 set ::mlatUdpTransport {}
 # path to fa-mlat-client
 set ::mlatClientPath [auto_execok "/usr/lib/piaware/helpers/fa-mlat-client"]
+# current mlat status for the statusfile, one of:
+#   not_enabled
+#   not_running
+#   initializing
+#   or a status value returned by the server (ok / no_sync / unstable)
+set ::mlatStatus "not_enabled"
 
 proc mlat_is_configured {} {
 	if {![piawareConfig get allow-mlat]} {
@@ -47,6 +53,7 @@ proc enable_mlat {udp_transport} {
 
 	set ::mlatEnabled 1
 	set ::mlatUdpTransport $udp_transport
+	set ::mlatStatus "not_running"
 	start_mlat_client
 }
 
@@ -54,6 +61,7 @@ proc disable_mlat {} {
 	if {$::mlatEnabled} {
 		logger "multilateration data no longer required, disabling mlat client"
 		set ::mlatEnabled 0
+		set ::mlatStatus "not_enabled"
 		close_mlat_client
 		if {[info exists ::mlatRestartTimer]} {
 			catch {after cancel $::mlatRestartTimer}
@@ -89,6 +97,7 @@ proc close_mlat_client {} {
 
 	unset ::mlatPid
 	unset ::mlatPipe
+	set ::mlatStatus "not_running"
 }
 
 proc start_mlat_client {} {
@@ -168,6 +177,7 @@ proc start_mlat_client {} {
 	set ::mlatReady 0
 	set ::mlatPipe [list $mlatStdout $mlatStdin]
 	set ::mlatPid $result
+	set ::mlatStatus "initializing"
 }
 
 
@@ -207,6 +217,11 @@ proc forward_to_mlat_client {_row} {
 			# so we can filter any spurious looped-back results
 			# for a while
 			set ::mlatSawResult($row(hexid)) [clock seconds]
+		}
+
+		"mlat_status" {
+			# monitor this for the status file
+			set ::mlatStatus $row(status)
 		}
 	}
 

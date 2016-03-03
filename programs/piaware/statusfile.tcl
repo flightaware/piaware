@@ -82,14 +82,34 @@ proc build_status {} {
 	}
 
 	# mlat: status of mlat
-	if {!$::mlatEnabled} {
-		set data(mlat) [status_entry "red" "Multilateration not enabled"]
-	} elseif {!$::mlatReady} {
-		set data(mlat) [status_entry "red" "Multilateration enabled, but client not running"]
-	} else {
-		# TODO: should work out if it's actually working
-		# by looking for server status messages
-		set data(mlat) [status_entry "green" "Multilateration enabled"]
+	switch $::mlatStatus {
+		not_enabled {
+			set data(mlat) [status_entry "red" "Multilateration is not enabled"]
+		}
+
+		not_running {
+			set data(mlat) [status_entry "red" "Multilateration enabled, but client is not running"]
+		}
+
+		initializing {
+			set data(mlat) [status_entry "amber" "Multilateration initializing"]
+		}
+
+		no_sync {
+			set data(mlat) [status_entry "amber" "No clock synchronization with nearby receivers"]
+		}
+
+		unstable {
+			set data(mlat) [status_entry "amber" "Local clock source is unstable"]
+		}
+
+		ok {
+			set data(mlat) [status_entry "green" "Multilateration synchronized"]
+		}
+
+		default {
+			set data(mlat) [status_entry "amber" "Unexpected multilateration status $::mlatStatus, please report this"]
+		}
 	}
 
 	return [::json::write object {*}[array get data]]
