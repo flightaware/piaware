@@ -112,5 +112,16 @@ proc build_status {} {
 		}
 	}
 
+	# gps: GPS fix status
+	# only report this if we actually got a gpsd connection at least,
+	# as most installs won't have GPS.
+	if {[gpsd is_connected]} {
+		if {$::gpsLocationValid} {
+			set data(gps) [status_entry "green" [format "GPS 3D fix at %.3f,%.3f" $::receiverLat $::receiverLon]]
+		} else {
+			set data(gps) [status_entry "red" "GPS position information not available"]
+		}
+	}
+
 	return [::json::write object {*}[array get data]]
 }
