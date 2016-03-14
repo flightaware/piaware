@@ -15,7 +15,7 @@ options="-o DPkg::Options::=--force-confdef -o DPkg::Options::=--force-confold -
 
 keyring=/etc/apt/trusted.gpg.d/flightaware-archive-keyring.gpg
 keyring_source=/usr/lib/piaware/flightaware-archive-keyring.gpg
-sourceslist=/etc/apt/sources.list.d/flightaware.list
+sourceslist=/etc/apt/sources.list.d/piaware.list
 
 action="$1"
 shift
