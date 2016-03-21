@@ -196,21 +196,25 @@ proc inspect_sockets_with_netstat {} {
     set ::netstatus(piaware_1200) 0
 
 	# try to run as root if we can, to get the program names
-	set command [list netstat --program --protocol=inet --tcp --wide --all --numeric]
-	if {[::fa_sudo::can_sudo root {*}$command]} {
-		set fp [open_nolocale -root "|$command"]
-	} else {
-		# discard the warning about not being able to see all data
-		set fp [open_nolocale "|$command 2>/dev/null"]
-	}
+	if {[catch {
+		set command [list netstat --program --protocol=inet --tcp --wide --all --numeric]
+		if {[::fa_sudo::can_sudo root {*}$command]} {
+			set fp [open_nolocale -root "|$command 2>/dev/null"]
+		} else {
+			# discard the warning about not being able to see all data
+			set fp [open_nolocale "|$command 2>/dev/null"]
+		}
 
-    # discard two header lines
-    gets $fp
-    gets $fp
-    while {[gets $fp line] >= 0} {
-		process_netstat_socket_line $line
-    }
-    close $fp
+		# discard two header lines
+		gets $fp
+		gets $fp
+		while {[gets $fp line] >= 0} {
+			process_netstat_socket_line $line
+		}
+		close $fp
+	} result]} {
+		logger "failed to run netstat: $result"
+	}
 }
 
 #
