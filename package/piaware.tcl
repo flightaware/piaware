@@ -341,19 +341,16 @@ proc get_mac_address {} {
 	# well, that didn't work, look at the entire output of ifconfig
 	# for a MAC address and use the first one we find
 
-	if {[catch {set fp [open_nolocale "|ifconfig"]} catchResult] == 1} {
-		puts stderr "ifconfig command not found on this version of Linux, you may need to install the net-tools package and try again"
+	if {[catch {set fp [open_nolocale "|/sbin/ip -o link show"]} catchResult] == 1} {
+		puts stderr "ip command not found on this version of Linux, you may need to install the iproute2 package and try again"
 		return ""
 	}
 
 	set mac ""
 	while {[gets $fp line] >= 0} {
-		set mac [parse_mac_address_from_line $line]
-		set device ""
-		regexp {^([^ ]*)} $line dummy device
-		if {$mac != ""} {
+		if {[regexp {^\d+: ([^:]+):.*link/ether ((?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2})} $line -> dev mac]} {
 			# gotcha
-			logger "no eth0 device, using $mac from device '$device'"
+			logger "no eth0 device, using $mac from device '$dev'"
 			break
 		}
 	}
