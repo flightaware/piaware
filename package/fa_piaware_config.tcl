@@ -785,7 +785,7 @@ namespace eval ::fa_piaware_config {
 			{"receiver-port"         -type integer -default 30005}
 			{"allow-mlat"            -type boolean -default yes}
 			{"mlat-results"          -type boolean -default yes}
-			{"mlat-results-format"   -default "beast,connect,localhost:30104 beast,listen,30105"}
+			{"mlat-results-format"   -default "beast,connect,localhost:30104 beast,listen,30105 ext_basestation,listen,30106"}
 		}
 
 		return [uplevel 1 ::fa_piaware_config::new ::fa_piaware_config::ConfigMetadata [list $name] [list $settings]]
