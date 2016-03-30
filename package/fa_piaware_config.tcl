@@ -307,15 +307,15 @@ namespace eval ::fa_piaware_config {
 				return 1
 			}
 
+			if {![file exists $filename]} {
+				return 1
+			}
+
 			if {[id userid] != 0 && [info exists writeHelper] && [::fa_sudo::can_sudo root $writeHelper $filename]} {
 				return 0
 			}
 
-			if {[file exists $filename] && ![file writable $filename]} {
-				return 1
-			}
-
-			if {![file writable [file dirname $filename]]} {
+			if {![file writable $filename] || ![file writable [file dirname $filename]]} {
 				return 1
 			}
 
