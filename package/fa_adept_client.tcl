@@ -92,10 +92,10 @@ set caDir [file join [file dirname [info script]] "ca"]
 
 			info {
 				lassign $args major minor message
-				if {$major eq "alert"} {
-					logger "TLS alert: $message"
+				if {$major eq "alert" && $message ne "close notify"} {
+					logger "TLS alert ($minor): $message"
 				} elseif {$major eq "error"} {
-					logger "TLS error: $message"
+					logger "TLS error ($minor): $message"
 				}
 			}
 
