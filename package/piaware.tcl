@@ -360,17 +360,6 @@ proc get_mac_address {} {
 }
 
 #
-# parse_mac_address_from_line - find a mac address free-from in a line and
-#   return it or return the empty string
-#
-proc parse_mac_address_from_line {line} {
-	if {[regexp {(([0-9a-fA-F]{2}[:-]){5}([0-9a-fA-F]{2}))} $line dummy mac]} {
-		return $mac
-	}
-	return ""
-}
-
-#
 # warn_once - issue a warning message but only once
 #
 proc warn_once {message args} {
