@@ -84,20 +84,6 @@ proc is_pid_running {pid} {
 }
 
 #
-# find_processes - return a list of pids running with a command of exactly "name"
-#
-proc find_processes {name} {
-	set pidlist {}
-    set fp [::fa_sudo::open_as "|pgrep --exact $name"]
-    while {[gets $fp line] >= 0} {
-		set pid [string trim $line]
-		lappend pidlist $pid
-	}
-    catch {close $fp}
-	return $pidlist
-}
-
-#
 # is_piaware_running - find out if piaware is running by checking its pid
 #  file
 #
