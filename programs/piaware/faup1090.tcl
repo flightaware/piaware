@@ -5,6 +5,9 @@
 # Copyright (C) 2014 FlightAware LLC, All Rights Reserved
 #
 
+package require fa_sudo
+package require fa_services
+
 #
 # setup_faup1090_vars - setup vars but don't start faup1090
 #
@@ -21,8 +24,42 @@ proc setup_faup1090_vars {} {
 	set ::lastFaupMessageClock [clock seconds]
 	# time we were last connected to port 30005
 	set ::lastAdsbConnectedClock [clock seconds]
-	# what the producer is called
-	set ::adsbDataProgram "the ADS-B data program"
+
+	# receiver config
+	set ::receiverType [piawareConfig get receiver-type]
+	switch $::receiverType {
+		rtlsdr {
+			set ::receiverHost "localhost"
+			set ::receiverPort 30005
+			set ::adsbDataService "dump1090"
+			set ::adsbDataProgram "dump1090"
+		}
+
+		beast {
+			set ::receiverHost "localhost"
+			set ::receiverPort 30005
+			set ::adsbDataService "beast-splitter"
+			set ::adsbDataProgram "beast-splitter"
+		}
+
+		radarcape {
+			set ::receiverHost [piawareConfig get radarcape-host]
+			set ::receiverPort 10003
+			set ::adsbDataService ""
+			set ::adsbDataProgram "the Radarcape at $::receiverHost"
+		}
+
+		other {
+			set ::receiverHost [piawareConfig get receiver-host]
+			set ::receiverPort [piawareConfig get receiver-port]
+			set ::adsbDataService ""
+			set ::adsbDataProgram "the ADS-B data program at $::receiverHost/$::receiverPort"
+		}
+
+		default {
+			error "Unrecognized receiverType configured: $::receiverType"
+		}
+	}
 
 	# path to faup1090
 	set path "/usr/lib/piaware/helpers/faup1090"
@@ -58,8 +95,17 @@ proc schedule_adsb_connect_attempt {inSeconds} {
 	#logger "scheduled FA-style ADS-B port connect attempt $explain as timer ID $::adsbPortConnectTimer"
 }
 
+# return 1 if the ADS-B receiver is local (i.e. can be found in netstat, can be restarted)
+proc is_local_receiver {} {
+	if {[string equal -nocase "localhost" $::receiverHost] || [string match "127.*" $::receiverHost]} {
+		return 1
+	} else {
+		return 0
+	}
+}
+
 #
-# connect_adsb_via_faup1090 - connect to port 30005 using faup1090 as an intermediary;
+# connect_adsb_via_faup1090 - connect to the receiver using faup1090 as an intermediary;
 # if it fails, schedule another attempt later
 #
 proc connect_adsb_via_faup1090 {} {
@@ -69,46 +115,61 @@ proc connect_adsb_via_faup1090 {} {
 	stop_faup1090
 
 	set ::lastConnectAttemptClock [clock seconds]
-	inspect_sockets_with_netstat
 
-	if {![is_adsb_program_running]} {
+	if {[is_local_receiver]} {
+		inspect_sockets_with_netstat
 
-		# still no listener, consider restarting
-		set secondsSinceListenerSeen [expr {[clock seconds] - $::lastAdsbConnectedClock}]
-		if {$secondsSinceListenerSeen >= $::adsbNoProducerStartDelaySeconds} {
-			logger "no ADS-B data program seen listening on port 30005 for $secondsSinceListenerSeen seconds, trying to start it..."
-			attempt_dump1090_restart start
-			# pretend we saw it to reduce restarts if it's failing
-			set ::lastAdsbConnectedClock [clock seconds]
-			schedule_adsb_connect_attempt 10
-		} else {
-			logger "no ADS-B data program seen listening on port 30005 for $secondsSinceListenerSeen seconds, next check in 60s"
-			schedule_adsb_connect_attempt 60
+		if {![is_adsb_program_running]} {
+			# still no listener, consider restarting
+			set secondsSinceListenerSeen [expr {[clock seconds] - $::lastAdsbConnectedClock}]
+			if {$secondsSinceListenerSeen >= $::adsbNoProducerStartDelaySeconds && $::adsbDataService ne ""} {
+				logger "no ADS-B data program seen listening on port 30005 for $secondsSinceListenerSeen seconds, trying to start it..."
+				::fa_services::attempt_service_restart $::adsbDataService start
+				# pretend we saw it to reduce restarts if it's failing
+				set ::lastAdsbConnectedClock [clock seconds]
+				schedule_adsb_connect_attempt 10
+			} else {
+				logger "no ADS-B data program seen listening on port 30005 for $secondsSinceListenerSeen seconds, next check in 60s"
+				schedule_adsb_connect_attempt 60
+			}
+
+			return
 		}
 
-		return
+		set ::adsbDataProgram $::netstatus(program_30005)
+		set ::lastAdsbConnectedClock [clock seconds]
+		logger "ADS-B data program '$::adsbDataProgram' is listening on port 30005, so far so good"
 	}
 
-	set ::adsbDataProgram $::netstatus(program_30005)
-	set ::lastAdsbConnectedClock [clock seconds]
-	logger "ADS-B data program '$::adsbDataProgram' is listening on port 30005, so far so good"
-
 	set args $::faup1090Path
-	lappend args "--net-bo-ipaddr" "localhost" "--net-bo-port" "30005" "--stdout"
+	lappend args "--net-bo-ipaddr" $::receiverHost "--net-bo-port" $::receiverPort "--stdout"
 	if {$::receiverLat ne "" && $::receiverLon ne ""} {
 		lappend args "--lat" [format "%.3f" $::receiverLat] "--lon" [format "%.3f" $::receiverLon]
 	}
 
 	logger "Starting faup1090: $args"
-	if {[catch {set ::faupPipe [open |$args]} catchResult] == 1} {
-		logger "got '$catchResult' starting faup1090, will try again in 60s"
-		schedule_adsb_connect_attempt 60
+
+	if {[catch {::fa_sudo::popen_as -noroot -stdout faupStdout -stderr faupStderr {*}$args} result] == 1} {
+		logger "got '$result' starting faup1090, will try again in 5 minutes"
+		schedule_adsb_connect_attempt 300
 		return
 	}
 
-	logger "Started faup1090 (pid [pid $::faupPipe]) to connect to $::adsbDataProgram"
-	fconfigure $::faupPipe -buffering line -blocking 0 -translation lf
-	fileevent $::faupPipe readable faup1090_data_available
+	if {$result == 0} {
+		logger "could not start faup1090: sudo refused to start the command, will try again in 5 minutes"
+		schedule_adsb_connect_attempt 300
+		return
+	}
+
+
+	logger "Started faup1090 (pid $result) to connect to $::adsbDataProgram"
+	fconfigure $faupStdout -buffering line -blocking 0 -translation lf
+	fileevent $faupStdout readable faup1090_data_available
+
+	log_subprocess_output "faup1090($result)" $faupStderr
+
+	set ::faupPipe $faupStdout
+	set ::faupPid $result
 
 	# pretend we saw a message so we don't repeatedly restart
 	set ::lastFaupMessageClock [clock seconds]
@@ -127,7 +188,18 @@ proc stop_faup1090 {} {
 	set ::lastAdsbConnectedClock [clock seconds]
 	catch {kill HUP [pid $::faupPipe]}
 	catch {close $::faupPipe}
+
+	catch {
+		lassign [timed_waitpid 15000 $::faupPid] deadpid why code
+		if {$code ne "0"} {
+			logger "faup1090 exited with $why $code"
+		} else {
+			logger "faup1090 exited normally"
+		}
+	}
+
 	unset ::faupPipe
+	unset ::faupPid
 }
 
 #
@@ -238,17 +310,17 @@ proc periodically_check_adsb_traffic {} {
 # restart stuff as necessary
 #
 proc check_adsb_traffic {} {
-	reap_any_dead_children
-
 	set secondsSinceLastMessage [expr {[clock seconds] - $::lastFaupMessageClock}]
 
 	if {[info exists ::faupPipe]} {
 		# faup1090 is running, check we are hearing some messages
 		if {$secondsSinceLastMessage >= $::noMessageActionIntervalSeconds} {
 			# force a restart
-			logger "no new messages received in $secondsSinceLastMessage seconds, it might just be that there haven't been any aircraft nearby but I'm going to try to restart dump1090, just in case..."
+			logger "no new messages received in $secondsSinceLastMessage seconds, it might just be that there haven't been any aircraft nearby but I'm going to try to restart everything, just in case..."
 			stop_faup1090
-			attempt_dump1090_restart restart
+			if {$::adsbDataService ne ""} {
+				::fa_services::attempt_service_restart $::adsbDataService restart
+			}
 			schedule_adsb_connect_attempt 10
 		}
 	} else {
@@ -257,105 +329,6 @@ proc check_adsb_traffic {} {
 			logger "faup1090 not running, but no restart timer set! Fixing it.."
 			schedule_adsb_connect_attempt 5
 		}
-	}
-}
-
-proc has_invoke_rcd {} {
-	if {![info exists ::invoke_rcd_path]} {
-		set ::invoke_rcd_path [auto_execok invoke-rc.d]
-	}
-
-	if {$::invoke_rcd_path ne ""} {
-		return 1
-	} else {
-		return 0
-	}
-}
-
-proc can_invoke_service_action {service action} {
-	# try to decide if we should invoke the given service/action
-	if {![has_invoke_rcd]} {
-		# no invoke-rc.d, just see if we can run the script
-		if {[auto_execok "/etc/init.d/$service"] eq ""} {
-			return 0
-		} else {
-			return 1
-		}
-	}
-
-	set status [system invoke-rc.d --query $service $action]
-	switch $status {
-		104 -
-		105 -
-		106 {
-			return 1
-		}
-
-		default {
-			return 0
-		}
-	}
-}
-
-proc invoke_service_action {service action} {
-	if {![has_invoke_rcd]} {
-		# no invoke-rc.d, just run the script
-		set command [list /etc/init.d/$service $action]
-	} else {
-		# use invoke-rc.d
-		set command [list invoke-rc.d $service $action]
-	}
-
-	logger "attempting to $action $service using '$command'..."
-	return [system $command]
-}
-
-
-#
-# attempt_dump1090_restart - restart dump1090 if we can figure out how to
-#
-proc attempt_dump1090_restart {{action restart}} {
-	set scripts [glob -nocomplain -directory /etc/init.d -tails -types {f r x} *dump1090*]
-
-	foreach script $scripts {
-		switch -glob $script {
-			*.dpkg*	-
-			*.rpm* -
-			*.ba* -
-			*.old -
-			*.org -
-			*.orig -
-			*.save -
-			*.swp -
-			*.core -
-			*~ {
-				# Skip this
-			}
-
-			default {
-				# check invoke-rc.d etc
-				if {[can_invoke_service_action $script $action]} {
-					lappend acceptableScripts $script
-				}
-			}
-		}
-	}
-
-	if { [info exists acceptableScripts] } {
-		set service [lindex $acceptableScripts 0]
-		if { [llength $acceptableScripts] > 1 } {
-			logger "warning, more than one enabled dump1090 script in /etc/init.d, proceding with '$service'..."
-		}
-
-		set exitStatus [invoke_service_action $service $action]
-
-		if {$exitStatus == 0} {
-			logger "dump1090 $action appears to have been successful"
-		} else {
-			logger "got exit status $exitStatus while trying to $action dump1090"
-		}
-	} else { 
-		logger "can't $action dump1090, no enabled dump1090 script in /etc/init.d"
 	}
 }
 
@@ -402,9 +375,15 @@ proc update_location {lat lon} {
 	# changed nontrivially; restart faup1090 to use the new values
 	set ::receiverLat $lat
 	set ::receiverLon $lon
+
+	# speculatively restart dump1090 even if we are not using it as a receiver;
+	# it may be used for display.
+	logger "Receiver location changed, restarting dump1090"
+	::fa_services::attempt_service_restart dump1090 restart
+
 	if {[info exists ::faupPipe]} {
 		logger "Receiver location changed, restarting faup1090"
-		restart_faup1090 now
+		restart_faup1090 5
 	}
 }
 

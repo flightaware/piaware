@@ -17,15 +17,23 @@ set caDir [file join [file dirname [info script]] "ca"]
 
 ::itcl::class AdeptClient {
     public variable sock
-    public variable host
     public variable hosts [list piaware.flightaware.com piaware.flightaware.com 70.42.6.197 70.42.6.198]
     public variable port 1200
     public variable loginTimeoutSeconds 30
     public variable connectRetryIntervalSeconds 60
-    public variable connected 0
-    public variable loggedIn 0
 	public variable showTraffic 0
+	public variable mac
 
+	# configuration hooks for actions the client wants to trigger
+	public variable logCommand "puts stderr"
+	public variable updateLocationCommand
+	public variable mlatCommand
+	public variable updateCommand
+	public variable loginCommand
+
+    protected variable host
+    protected variable connected 0
+    protected variable loggedIn 0
     protected variable writabilityTimerID
     protected variable wasWritable 0
     protected variable loginTimerID
@@ -34,6 +42,8 @@ set caDir [file join [file dirname [info script]] "ca"]
     protected variable nextHostIndex 0
     protected variable lastCompressClock 0
     protected variable flushPending 0
+	protected variable deviceLocation ""
+	protected variable lastReportedLocation ""
 
     constructor {args} {
 		configure {*}$args
@@ -43,8 +53,7 @@ set caDir [file join [file dirname [info script]] "ca"]
     # logger - log a message
     #
     method logger {text} {
-		# can also log $this
-		::logger $text
+		catch { {*}$logCommand $text }
     }
 
 	#
@@ -67,10 +76,10 @@ set caDir [file join [file dirname [info script]] "ca"]
 			verify {
 				lassign $args depth cert status err
 				if {!$status} {
-					log_locally "TLS verify failed: $err"
-					log_locally "Failing certificate:"
+					logger "TLS verify failed: $err"
+					logger "Failing certificate:"
 					foreach {k v} $cert {
-						log_locally "  $k: $v"
+						logger "  $k: $v"
 					}
 				}
 				return $status
@@ -78,20 +87,20 @@ set caDir [file join [file dirname [info script]] "ca"]
 
 			error {
 				lassign $args message
-				log_locally "TLS error: $message"
+				logger "TLS error: $message"
 			}
 
 			info {
 				lassign $args major minor message
-				if {$major eq "alert"} {
-					log_locally "TLS alert: $message"
+				if {$major eq "alert" && $message ne "close notify"} {
+					logger "TLS alert ($minor): $message"
 				} elseif {$major eq "error"} {
-					log_locally "TLS error: $message"
+					logger "TLS error ($minor): $message"
 				}
 			}
 
 			default {
-				log_locally "unhandled TLS callback: $cmd $channel $args"
+				logger "unhandled TLS callback: $cmd $channel $args"
 			}
 		}
     }
@@ -139,11 +148,11 @@ set caDir [file join [file dirname [info script]] "ca"]
 		cancel_timers
 		next_host
 
-		log_locally "Connecting to FlightAware adept server at $host/$port"
+		logger "Connecting to FlightAware adept server at $host/$port"
 
 		# start the connection attempt
 		if {[catch {set sock [socket -async $host $port]} catchResult]} {
-			log_locally "Connection to adept server at $host/$port failed: $catchResult"
+			logger "Connection to adept server at $host/$port failed: $catchResult"
 			close_socket_and_reopen
 			return 0
 		}
@@ -166,12 +175,12 @@ set caDir [file join [file dirname [info script]] "ca"]
 
 		set error [fconfigure $sock -error]
 		if {$error ne ""} {
-			log_locally "Connection to adept server at $host/$port failed: $error"
+			logger "Connection to adept server at $host/$port failed: $error"
 			close_socket_and_reopen
 			return
 		}
 
-		log_locally "Connection with adept server at $host/$port established"
+		logger "Connection with adept server at $host/$port established"
 
 		# attempt to connect with TLS negotiation.  Use the included
 		# CA cert file to confirm the cert's signature on the certificate
@@ -184,7 +193,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 						-tls1 1 \
 						-require 1 \
 						-command [list $this tls_callback]} catchResult] == 1} {
-			log_locally "TLS handshake with adept server at $host/$port failed: $catchResult"
+			logger "TLS handshake with adept server at $host/$port failed: $catchResult"
 			close_socket_and_reopen
 			return
 		}
@@ -193,7 +202,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 		# we can get errors from this.  catch them and return failure
 		# if one occurs.
 		if {[catch {::tls::handshake $sock} catchResult] == 1} {
-			log_locally "TLS handshake with adept server at $host/$port failed: $catchResult"
+			logger "TLS handshake with adept server at $host/$port failed: $catchResult"
 			close_socket_and_reopen
 			return
 		}
@@ -204,7 +213,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 
 		# validate the certificate.  error out if it fails.
 		if {![validate_certificate_status $tlsStatus reason]} {
-			log_locally "Certificate validation with adept server at $host/$port failed: $reason"
+			logger "Certificate validation with adept server at $host/$port failed: $reason"
 			close_socket_and_reopen
 			return
 		}
@@ -213,7 +222,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 		# in the session key (sbits) and the cipher used, such
 		# as DHE-RSA-AES256-SHA
 		#logger "TLS local status: [::tls::status -local $sock]"
-		log_locally "encrypted session established with FlightAware"
+		logger "encrypted session established with FlightAware"
 
 		# configure the socket nonblocking full-buffered and
 		# schedule this object's server_data_available method
@@ -278,7 +287,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 			return 0
 		}
 
-		log_locally "FlightAware server SSL certificate validated"
+		logger "FlightAware server SSL certificate validated"
 		return 1
     }
 
@@ -299,9 +308,9 @@ set caDir [file join [file dirname [info script]] "ca"]
 
 	method abort_login_attempt {} {
 		if {![is_connected]} {
-			log_locally "Connection attempt with adept server at $host/$port timed out"
+			logger "Connection attempt with adept server at $host/$port timed out"
 		} else {
-			log_locally "Login attempt with adept server at $host/$port timed out"
+			logger "Login attempt with adept server at $host/$port timed out"
 		}
 		close_socket_and_reopen
 	}
@@ -313,7 +322,7 @@ set caDir [file join [file dirname [info script]] "ca"]
     method server_data_available {} {
 		# if end of file on the socket, close the socket and attempt to reopen
 		if {[eof $sock]} {
-			log_locally "Lost connection to adept server at $host/$port: server closed connection"
+			logger "Lost connection to adept server at $host/$port: server closed connection"
 			close_socket_and_reopen
 			return
 		}
@@ -321,7 +330,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 		# get a line of data from the socket.  if we get an error, close the
 		# socket and attempt to reopen
 		if {[catch {set size [gets $sock line]} catchResult] == 1} {
-			log_locally "Lost connection to adept server at $host/$port: $catchResult"
+			logger "Lost connection to adept server at $host/$port: $catchResult"
 			close_socket_and_reopen
 			return
 		}
@@ -342,13 +351,14 @@ set caDir [file join [file dirname [info script]] "ca"]
 		# response handler
 		#
 		if {[catch {array set response [split $line "\t"]}] == 1} {
-			log_locally "malformed message from server ('$line'), disconnecting and reconnecting..."
+			logger "malformed message from server ('$line'), disconnecting and reconnecting..."
 			close_socket_and_reopen
 			return
 		}
 
 		if {[catch {handle_response response} catchResult] == 1} {
-			log_locally "error handling message '[string map {\n \\n \t \\t} $line]' from server ($catchResult), ([string map {\n \\n \t \\t} [string range $::errorInfo 0 1000]]), disconnecting and reconnecting..."
+			logger "error handling message '[string map {\n \\n \t \\t} $line]' from server: $catchResult, disconnecting and reconnecting.."
+			logger "traceback: [string range $::errorInfo 0 1000]"
 			close_socket_and_reopen
 			return
 		}
@@ -379,15 +389,21 @@ set caDir [file join [file dirname [info script]] "ca"]
 			}
 
 			"request_auto_update" {
-				handle_update_request auto row
+				if {[info exists updateCommand]} {
+					{*}$updateCommand auto row
+				}
 			}
 
 			"request_manual_update" {
-				handle_update_request manual row
+				if {[info exists updateCommand]} {
+					{*}$updateCommand manual row
+				}
 			}
 
 			"mlat_*" {
-				forward_to_mlat_client row
+				if {[info exists mlatCommand]} {
+					{*}$mlatCommand row
+				}
 			}
 
 			"update_location" {
@@ -395,10 +411,10 @@ set caDir [file join [file dirname [info script]] "ca"]
 			}
 
 			default {
-				log_locally "unrecognized message type '$row(type)' from server, ignoring..."
+				logger "unrecognized message type '$row(type)' from server, ignoring..."
 				incr ::nUnrecognizedServerMessages
 				if {$::nUnrecognizedServerMessages > 20} {
-					log_locally "that's too many, i'm disconnecting and reconnecting..."
+					logger "that's too many, i'm disconnecting and reconnecting..."
 					close_socket_and_reopen
 					set ::nUnrecognizedServerMessages 0
 				}
@@ -420,19 +436,10 @@ set caDir [file join [file dirname [info script]] "ca"]
 			# start again from the start of the host list next time.
 			set nextHostIndex 0
 
-			# if the login response contained a user, that's what we're
-			# logged in as even if it's not what we might've said or
-			# more likely we didn't say
-			if {[info exists row(user)]} {
-				set ::flightaware_user $row(user)
-			}
-
 			# if we received lat/lon data, handle it
-			if {[info exists row(recv_lat)] && [info exists row(recv_lon)]} {
-				update_location $row(recv_lat) $row(recv_lon)
-			}
+			handle_update_location row
 
-			log_locally "logged in to FlightAware as user $::flightaware_user"
+			logger "logged in to FlightAware as user $row(user)"
 			cancel_login_timer
 
 			# modern adept servers always send alive messages within the first
@@ -442,12 +449,12 @@ set caDir [file join [file dirname [info script]] "ca"]
 			}
 		} else {
 			# NB do more here, like UI stuff
-			log_locally "*******************************************"
-			log_locally "LOGIN FAILED: status '$row(status)': reason '$row(reason)'"
-			log_locally "please correct this, possibly using piaware-config"
-			log_locally "to set valid Flightaware user name and password."
-			log_locally "piaware will now exit."
-			log_locally "You can start it up again using 'sudo /etc/init.d/piaware start'"
+			logger "*******************************************"
+			logger "LOGIN FAILED: status '$row(status)': reason '$row(reason)'"
+			logger "please correct this, possibly using piaware-config"
+			logger "to set valid Flightaware user name and password."
+			logger "piaware will now exit."
+			logger "You can start it up again using 'sudo /etc/init.d/piaware start'"
 			exit 4
 		}
 	}
@@ -457,7 +464,10 @@ set caDir [file join [file dirname [info script]] "ca"]
 	#
 	method handle_update_location {_row} {
 		upvar $_row row
-		update_location $row(recv_lat) $row(recv_lon)
+
+		if {[info exists row(recv_lat)] && [info exists row(recv_lon)] && [info exists updateLocationCommand]} {
+			{*}$updateLocationCommand $row(recv_lat) $row(recv_lon)
+		}
 	}
 
 	#
@@ -467,7 +477,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 		upvar $_row row
 
 		if {[info exists row(message)]} {
-			log_locally "NOTICE from adept server: $row(message)"
+			logger "NOTICE from adept server: $row(message)"
 		}
 	}
 
@@ -481,161 +491,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 		if {![info exists row(reason)]} {
 			set row(reason) "unknown"
 		}
-		log_locally "NOTICE adept server is shutting down.  reason: $row(reason)"
-	}
-
-	#
-	# update_check - see if the requested update type (manualUpdate or
-	#   autoUpdate) is allowed.
-	#
-	#   you should be able to inspect this and handle_update_request
-	#   and how they're invoked to assure yourself that if there is
-	#   no autoUpdate or manualUpdate in /etc/piaware configured true
-	#   or by piaware-config configured true, the update cannot occur.
-	#
-	method update_check {varName} {
-		# if there is no matching update variable in the adept config or
-		# a global variable set by /etc/piaware, bail
-		if {![info exists ::adeptConfig($varName)] && ![info exists ::$varName]} {
-			logger "$varName is not configured in /etc/piaware or by piaware-config"
-			return 0
-		}
-
-		#
-		# if there is a var in the adept config and it's not a boolean or
-		# it's false, bail.
-		#
-		if {![info exists ::adeptConfig($varName)]} {
-			logger "$varName is not set in adept config, looking further..."
-		} else {
-			if {![string is boolean $::adeptConfig($varName)]} {
-				logger "$varName in adept config isn't a boolean, bailing on update request"
-				return 0
-			}
-
-			if {!$::adeptConfig($varName)} {
-				logger "$varName in adept config is disabled, disallowing update"
-				return 0
-			} else {
-				# the var is there and set to true, we proceed with the update
-				logger "$varName in adept config is enabled, allowing update"
-				return 1
-			}
-		}
-
-		if {[info exists ::$varName]} {
-			set val [set ::$varName]
-			if {![string is boolean $val]} {
-				logger "$varName in /etc/piaware isn't a boolean, bailing on update request"
-				return 0
-			} else {
-				if {$val} {
-					# the var is there and true, proceed
-					logger "$varName in /etc/piaware is enabled, allowing update"
-					return 1
-				} else {
-					# the var is there and false, bail
-					logger "$varName in /etc/piaware is disabled, disallowing update"
-					return 0
-				}
-			}
-		}
-
-		# this shouldn't happen
-		logger "software error detected in update_check, disallowing update"
-		return 0
-	}
-
-	#
-	# handle_update_request - handle a message from the server requesting
-	#   that we update the software
-	#
-	method handle_update_request {type _row} {
-		upvar $_row row
-
-		# force piaware config and adept config reload in case user changed
-		# config since we last looked
-		load_piaware_config
-		load_adept_config
-
-		switch $type {
-			"auto" {
-				logger "auto update (flightaware-initiated) requested by adept server"
-			}
-
-			"manual" {
-				logger "manual update (user-initiated via their flightaware control page) requested by adept server"
-			}
-
-			default {
-				logger "update request type must be 'auto' or 'manual', ignored..."
-				return
-			}
-		}
-
-		# see if we are allowed to do this
-		if {![update_check ${type}Update]} {
-			# no
-			return
-		}
-
-		if {![info exists row(action)]} {
-			error "no action specified in update request"
-		}
-
-		logger "performing $type update, action: $row(action)"
-
-		set restartPiaware 0
-		foreach action [split $row(action) " "] {
-			switch $action {
-				"full" {
-					update_operating_system_and_packages
-				}
-
-				"packages" {
-					upgrade_raspbian_packages
-				}
-
-				"piaware" {
-					# only restart piaware if upgrade_piaware said it upgraded
-					# successfully
-					set restartPiaware [upgrade_piaware]
-				}
-
-				"restart_piaware" {
-					set restartPiaware 1
-				}
-
-				"dump1090" {
-					# try to upgrade dump1090 and if successful, restart it
-					if {[upgrade_dump1090]} {
-						attempt_dump1090_restart
-					}
-				}
-
-				"restart_dump1090" {
-					attempt_dump1090_restart
-				}
-
-				"reboot" {
-					reboot
-				}
-
-				"halt" {
-					halt
-				}
-
-				default {
-					logger "unrecognized update action '$action', ignoring..."
-				}
-			}
-		}
-
-		logger "update request complete"
-
-		if {$restartPiaware} {
-			restart_piaware
-		}
+		logger "NOTICE adept server is shutting down.  reason: $row(reason)"
 	}
 
 	#
@@ -668,12 +524,12 @@ set caDir [file join [file dirname [info script]] "ca"]
 	#
 	method cancel_alive_timer {} {
 		if {![info exists aliveTimerID]} {
-			#log_locally "cancel_alive_timer: no extant timer ID, doing nothing..."
+			#logger "cancel_alive_timer: no extant timer ID, doing nothing..."
 		} else {
 			if {[catch {after cancel $aliveTimerID} catchResult] == 1} {
-				#log_locally "cancel_alive_timer: cancel failed: $catchResult"
+				#logger "cancel_alive_timer: cancel failed: $catchResult"
 			} else {
-				#log_locally "cancel_alive_timer: canceled $aliveTimerID"
+				#logger "cancel_alive_timer: canceled $aliveTimerID"
 			}
 			unset aliveTimerID
 		}
@@ -684,7 +540,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 	#  it goes off
 	#
 	method alive_timeout {} {
-		log_locally "timed out waiting for alive message from FlightAware, reconnecting..."
+		logger "timed out waiting for alive message from FlightAware, reconnecting..."
 		close_socket_and_reopen
 	}
 
@@ -714,10 +570,19 @@ set caDir [file join [file dirname [info script]] "ca"]
 		cancel_timers
 
 		set interval [expr {round(($connectRetryIntervalSeconds * (1 + rand())))}]
-		log_locally "reconnecting in $interval seconds..."
+		logger "reconnecting in $interval seconds..."
 
 		set reconnectTimerID [after [expr {$interval * 1000}] [list $this connect]]
     }
+
+	#
+	# reconnect - close any existing connection and immediately reconnect
+	#
+	method reconnect {} {
+		close_socket
+		cancel_timers
+		connect
+	}
 
 	#
 	# login - attempt to login
@@ -730,45 +595,16 @@ set caDir [file join [file dirname [info script]] "ca"]
 		}
 
 		set message(type) login
-
-		# construct some key-value pairs to be included.
-		foreach var "user password image_type piaware_version piaware_version_full piaware_package_version dump1090_packages" globalVar "::flightaware_user ::flightaware_password ::imageType ::piawareVersion ::piawareVersionFull ::piawarePackageVersion ::dump1090Packages" {
-			if {[info exists $globalVar] && [set $globalVar] ne ""} {
-				set message($var) [set $globalVar]
-			}
-		}
-
-		catch {set message(uname) [exec /bin/uname --all]}
-
-		if {[info exists ::netstatus(program_30005)]} {
-			set message(adsbprogram) $::netstatus(program_30005)
-		}
-
-		set message(transprogram) "faup1090"
-
-		set message(mac) [get_mac_address_or_quit]
-
-		catch {
-			if {[get_default_gateway_interface_and_ip gateway iface ip]} {
-				set message(local_ip) $ip
-				set message(local_iface) $iface
-			}
-		}
-
-		catch {
-			get_os_release rel
-			foreach {k1 k2} {ID os_id VERSION_ID os_version_id VERSION os_version} {
-				if {[info exists rel($k1)]} {
-					set message($k2) $rel($k1)
-				}
-			}
-		}
-
-		set message(local_auto_update_enable) [update_check autoUpdate]
-		set message(local_manual_update_enable) [update_check manualUpdate]
-		set message(local_mlat_enable) [mlat_is_configured]
-
+		set message(mac) $mac
 		set message(compression_version) 1.2
+
+		if {$deviceLocation ne ""} {
+			lassign $deviceLocation message(receiverlat) message(receiverlon) message(receiveralt) message(receiveraltref)
+		}
+		set lastReportedLocation $deviceLocation
+
+		# gather additional login info
+		{*}$loginCommand message
 
 		send_array message
 	}
@@ -783,81 +619,31 @@ set caDir [file join [file dirname [info script]] "ca"]
 
 		set message(type) log
 		set message(message) [string map {\n \\n \t \\t} $text]
-		set message(mac) [get_mac_address_or_quit]
+		set message(mac) $mac
 
 		if {[info exists ::myClockOffset]} {
 			set message(offset) $::myClockOffset
 		}
 
-		foreach var "user" globalVar "::flightaware_user" {
-			if {[info exists $globalVar]} {
-				set message($var) [set $globalVar]
-			}
-		}
-
 		send_array message
 	}
 
+	#
+	# send_health_message - upload health message if connected
+	#
+	method send_health_message {_data} {
+		upvar $_data data
 
-	#
-	# get_mac_address - return the mac address of eth0 as a unique handle
-	#  to this device.
-	#
-	#  if there is no eth0 tries to find another mac address to use that it
-	#  can hopefully repeatably find in the future
-	#
-	#  if we can't find any mac address at all then return an empty string
-	#
-	method get_mac_address {} {
-		if {[info exists ::macAddress]} {
-			return $::macAddress
+		array set row [array get data]
+
+		# fill in device location, clock
+		if {$deviceLocation ne ""} {
+			lassign $deviceLocation row(receiverlat) row(receiverlon) row(receiveralt) row(receiveraltref)
+			set lastReportedLocation $deviceLocation
 		}
 
-		set macFile /sys/class/net/eth0/address
-		if {[file readable $macFile]} {
-			set fp [open $macFile]
-			gets $fp mac
-			set ::macAddress $mac
-			close $fp
-			return $mac
-		}
-
-		# well, that didn't work, look at the entire output of ifconfig
-		# for a MAC address and use the first one we find
-
-		if {[catch {set fp [open "|ifconfig"]} catchResult] == 1} {
-			puts stderr "ifconfig command not found on this version of Linux, you may need to install the net-tools package and try again"
-			return ""
-		}
-
-		set mac ""
-		while {[gets $fp line] >= 0} {
-			set mac [::fa_adept::parse_mac_address_from_line $line]
-			set device ""
-			regexp {^([^ ]*)} $line dummy device
-			if {$mac != ""} {
-				# gotcha
-				set ::macAddress $mac
-				log_locally "no eth0 device, using $mac from device '$device'"
-				break
-			}
-		}
-
-		catch {close $fp}
-		return $mac
-	}
-
-	#
-	# get_mac_address_or_quit - return the mac address of eth0 or if unable
-	#  to, emit a message to stderr and exit
-	#
-	method get_mac_address_or_quit {} {
-		set mac [get_mac_address]
-		if {$mac == ""} {
-			puts stderr "software failed to determine MAC address of the device.  cannot proceed without it."
-			exit 6
-		}
-		return $mac
+		set row(type) health
+		send_array row
 	}
 
     #
@@ -890,7 +676,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 		}
 
 		if {[catch {puts $sock $text} catchResult] == 1} {
-			log_locally "got '$catchResult' writing to FlightAware socket, reconnecting..."
+			logger "got '$catchResult' writing to FlightAware socket, reconnecting..."
 			close_socket_and_reopen
 			return
 		}
@@ -906,7 +692,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 		set flushPending 0
 		if {[info exists sock]} {
 			if {[catch {flush $sock} catchResult] == 1} {
-				log_locally "got '$catchResult' writing to FlightAware socket, reconnecting..."
+				logger "got '$catchResult' writing to FlightAware socket, reconnecting..."
 				close_socket_and_reopen
 				return
 			}
@@ -1012,7 +798,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 
 	method check_writability {} {
 		if {!$wasWritable} {
-			log_locally "data isn't making it to FlightAware, reconnecting..."
+			logger "data isn't making it to FlightAware, reconnecting..."
 			close_socket_and_reopen
 		} else {
 			schedule_writability_check
@@ -1025,31 +811,14 @@ set caDir [file join [file dirname [info script]] "ca"]
 			unset writabilityTimerID
 		}
 	}
-}
 
-#
-# ca_crt_file - dig the location of the ca.crt file shipped inside the
-#  fa_adept_client package and return the path to the ca.crt file
-#
-proc ca_crt_file {} {
-    set loadCommand [package ifneeded fa_adept_client [package require fa_adept_client]]
-
-    if {![regexp {source (.*)} $loadCommand dummy path]} {
-		error "software failure finding ca crt file"
-    }
-
-    return [file dir $path]/ca.crt
-}
-
-#
-# parse_mac_address_from_line - find a mac address free-from in a line and
-#   return it or return the empty string
-#
-proc parse_mac_address_from_line {line} {
-	if {[regexp {(([0-9a-fA-F]{2}[:-]){5}([0-9a-fA-F]{2}))} $line dummy mac]} {
-		return $mac
+	method set_location {loc} {
+		set deviceLocation $loc
 	}
-	return ""
+
+	method last_reported_location {} {
+		return $lastReportedLocation
+	}
 }
 
 } ;# namespace fa_adept

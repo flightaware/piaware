@@ -4,6 +4,8 @@
 # This bridges multilateration messages between a
 # mlat-client subprocess and the adept server.
 
+package require fa_sudo
+
 # does the server want mlat data?
 set ::mlatEnabled 0
 # is our client ready for data?
@@ -14,18 +16,17 @@ set ::mlatRestartMillis 60000
 set ::mlatUdpTransport {}
 # path to fa-mlat-client
 set ::mlatClientPath [auto_execok "/usr/lib/piaware/helpers/fa-mlat-client"]
+# current mlat status for the statusfile, one of:
+#   not_enabled
+#   not_running
+#   initializing
+#   or a status value returned by the server (ok / no_sync / unstable)
+set ::mlatStatus "not_enabled"
 
 proc mlat_is_configured {} {
-	if {[info exists ::adeptConfig(mlat)]} {
-		if {![string is boolean $::adeptConfig(mlat)]} {
-			logger "multilateration support disabled (config setting should be a boolean, but isn't)"
-			return 0
-		}
-
-		if {!$::adeptConfig(mlat)} {
-			logger "multilateration support disabled (explicitly disabled in config)"
-			return 0
-		}
+	if {![piawareConfig get allow-mlat]} {
+		logger "multilateration support disabled by local configuration ([piawareConfig origin allow-mlat])"
+		return 0
 	}
 
 	# check for existence of fa-mlat-client
@@ -35,11 +36,12 @@ proc mlat_is_configured {} {
 	}
 
 	# all ok
-	logger "multilateration support enabled (use piaware-config to disable)"
 	return 1
 }
 
 proc enable_mlat {udp_transport} {
+	logger "multilateration data requested"
+
 	if {![mlat_is_configured]} {
 		return
 	}
@@ -49,9 +51,9 @@ proc enable_mlat {udp_transport} {
 		return
 	}
 
-	logger "multilateration data requested, enabling mlat client"
 	set ::mlatEnabled 1
 	set ::mlatUdpTransport $udp_transport
+	set ::mlatStatus "not_running"
 	start_mlat_client
 }
 
@@ -59,6 +61,7 @@ proc disable_mlat {} {
 	if {$::mlatEnabled} {
 		logger "multilateration data no longer required, disabling mlat client"
 		set ::mlatEnabled 0
+		set ::mlatStatus "not_enabled"
 		close_mlat_client
 		if {[info exists ::mlatRestartTimer]} {
 			catch {after cancel $::mlatRestartTimer}
@@ -79,9 +82,22 @@ proc close_mlat_client {} {
 	}
 
 	set ::mlatReady 0
-	catch {close $::mlatPipe}
+	lassign $::mlatPipe mlatRead mlatWrite
+	catch {close $mlatRead}
+	catch {close $mlatWrite}
+
+	catch {
+		lassign [timed_waitpid 15000 $::mlatPid] deadpid why code
+		if {$code ne "0"} {
+			logger "fa-mlat-client exited with $why $code"
+		} else {
+			logger "fa-mlat-client exited normally"
+		}
+	}
+
+	unset ::mlatPid
 	unset ::mlatPipe
-	reap_any_dead_children
+	set ::mlatStatus "not_running"
 }
 
 proc start_mlat_client {} {
@@ -98,24 +114,38 @@ proc start_mlat_client {} {
 		return
 	}
 
-	inspect_sockets_with_netstat
+	if {[is_local_receiver]} {
+		inspect_sockets_with_netstat
 
-	if {![is_adsb_program_running]} {
-		logger "no ADS-B data program is serving on port 30005, not starting multilateration client yet"
-		schedule_mlat_client_restart
-		return
+		if {![is_adsb_program_running]} {
+			logger "no ADS-B data program is serving on port 30005, not starting multilateration client yet"
+			schedule_mlat_client_restart
+			return
+		}
 	}
 
 	set command $::mlatClientPath
-	lappend command "--input-connect" "localhost:30005"
+	lappend command "--input-connect" "${::receiverHost}:${::receiverPort}"
 
-	if {![info exists ::adeptConfig(mlatResults)] || ([string is boolean $::adeptConfig(mlatResults)] && $::adeptConfig(mlatResults))} {
-		if {![info exists ::adeptConfig(mlatResultsFormat)] || $::adeptConfig(mlatResultsFormat) eq "default"} {
-			lappend command "--results" "beast,connect,localhost:30104"
-		} else {
-			foreach r $::adeptConfig(mlatResultsFormat) {
-				lappend command "--results" $r
-			}
+	switch $::receiverType {
+		rtlsdr {
+			set inputType "dump1090"
+		}
+
+		beast - radarcape {
+			set inputType $::receiverType
+		}
+
+		default {
+			set inputType "auto"
+		}
+	}
+
+	lappend command "--input-type" $inputType
+
+	if {[piawareConfig get mlat-results]} {
+		foreach r [piawareConfig get mlat-results-format] {
+			lappend command "--results" $r
 		}
 	}
 
@@ -126,47 +156,30 @@ proc start_mlat_client {} {
 
 	logger "Starting multilateration client: $command"
 
-	pipe rpipe wpipe
-	lappend command "2>@$wpipe"
-	if {[catch {set ::mlatPipe [open |$command r+]} catchResult] == 1} {
-		logger "got '$catchResult' starting multilateration client"
+	if {[catch {::fa_sudo::popen_as -noroot -stdin mlatStdin -stdout mlatStdout -stderr mlatStderr {*}$command} result]} {
+		logger "got '$result' starting multilateration client"
 		schedule_mlat_client_restart
-		catch {close $rpipe}
-		catch {close $wpipe}
 		return
 	}
 
-	close $wpipe
-	fconfigure $rpipe -buffering line -blocking 0
-	fileevent $rpipe readable [list forward_to_logger [pid $::mlatPipe] $rpipe]
+	if {$result == 0} {
+		logger "could not start multilateration client: sudo refused to start the command"
+		schedule_mlat_client_restart
+		return
+	}
 
+	fconfigure $mlatStdin -buffering line -blocking 0 -translation lf
+
+	fconfigure $mlatStdout -buffering line -blocking 0 -translation lf
+	fileevent $mlatStdout readable mlat_data_available
+
+	log_subprocess_output "mlat-client($result)" $mlatStderr
 	set ::mlatReady 0
-	fconfigure $::mlatPipe -buffering line -blocking 0 -translation lf
-	fileevent $::mlatPipe readable mlat_data_available
+	set ::mlatPipe [list $mlatStdout $mlatStdin]
+	set ::mlatPid $result
+	set ::mlatStatus "initializing"
 }
 
-proc forward_to_logger {childpid pipe} {
-	while 1 {
-		if {[catch {set size [gets $pipe line]}] == 1} {
-			catch {close $pipe}
-			reap_any_dead_children
-			return
-		}
-
-		if {$size < 0} {
-			break
-		}
-
-		if {$line ne ""} {
-			logger "mlat($childpid): $line"
-		}
-	}
-
-	if {[eof $pipe]} {
-		catch {close $pipe}
-		reap_any_dead_children
-	}
-}
 
 proc schedule_mlat_client_restart {} {
 	if [info exists ::mlatRestartTimer] {
@@ -205,6 +218,11 @@ proc forward_to_mlat_client {_row} {
 			# for a while
 			set ::mlatSawResult($row(hexid)) [clock seconds]
 		}
+
+		"mlat_status" {
+			# monitor this for the status file
+			set ::mlatStatus $row(status)
+		}
 	}
 
 	# anything else goes to the client
@@ -219,7 +237,9 @@ proc forward_to_mlat_client {_row} {
 	}
 
 	set message [string range $message 1 end]
-	if {[catch {puts $::mlatPipe $message} catchResult] == 1} {
+
+	lassign $::mlatPipe mlatRead mlatWrite
+	if {[catch {puts $mlatWrite $message} catchResult] == 1} {
 		logger "got '$catchResult' writing to multilateration client, restarting.."
 		close_and_restart_mlat_client
 		return
@@ -227,13 +247,15 @@ proc forward_to_mlat_client {_row} {
 }
 
 proc mlat_data_available {} {
-	if ([eof $::mlatPipe]) {
+	lassign $::mlatPipe mlatRead mlatWrite
+
+	if ([eof $mlatRead]) {
 		logger "got EOF from multilateration client"
 		close_and_restart_mlat_client
 		return
 	}
 
-	if {[catch {set size [gets $::mlatPipe line]} catchResult] == 1} {
+	if {[catch {set size [gets $mlatRead line]} catchResult] == 1} {
 		logger "got '$catchResult' reading from multilateration client, restarting.."
 		close_and_restart_mlat_client
 		return
@@ -251,7 +273,8 @@ proc mlat_data_available {} {
 	}
 
 	if {[catch {process_mlat_message message}] == 1} {
-		logger "error handling message '[string map {\n \\n \t \\t} $line]' from multilateration client ($catchResult), ([string map {\n \\n \t \\t} [string range $::errorInfo 0 1000]]), restarting.."
+		logger "error handling message '[string map {\n \\n \t \\t} $line]' from multilateration client ($catchResult), restarting client.."
+		logger "traceback: [string range $::errorInfo 0 1000]"
 		close_and_restart_mlat_client
 		return
 	}

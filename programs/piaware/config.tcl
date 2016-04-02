@@ -9,8 +9,8 @@
 
 set serverRetryIntervalSeconds 60
 
-set piawareVersion 2.1
-set piawareVersionFull 2.1-5
+set piawareVersion 3.0
+set piawareVersionFull 3.0~dev
 
 # how many seconds with no messages received from the ADS-B receiver before
 # we will attempt to restart dump1090
@@ -27,6 +27,7 @@ set sendHealthInformationIntervalSeconds 300
 set adsbNoProducerStartDelaySeconds 360
 
 # where we store our location info
-set locationFile "/var/lib/dump1090/latlon"
+set locationFile "/var/cache/piaware/location"
+set locationFileEnv "/var/cache/piaware/location.env"
 
 # vim: set ts=4 sw=4 sts=4 noet :

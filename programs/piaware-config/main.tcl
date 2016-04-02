@@ -16,7 +16,6 @@ lappend auto_path /usr/local/lib
 
 source $::launchdir/helpers.tcl
 
-package require fa_adept_config
 package require cmdline
 package require Tclx
 
@@ -27,41 +26,42 @@ set pidFile "/var/run/piaware.pid"
 #
 proc main {{argv ""}} {
 	set options {
-		{user.arg "" "specify the user name of a valid FlightAware account"}
-		{password "interactively specify the password of the FlightAware account"}
-		{autoUpdate.arg "" "1 = allow FlightAware to automatically update software on my Pi, 0 = no"}
-		{manualUpdate.arg "" "1 = allow me to trigger manual updates through FlightAware, 0 = no"}
-		{mlat.arg "" "1 = allow multilateration data to be provided, 0 = no"}
-		{mlatResults.arg "" "1 = send multilateration results to localhost:30004, 0 = no"}
-		{mlatResultsFormat.arg "" "format(s) to generate mlat results in, 'default' to reset to the default format"}
 		{start "attempt to start the ADS-B client"}
 		{stop "attempt to stop the ADS-B client"}
 		{restart "attempt to restart the ADS-B client"}
 		{status "get the status of the ADS-B client"}
-		{show "show config file"}
+		{show "show current config settings (or just the specified keys)"}
+		{showall "show all config settings including passwords and unset values"}
 	}
 
-	set usage ": $::argv0 -help|-user|-password|-start|-stop|-restart|-status|-show|-autoUpdate 1/0|-manualUpdate 1/0|-mlat 1/0|-mlatResults 1/0|-mlatResultsFormat formatlist"
-
-	if {$argv == ""} {
-		puts stderr "usage$usage"
-		exit 1
-	}
+	set usage ": $::argv0 -help|-start|-stop|-restart|-status|-showall|-show ?key?|?key value?\n"
 
 	if {[catch {array set ::params [::cmdline::getoptions argv $options $usage]} catchResult] == 1} {
 		puts stderr $catchResult
 		exit 1
 	}
 
-	if {$argv != ""} {
-		puts stderr [::cmdline::usage $options]
-		exit 1
+    if {$::params(start)} {
+		start_piaware
+    }
+
+    if {$::params(stop)} {
+		stop_piaware
+    }
+
+    if {$::params(restart)} {
+		restart_piaware
+    }
+
+    if {$::params(status)} {
+		piaware_status
+    }
+
+	if {$::params(show) || $::params(showall) || $argv == ""} {
+		show_piaware_config $::params(showall) $argv
+	} else {
+		update_config_values $argv
 	}
-
-	user_check
-
-	load_adept_config
-	process_parameters ::params
 }
 
 if {!$tcl_interactive} {

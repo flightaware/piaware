@@ -9,7 +9,7 @@ lappend auto_path /usr/local/lib
 
 package require piaware
 package require fa_adept_client
-package require fa_adept_config
+package require fa_gps
 #package require BSD
 package require Tclx
 package require cmdline
@@ -24,6 +24,9 @@ source $::launchdir/helpers.tcl
 source $::launchdir/faup1090.tcl
 source $::launchdir/health.tcl
 source $::launchdir/mlat.tcl
+source $::launchdir/update.tcl
+source $::launchdir/login.tcl
+source $::launchdir/statusfile.tcl
 
 #
 # main - the main program
@@ -33,9 +36,11 @@ proc main {{argv ""}} {
         {p.arg "" "specify the name of a file to write our pid in"}
         {serverhosts.arg "" "specify alternate server hosts (for FA testing)"}
         {serverport.arg "1200" "specify alternate server port (for FA testing)"}
-        {debug  "log to stdout rather than the log file"}
+        {plainlog "log to stderr without timestamps"}
+        {debug "log to stderr, maybe enable more debugging messages"}
+		{logfile.arg "/var/log/piaware.log" "set logfile location (not used if -debug or -plainlog are given)"}
         {showtraffic  "emit traffic to stdout (for debugging)"}
-        {debugport.arg "0" "open a localhost-only port to the tcl interpreter"}
+		{statusfile.arg "" "periodically write json status to this location"}
         {v  "emit version information and exit"}
     }
 
@@ -56,23 +61,10 @@ proc main {{argv ""}} {
 		exit 0
 	}
 
+	interp bgerror {} log_bgerror
+
+	setup_config
 	setup_faup1090_vars
-
-	# check what user we're running as
-	user_check
-
-	load_piaware_config_and_stuff
-
-	#::tcllauncher::daemonize
-	# NB does not work due to thread/fork interaction, can be solved with
-	# improvements in tcllauncher
-	# we are instead launching from the /etc/init.d/ script
-if 0 {
-	set pid [fork]
-	if {$pid != 0} {
-		exit 0
-	}
-}
 
 	# setup adept client early so logger command won't trace back
 	# (this does not initiate a connection, it just creates the object)
@@ -85,36 +77,23 @@ if 0 {
 	# (only does anything if we were invoked with the -p option)
 	create_pidfile
 
-	# if they requested a debug port, give them one
-	if {$::params(debugport) != 0} {
-		logger "starting console server on port $::params(debugport) due to -debugport argument to piaware"
-		IpConsole console
-		console setup_server -port $::params(debugport)
-	}
-
 	# start logging to a file unless configured for debug
-	if {!$::params(debug)} {
-		log_stdout_stderr_to_file
-		schedule_logfile_switch
-	}
+	reopen_logfile
+
+	# write json status if configured
+	periodically_update_status_file
 
 	greetings
 
-	# attempt to kill any extant copies of faup1090
-	if {[is_process_running faup1090]} {
-		system "killall faup1090"
-		sleep 1
-	}
+	connect_to_gpsd
 
-	load_adept_config_and_setup
-	#confirm_nonblank_user_and_password_or_die
-
-	adept connect
-
-    connect_adsb_via_faup1090
-
-	periodically_check_adsb_traffic
-
+	# we stagger this a little to let
+	#  1) gpsd give us a location if it's going to (typically takes up to 1 second to do this)
+	#  2) have the login happen and maybe pass back a receiver location
+	#  3) fire up faup1090 with the new position
+	after 1500 adept connect
+	after 3000 connect_adsb_via_faup1090
+	after 4500 periodically_check_adsb_traffic
 	after 30000 periodically_send_health_information
 
     catch {vwait die}

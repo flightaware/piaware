@@ -3,20 +3,15 @@
 # FA's simple aviation data exchange protocol
 #
 
-LIB=$(PREFIX_DIR)/lib
-BIN=$(PREFIX_DIR)/bin
-
-CLIENT_INSTALLFILES= *.tcl
-
-PROGNAME=piaware
+PREFIX=/usr
+LIB=$(PREFIX)/lib/piaware
+TCLLAUNCHER := $(shell which tcllauncher)
 
 all:
-	@echo "'make install' to install $(PROGNAME)"
+	@echo "'make install' to install piaware"
 
-install-client:
-	@echo ---- installing client
-	-install $(BIN)/tcllauncher $(BIN)/$(PROGNAME)
-	mkdir -p $(LIB)/$(PROGNAME)
-	cp $(CLIENT_INSTALLFILES) $(LIB)/$(PROGNAME)
-
-install: install-client
+install:
+	install -d $(DESTDIR)$(PREFIX)/bin $(DESTDIR)$(LIB)
+	install -m 0755 $(TCLLAUNCHER) $(DESTDIR)$(PREFIX)/bin/piaware
+	install *.tcl $(DESTDIR)$(LIB)
+	$(MAKE) -C helpers install

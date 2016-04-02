@@ -3,20 +3,13 @@
 #  get the status of the piaware toolchain
 #
 
-LIB=$(PREFIX_DIR)/lib
-BIN=$(PREFIX_DIR)/bin
-
-CLIENT_INSTALLFILES= *.tcl
-
-PROGNAME=piaware-status
+PREFIX=/usr
+TCLLAUNCHER := $(shell which tcllauncher)
 
 all:
-	@echo "'make install' to install $(PROGNAME)"
+	@echo "'make install' to install piaware-status"
 
-install-client:
-	@echo ---- installing client
-	-install $(BIN)/tcllauncher $(BIN)/$(PROGNAME)
-	mkdir -p $(LIB)/$(PROGNAME)
-	cp $(CLIENT_INSTALLFILES) $(LIB)/$(PROGNAME)
-
-install: install-client
+install:
+	install -d $(DESTDIR)$(PREFIX)/bin $(DESTDIR)$(PREFIX)/lib/piaware-status
+	install -m 0755 $(TCLLAUNCHER) $(DESTDIR)$(PREFIX)/bin/piaware-status
+	install *.tcl $(DESTDIR)$(PREFIX)/lib/piaware-status

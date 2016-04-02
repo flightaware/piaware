@@ -8,6 +8,7 @@
 package require http
 package require tls
 package require Itcl
+package require tryfinallyshim
 
 set piawarePidFile /var/run/piaware.pid
 set piawareConfigFile /etc/piaware
@@ -15,38 +16,25 @@ set piawareConfigFile /etc/piaware
 #
 # do a pipe open after clearing locale vars
 #
-proc open_nolocale {cmd {mode r}} {
+proc open_nolocale {args} {
 	set oldenv [array get ::env]
 	array unset ::env LANG
 	array unset ::env LC_*
-	catch {open $cmd $mode} result options
+	try {
+		return [::fa_sudo::open_as {*}$args]
+	} finally {
+		# work around http://core.tcl.tk/tcl/info/bc1a96407a
+		# (::env is internally a traced variable, so trying to
+		# "array set ::env" will trigger the bug)
+		#
+		# this bug is not present in 8.5 (Raspbian wheezy),
+		# and was fixed in 8.6.3, but Raspbian jessie has 8.6.2.
 
-	# work around http://core.tcl.tk/tcl/info/bc1a96407a
-	# (::env is internally a traced variable, so trying to
-	# "array set ::env" will trigger the bug)
-	#
-	# this bug is not present in 8.5 (Raspbian wheezy),
-	# and was fixed in 8.6.3, but Raspbian jessie has 8.6.2.
-
-	#array set ::env $oldenv
-	foreach {k v} $oldenv {
-		set ::env($k) $v
+		#array set ::env $oldenv
+		foreach {k v} $oldenv {
+			set ::env($k) $v
+		}
 	}
-
-	return -options $options $result
-}
-
-#
-# load_piaware_config - load the piaware config file.  don't stop if it
-#  doesn't exist
-#
-# return 1 if it loaded cleanly, 0 if it had a problem or didn't exist
-#
-proc load_piaware_config {} {
-    if {[catch [list uplevel #0 source $::piawareConfigFile]] == 1} {
-		return 0
-    }
-    return 1
 }
 
 # query_dpkg_names_and_versions - Match installed package names and return a list
@@ -67,27 +55,6 @@ proc query_dpkg_names_and_versions {pattern} {
 
 	catch {close $fp}
 	return $results
-}
-
-#
-# load_piaware_config_and_stuff - invoke load_piaware_config and if it
-#   doesn't define imageType then see if the piaware package is installed
-#   and if it is then set imageType to package
-#
-proc load_piaware_config_and_stuff {} {
-    load_piaware_config
-
-    if {![info exists ::imageType]} {
-		set res [query_dpkg_names_and_versions "*piaware*"]
-		if {[llength $res] == 2} {
-			# only if it's unambiguous
-			lassign $res packageName packageVersion
-			set ::imageType "${packageName}_package"
-			set ::piawarePackageVersion $packageVersion
-		}
-	}
-
-	set ::dump1090Packages [query_dpkg_names_and_versions "*dump1090*"]
 }
 
 # is_pid_running - return 1 if the specified process ID is running, else 0
@@ -117,23 +84,6 @@ proc is_pid_running {pid} {
 }
 
 #
-# is_process_running - return 1 if at least one process named "name" is
-#  running, else 0
-#
-proc is_process_running {name} {
-    set fp [open "|ps -C $name -o pid="]
-    while {[gets $fp line] >= 0} {
-		set pid [string trim $line]
-		if {[is_pid_running $pid]} {
-			catch {close $fp}
-			return 1
-		}
-	}
-    catch {close $fp}
-    return 0
-}
-
-#
 # is_piaware_running - find out if piaware is running by checking its pid
 #  file
 #
@@ -150,29 +100,6 @@ proc is_piaware_running {} {
     }
 
     return [is_pid_running $pid]
-}
-
-#
-# dump1090_any_bad_args - check for bad args (--no-crc-check,
-#  --agressive). Returns 1 if found, 0 if not
-#
-proc dump1090_any_bad_args {} {
-	
-	set fp [open "|ps auxww | grep dump1090"]
-
-	set bad_args [list "--no-crc-check" "--aggressive"]
-
-	while {[gets $fp pid] >= 0} {
-        foreach arg $bad_args {
-			 # search the process for bad arguments
-             if {[string last $arg $pid] != -1} {
-				return 1
-             }
-        }
-	}
-	close $fp
-	
-	return 0
 }
 
 #
@@ -214,7 +141,17 @@ proc test_port_callback {timer sock status callback} {
 #
 proc process_netstat_socket_line {line} {
     lassign $line proto recvq sendq localAddress foreignAddress state pidProg
-    lassign [split $pidProg "/"] pid prog
+
+	if {$proto ne "tcp" && $proto ne "tcp6"} {
+		return
+	}
+
+	if {$pidProg eq "-"} {
+		set pid "unknown"
+		set prog "unknown"
+	} else {
+		lassign [split $pidProg "/"] pid prog
+	}
 
     if {[string match "*:30005" $localAddress] && $state == "LISTEN"} {
 		set ::netstatus(program_30005) $prog
@@ -244,15 +181,26 @@ proc inspect_sockets_with_netstat {} {
     set ::netstatus(faup1090_30005) 0
     set ::netstatus(piaware_1200) 0
 
-	# We must do this to get the expected socket state strings.
-	set fp [open_nolocale "|netstat --program --protocol=inet --tcp --wide --all --numeric"]
-    # discard two header lines
-    gets $fp
-    gets $fp
-    while {[gets $fp line] >= 0} {
-		process_netstat_socket_line $line
-    }
-    close $fp
+	# try to run as root if we can, to get the program names
+	if {[catch {
+		set command [list netstat --program --protocol=inet --tcp --wide --all --numeric]
+		if {[::fa_sudo::can_sudo root {*}$command]} {
+			set fp [open_nolocale -root "|$command 2>/dev/null"]
+		} else {
+			# discard the warning about not being able to see all data
+			set fp [open_nolocale "|$command 2>/dev/null"]
+		}
+
+		# discard two header lines
+		gets $fp
+		gets $fp
+		while {[gets $fp line] >= 0} {
+			process_netstat_socket_line $line
+		}
+		close $fp
+	} result]} {
+		logger "failed to run netstat: $result"
+	}
 }
 
 #
@@ -283,57 +231,6 @@ proc netstat_report {} {
 
     puts "[subst_is_or_is_not "faup1090 %s connected to port 30005." $::netstatus(faup1090_30005)]"
     puts "[subst_is_or_is_not "piaware %s connected to FlightAware." $::netstatus(piaware_1200)]"
-}
-
-#
-# reap_any_dead_children - wait without delay until we reap no children
-#
-proc reap_any_dead_children {} {
-    # try to reap any dead children
-    while {true} {
-		if {[catch {wait -nohang} catchResult] == 1} {
-			# got an error, probably no children
-			return
-		}
-
-		# didn't get an error
-		if {$catchResult == ""} {
-			# and it didn't return anything, we have extant children but
-			# none have exited (or died from a signal) right now
-			return
-		}
-
-		#logger "reaped child $catchResult"
-
-		lassign $catchResult pid type code
-
-		switch $type {
-			"EXIT" {
-				switch $code {
-					default {
-						logger "the system told us that process $pid exited due to some general error"
-					}
-
-					0 {
-						logger "the system told us that process $pid exited cleanly"
-					}
-				}
-				logger "the system confirmed that process $pid exited with an exit status of $code"
-			}
-
-			"SIG" {
-				if {$code == "SIGHUP"} {
-					logger "the system confirmed that process $pid exited after receiving a hangup signal"
-				} else {
-					logger "this is a little unexpected: the system told us that process $pid exited after receiving a $code signal"
-				}
-			}
-
-			default {
-				logger "the system told us one of our child processes exited but i didn't understand what it said: $catchResult"
-			}
-		}
-    }
 }
 
 #
@@ -410,6 +307,45 @@ proc get_os_release {_out} {
 }
 
 #
+# get_mac_address - return the mac address of eth0 as a unique handle
+#  to this device.
+#
+#  if there is no eth0 tries to find another mac address to use that it
+#  can hopefully repeatably find in the future
+#
+#  if we can't find any mac address at all then return an empty string
+#
+proc get_mac_address {} {
+	set macFile /sys/class/net/eth0/address
+	if {[file readable $macFile]} {
+		set fp [open $macFile]
+		gets $fp mac
+		close $fp
+		return $mac
+	}
+
+	# well, that didn't work, look at the entire output of ifconfig
+	# for a MAC address and use the first one we find
+
+	if {[catch {set fp [open_nolocale "|/sbin/ip -o link show"]} catchResult] == 1} {
+		puts stderr "ip command not found on this version of Linux, you may need to install the iproute2 package and try again"
+		return ""
+	}
+
+	set mac ""
+	while {[gets $fp line] >= 0} {
+		if {[regexp {^\d+: ([^:]+):.*link/ether ((?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2})} $line -> dev mac]} {
+			# gotcha
+			logger "no eth0 device, using $mac from device '$dev'"
+			break
+		}
+	}
+
+	catch {close $fp}
+	return $mac
+}
+
+#
 # warn_once - issue a warning message but only once
 #
 proc warn_once {message args} {
@@ -419,536 +355,6 @@ proc warn_once {message args} {
     set ::warnOnceWarnings($message) ""
 
     logger "WARNING $message"
-}
-
-#
-# reboot - reboot the machine
-#
-proc reboot {} {
-    logger "rebooting..."
-    system "/sbin/reboot"
-}
-
-#
-# halt - halt the machine
-#
-proc halt {} {
-	logger "halting..."
-	system "/sbin/halt"
-}
-
-#
-# update_operating_system_and_packages 
-#
-# * upgrade raspbian
-#
-# * upgrade piaware
-#
-# * reboot
-#
-proc update_operating_system_and_packages {} {
-	logger "updating operating system, packages, kernel, and then rebooting"
-    upgrade_raspbian_packages
-    upgrade_dump1090
-    upgrade_piaware
-	#upgrade_raspbian_kernel
-    reboot
-}
-
-#
-# upgrade_raspbian_packages - upgrade raspbian packages to the latest
-#
-proc upgrade_raspbian_packages {} {
-    logger "*** attempting to upgrade raspbian packages to the latest"
-
-    if {![run_program_log_output "apt-get --yes update"]} {
-		logger "aborting upgrade..."
-		return 0
-    }
-
-    if {![run_program_log_output "apt-get --yes upgrade"]} {
-		logger "aborting upgrade..."
-		return 0
-    }
-    return 1
-}
-
-#
-# upgrade_raspbian_kernel - upgrade the raspbian kernel by running rpi-update;
-# requires a reboot to take effect
-#
-proc upgrade_raspbian_kernel {} {
-    logger "*** attempting to upgrade raspbian kernel and boot files to the latest"
-    if {![run_program_log_output "rpi-update"]} {
-		logger "aborting upgrade..."
-		return 0
-    }
-}
-
-#
-# run_program_log_output - run command with stderr redirected to stdout and
-#   log all the output of the command
-#
-proc run_program_log_output {command} {
-    logger "*** running command '$command' and logging output"
-
-    unset -nocomplain ::externalProgramFinished
-
-    if {[catch {set fp [open "|$command"]} catchResult] == 1} {
-		logger "*** error attempting to start command: $catchResult"
-		return 0
-    }
-
-    fileevent $fp readable [list external_program_data_available $fp]
-
-    vwait ::externalProgramFinished
-    return 1
-}
-
-#
-# external_program_data_available - callback routine when data is available
-#  from some external command we are running
-#
-proc external_program_data_available {fp} {
-    if {[eof $fp]} {
-		if {[catch {close $fp} catchResult] == 1} {
-			logger "*** error closing pipeline to command: $catchResult, continuing..."
-		}
-		set ::externalProgramFinished 1
-		return
-    }
-
-    if {[gets $fp line] < 0} {
-		return
-    }
-
-    logger "> $line"
-}
-
-#
-# init_http_client - initialize the http client library
-#
-# can be called multiple times; only does its thing once
-#
-proc init_http_client {} {
-    if {[info exists ::tlsInitialized]} {
-		return
-    }
-
-    ::tls::init -ssl2 0 -ssl3 0 -tls1 1
-    ::http::register https 443 ::tls::socket
-
-    set ::tlsInitialized 1
-}
-
-#
-# fetch_url_as_string - fetch an http[s] URL and return as a string or
-#   return an empty string if it failed or whatever
-#
-proc fetch_url_as_string {url} {
-    init_http_client
-
-    set req [::http::geturl $url -timeout 15000]
-
-    set status [::http::status $req]
-    set data [::http::data $req]
-    ::http::cleanup $req
-
-	logger "got status $status trying to fetch $url"
-
-    if {$status == "ok"} {
-		if {[string index $data end] == "\n"} {
-			return [string range $data 0 end-1]
-		} else {
-			return $data
-		}
-    }
-    return ""
-}
-
-#
-# fetch_url_as_binary_file_callback - callback routine for
-#   fetch_url_as_binary_file_callback for the completion or timeout
-#   of http requests
-#
-proc fetch_url_as_binary_file_callback {sock token} {
-	# ok we got the callback, set the global variable
-	# that fetch_url_as_binary_file is vwaiting on,
-	# so that it can go on
-	set ::fetchUrlVwaitVar 1
-}
-
-
-#
-# fetch_url_as_binary_file - fetch the URL to the file, 1 on success else 0
-#
-proc fetch_url_as_binary_file {url outputFile} {
-    set req [::http::geturl $url -timeout 900000 -binary 1 -strict 0]
-
-    set status [::http::status $req]
-    set data [::http::data $req]
-    ::http::cleanup $req
-
-    if {$status == "ok"} {
-		set ofp [open $outputFile w]
-		fconfigure $ofp -translation binary -encoding binary
-		puts -nonewline $ofp $data
-		close $ofp
-		return 1
-	}
-
-	logger "got status $status trying to fetch $url"
-	return 0
-}
-
-
-#
-# upgrade_piaware - fetch file information about the latest version of piaware
-#
-# check it for reasonability
-#
-# compare it to the version we're running and if it's not current, update
-# the current site
-#
-proc upgrade_piaware {} {
-    set debianPackageFile [fetch_url_as_string "https://flightaware.com/adsb/piaware/files/latest"]
-    if {$debianPackageFile == ""} {
-		logger "unable to upgrade piaware: failed to get name of package file"
-		return 0
-    }
-
-    if {[string first / $debianPackageFile] >= 0} {
-		logger "unable to upgrade piaware: illegal character in version '$debianPackageFile'"
-		return 0
-    }
-
-    set requestUrl https://flightaware.com/adsb/piaware/files/$debianPackageFile
-	return [upgrade_dpkg_package piaware $requestUrl]
-}
-
-#
-# upgrade_dump1090 - fetch file information about the latest version of dump1090
-#
-# check it for reasonability
-#
-# compare it to the version we're running and if it's not current, update
-# the current site
-#
-proc upgrade_dump1090 {} {
-	logger "upgrade of dump1090 requested"
-
-	if {[glob -nocomplain /etc/init.d/fadump1090.sh] == ""} {
-		logger "you don't appear to have FlightAware's (no /etc/init.d/fadump1090.sh), i'm not going to mess with it"
-		return 0
-	}
-
-    set debianPackageFile [fetch_url_as_string "https://flightaware.com/adsb/piaware/files/latest_dump1090"]
-    if {$debianPackageFile == ""} {
-		logger "unable to upgrade dump1090: failed to get name of package file"
-		return 0
-    }
-
-    if {[string first / $debianPackageFile] >= 0} {
-		logger "unable to upgrade dump1090: illegal character in version '$debianPackageFile'"
-		return 0
-    }
-
-    set requestUrl https://flightaware.com/adsb/piaware/files/$debianPackageFile
-	return [upgrade_dpkg_package dump1090 $requestUrl]
-}
-
-#
-# upgrade_dpkg_package - package name needs to be a legit fragment that could
-#  only match one package, url is where to get it from
-#
-proc upgrade_dpkg_package {name url} {
-	logger "considering upgrading $name from $url..."
-	lassign [query_dpkg_names_and_versions $name] currentPackageName currentPackageVersion
-	if {$currentPackageVersion eq ""} {
-		logger "unable to query current version of $name from dpkg. it may not be installed. proceeding with upgrade..."
-	} else {
-		set compare [compare_versions_from_packages $currentPackageVersion $url]
-
-		if {$compare > 0} {
-			logger "current version $currentPackageVersion is newer than requested $url, skipping..."
-			return 0
-		}
-
-		if {$name == "piaware"} {
-			if {[compare_versions_from_packages $::piawareVersion $url] > 0} {
-				logger "current version of piaware $::piawareVersion is newer than requested, skipping..."
-				return 0
-			}
-		}
-	}
-
-    logger "fetching latest $name version from $url"
-
-	set tmpFile "/tmp/[file tail $url]"
-
-	if {![fetch_url_as_binary_file $url $tmpFile]} {
-		return 0
-	}
-
-    logger "installing $name..."
-    run_program_log_output "dpkg --force-confnew -i $tmpFile"
-
-    logger "installing any required dependencies"
-    run_program_log_output "apt-get install -fy"
-
-	logger "upgrade of $name complete."
-    return 1
-}
-
-#
-# restart_piaware - restart the piaware program, called from the piaware
-# program, so it's a bit tricky
-#
-proc restart_piaware {} {
-	# unlock the pidfile if we have a lock, so that the new piaware can
-	# get the lock even if we're still running.
-	unlock_pidfile
-
-	logger "restarting piaware. hopefully i'll be right back..."
-	system "/etc/init.d/piaware restart &"
-
-	# sleep apparently restarts on signals, we want to process them,
-	# so use after/vwait so the event loop runs.
-	after 10000 [list set ::die 1]
-	vwait ::die
-
-	logger "piaware failed to die, pid [pid], that's me, i'm gonna kill myself"
-	exit 0
-}
-
-#
-# console.tcl - Itcl class to generate a server socket on a specified port that
-#  provides a console interface for the application that can be telnetted to.
-#
-#  requires inbound connections to come from localhost
-#
-# Usage:
-#
-#   IpConsole console
-#   console setup_server -port 8888
-#
-#   telnet localhost 8888
-#
-
-catch {::itcl::delete class IpConsole}
-
-::itcl::class IpConsole {
-    public variable port 8888
-    public variable connectedSockets ""
-
-    protected variable serverSock
-
-    constructor {args} {
-		configure {*}$args
-    }
-
-    destructor {
-        stop_server
-    }
-
-	method logger {message} {
-		::logger "(console) $message"
-	}
-
-    #
-    # handle_connect_request - handle a request to connect to the console
-    #  port from a remote client
-    #
-    method handle_connect_request {socket ip port} {
-		logger "connect from $socket $ip $port"
-		if {$ip != "127.0.0.1"} {
-			logger "ip not localhost, ignored"
-			close $socket
-			return
-		}
-		fileevent $socket readable "$this handle_remote_request $socket"
-		fconfigure $socket -blocking 0 -buffering line
-
-		puts $socket [list connect "$::argv0 - connect from $ip $port - help for help"]
-
-		# add the socket to the list of connected sockets if it's not there already
-	    set whichSock [lsearch -exact $connectedSockets $socket]
-		if {$whichSock < 0} {
-			lappend connectedSockets $socket
-		}
-    }
-
-	#
-	# close_client_socket - close a socket on a client connection, removing
-	#  it from the list of connected sockets (if it can be found there)
-	#  and making sure the close doesn't cause a traceback no matter what
-	#
-	method close_client_socket {sock} {
-	    # remove the socket from the list of connected sockets
-	    set whichSock [lsearch -exact $sock $connectedSockets]
-		if {$whichSock >= 0} {
-		    set connectedSockets [lreplace $connectedSockets $whichSock $whichSock]
-		}
-
-		if {[catch {close $sock} catchResult] == 1} {
-		    logger "error closing $sock: $catchResult (ignored)"
-		}
-	}
-
-    #
-    # handle_remote_request - handle a request from a connected client
-    #
-    method handle_remote_request {sock} {
-		if {[eof $sock]} {
-			logger "EOF on $sock"
-			close_client_socket $sock
-			return
-		}
-
-		if {[gets $sock line] >= 0} {
-			switch -- $line {
-				"help" {
-					puts $sock [list ok "quit, exit - disconnect, help - this help, !quit, !exit, !help - execute quit, exit or help on the server"]
-					return
-				}
-
-				"quit" {
-					puts $sock [list ok goodbye]
-					close_client_socket $sock
-					logger "client disconnected by 'quit' command"
-					return
-				}
-
-				"exit" {
-					puts $sock [list ok "goodbye, use !exit to exit the server"]
-					close_client_socket $sock
-					logger "client disconnected by 'exit' command"
-					return
-				}
-
-				"!quit" {
-					# they want us to send a quit to the server
-					set line "quit"
-				}
-
-				"!exit" {
-					# they want us to send "exit" to the server
-					set line "exit"
-				}
-
-				"!help" {
-					set line "help"
-				}
-			}
-
-			if {[catch {uplevel #0 $line} result] == 1} {
-				puts $sock [list error $result]
-			} else {
-				puts $sock [list ok $result]
-			}
-		}
-    }
-
-    #
-    # setup_server - set up to accept connections on the server port
-    #
-    method setup_server {args} {
-		eval configure $args
-
-		stop_server
-
-		if {[catch {socket -server [list $this handle_connect_request] $port} serverSocket] == 1} {
-			logger "Error opening server socket: $port: $serverSocket"
-			return 0
-		}
-		return 1
-    }
-
-    #
-    # stop_server - stop accepting connections on the server socket
-    #
-    method stop_server {} {
-		if {[info exists serverSock]} {
-			if {[catch {close $serverSock} result] == 1} {
-				logger "Error closing server socket '$serverSock': $result"
-			}
-			unset serverSock
-		}
-    }
-}
-
-#
-# version_compare - comapre two piaware versions, treating empty as less
-# than anything nonempty.
-#
-# return -1 if the first is less than the second, 1 if the first is great
-# than the second, and 0 if they are equal
-#
-# unlike comparing floating point numbers, with this 1.10 > 1.9
-#
-# FlightAware dev note - this function is copied from the fa_web library
-#
-proc version_compare {v1 v2} {
-    if {$v1 == $v2} {
-        return 0
-    }
-
-    if {$v1 == "" && $v2 != ""} {
-        return -1
-    }
-
-    if {$v1 != "" && $v2 == ""} {
-        return 1
-    }
-
-    foreach x1 [split $v1 ".-"] x2 [split $v2 ".-"] {
-        if {$x1 < $x2} {
-            return -1
-        } elseif {$x1 > $x2} {
-            return 1
-        }
-    }
-    return 0
-}
-
-#
-# extract_version_number - extract a version number from a package string or
-#  something... find stuff like 1.15-3 and 1.16
-#
-# if nothing matched, return an empty string
-#
-proc extract_version_number {string} {
-	set expression {([0-9]*\.[0-9]*-[0-9]*)}
-	if {[regexp $expression $string dummy string]} {
-		return $string
-	}
-
-	set expression {([0-9]*\.[0-9]*)}
-	if {[regexp $expression $string dummy string]} {
-		return $string
-	}
-
-	return ""
-}
-
-#
-# compare_versions_from_packages - extract version numbers from two longer
-#   package names and return version_compare of them
-#
-proc compare_versions_from_packages {v1 v2} {
-	set nv1 [extract_version_number $v1]
-	if {$nv1 == ""} {
-		error "can't get a version number out of $v1"
-	}
-
-	set nv2 [extract_version_number $v2]
-	if {$nv2 == ""} {
-		error "can't get a version number out of $v2"
-	}
-
-	set result [version_compare $nv1 $nv2]
-	#logger "result of version_compare '$v1' '$v2' is $result"
-	return $result
 }
 
 package provide piaware 1.0

@@ -5,61 +5,70 @@
 # Copyright (C) 2014 FlightAware LLC, All Rights Reserved
 #
 
-set configParams [list user password autoUpdate manualUpdate mlat mlatResults mlatResultsFormat]
-set booleanConfigParams [list autoUpdate manualUpdate mlat mlatResults]
-#
-# process_parameters - look at params array and do things 
-#
-proc process_parameters {_params} {
-    upvar $_params params
+package require fa_piaware_config
+package require tryfinallyshim
 
-	set saveAdeptConfig 0
+# speculatively try to load the extra FF config options
+catch {package require fa_flightfeeder_config}
 
-	# process password special by morphing it into either
-	# a password or an empty string so it will be like
-	# the other variables
-    if {$params(password)} {
-		set params(password) [get_password]
-    } else {
-		set params(password) ""
+proc load_config {} {
+	global config
+
+	if {![info exists config]} {
+		set config [::fa_piaware_config::new_combined_config #auto]
+		set problems [$config read_config]
+		foreach problem $problems {
+			puts stderr "warning: $problem"
+		}
 	}
+}
 
-	foreach param $::configParams {
-		if {[lsearch $::booleanConfigParams $param] >= 0} {
-			if {![string is boolean $params($param)]} {
-				puts stderr "$param must be 1 or 0 not '$params($param)'"
+proc update_config_values {argv} {
+	global config
+	load_config
+
+	foreach {key val} $argv {
+		if {$key eq ""} {
+			puts stderr "warning: ignoring '$keyval': it should be in the form config-option=new-value"
+			continue
+		}
+
+		if {![$config metadata exists $key]} {
+			puts stderr "warning: cannot set option '$key', it is not a known config option"
+			continue
+		}
+
+		if {[$config metadata protect $key]} {
+			if {$val eq ""} {
+				set val [get_password "Enter a value for $key: "]
 			}
+			set displayVal "<hidden>"
+		} else {
+			if {$val eq ""} {
+				set val [get_value "Enter a value for $key: "]
+			}
+			set displayVal $val
 		}
 
-		if {$params($param) != ""} {
-			set_adept_config $param $params($param)
-			set saveAdeptConfig 1
+		if {![$config metadata validate $key $val]} {
+			puts stderr "warning: could not set option '$key' to value '$displayVal': not a valid value for that key"
+			continue
+		}
+
+		if {[catch {$config set_option $key $val} result]} {
+			puts stderr "warning: could not set option '$key' to value '$displayVal': $result"
+			continue
+		}
+
+		if {$result ne ""}  {
+			puts stderr "Set $key to $displayVal in [$result origin $key]"
+		} else {
+			puts stderr "$key is unchanged"
 		}
 	}
 
-	# if a config variable was set, save the adept config
-	if {$saveAdeptConfig} {
-		save_adept_config
-	}
-
-    if {$params(start)} {
-		start_piaware
-    }
-
-    if {$params(stop)} {
-		stop_piaware
-    }
-
-    if {$params(restart)} {
-		restart_piaware
-    }
-
-    if {$params(status)} {
-		piaware_status
-    }
-
-	if {$params(show)} {
-		show_piaware_config
+	if {[catch {$config write_config} result]} {
+		puts stderr "could not write new config files: $result"
 	}
 }
 
@@ -67,28 +76,23 @@ proc process_parameters {_params} {
 # get_password - read a password with not showing it even though i'm not
 #  too sure not showing it helps
 #
-proc get_password {} {
-	if {![info exists ::adeptConfig(user)]} {
-		set userString ""
-	} else {
-		set userString "$::adeptConfig(user)'s "
-	}
+proc get_password {prompt} {
 	exec stty -echo echonl <@stdin
-	puts -nonewline stdout "please enter flightaware user ${userString}password: "
-	flush stdout
-	gets stdin line
-	exec stty echo -echonl <@stdin
-	return $line
+	try {
+		puts -nonewline stdout $prompt
+		flush stdout
+		gets stdin line
+		return $line
+	} finally {
+		exec stty echo -echonl <@stdin
+	}
 }
 
-#
-# user_check - ensure they're running as root
-#
-proc user_check {} {
-	if {[id user] != "root"} {
-		puts stderr "$::argv0 must be run as user 'root', try 'sudo $::argv0...'"
-		exit 4
-	}
+proc get_value {prompt} {
+	puts -nonewline stdout $prompt
+	flush stdout
+	gets stdin line
+	return $line
 }
 
 #
@@ -168,21 +172,46 @@ proc piaware_status {} {
 	}
 }
 
-proc show_piaware_config {} {
-	if {[catch {set fp [open $::adeptConfigFile]} catchResult] == 1} {
-		if {[lindex $::errorCode 1] == "ENOENT"} {
-			puts "piaware config file '$::adeptConfigFile' doesn't exist"
-		} else {
-			puts "error opening piaware config file '$::adeptConfigFile': $catchResult"
-		}
-		return
+proc show_piaware_config {showAll keys} {
+	global config
+	load_config
+
+	if {$keys eq ""} {
+		set keys [lsort [$config metadata all_settings]]
+		set verbose 1
+	} else {
+		set verbose 0
+		set showAll 1
 	}
 
-	puts "contents of piaware config file '$::adeptConfigFile':"
-	while {[gets $fp line] >= 0} {
-		puts $line
+	foreach key $keys {
+		if {[$config exists $key]} {
+			set displayKey $key
+			set val [$config metadata format $key [$config get $key]]
+			set origin "from [$config origin $key]"
+		} elseif {[$config metadata default $key] ne ""} {
+			set displayKey $key
+			set val [$config metadata format $key [$config get $key]]
+			set origin "using default value"
+		} else {
+			if {!$showAll} {
+				continue
+			}
+			set displayKey "#$key"
+			set val ""
+			set origin "not set, no default"
+		}
+
+		if {[$config metadata protect $key] && !$showAll} {
+			set val "<hidden>"
+		}
+
+		if {$verbose} {
+			puts stderr [format "%-30s %-30s # %s" $displayKey $val $origin]
+		} else {
+			puts stdout $val
+		}
 	}
-	close $fp
 }
 
 # vim: set ts=4 sw=4 sts=4 noet :

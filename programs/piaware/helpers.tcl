@@ -6,6 +6,12 @@
 #
 
 package require tls
+package require fa_piaware_config
+package require fa_services
+package require fa_sudo
+
+# speculatively try to load the extra FF config options
+catch {package require fa_flightfeeder_config}
 
 #
 # logger - log a message
@@ -21,11 +27,29 @@ proc logger {text} {
 }
 
 #
+# debug - log a debug message locally if enabled
+#
+proc debug {text} {
+	if {$::params(debug)} {
+		log_locally $text
+	}
+}
+
+#
 # log_locally - log a message locally
 #
 proc log_locally {text} {
 	#::bsd::syslog log info $text
-    puts stderr "[clock format [clock seconds] -format "%D %T" -gmt 1] $text"
+	if {!$::params(plainlog)} {
+		puts stderr "[clock format [clock seconds] -format "%D %T" -gmt 1] $text"
+	} else {
+		puts stderr $text
+	}
+}
+
+proc log_bgerror {message _options} {
+	array set options $_options
+	logger "Caught background error: $options(-errorinfo)"
 }
 
 #
@@ -34,131 +58,61 @@ proc log_locally {text} {
 proc greetings {} {
 	log_locally "****************************************************"
 	log_locally "piaware version $::piawareVersionFull is running, process ID [pid]"
-	log_locally "your system info is: [exec /bin/uname --all]"
-}
-
-#
-# user_check - require us to be run as a specific user
-#
-proc user_check {} {
-	if {[id user] != "root"} {
-		puts stderr "$::argv0 must be run as user 'root'"
-		exit 4
-	}
+	log_locally "your system info is: [::fa_sudo::exec_as /bin/uname --all]"
 }
 
 #
 # setup_adept_client - adept client-side setup
 #
 proc setup_adept_client {} {
-	if {$::params(serverhosts) == ""} {
-		set hostOptions ""
-	} else {
-		set hostOptions "-hosts $::params(serverhosts)"
-	}
-
     ::fa_adept::AdeptClient adept \
+		-mac [get_mac_address_or_quit] \
 		-port $::params(serverport) \
 		-showTraffic $::params(showtraffic) \
-		{*}$hostOptions
+		-logCommand ::log_locally \
+		-loginCommand ::gather_login_info \
+		-updateLocationCommand ::adept_location_changed \
+		-mlatCommand ::forward_to_mlat_client \
+		-updateCommand ::handle_update_request
+
+	if {$::params(serverhosts) ne ""} {
+		adept configure -hosts $::params(serverhosts)
+	}
 }
 
 #
-# load_adept_config_and_setup - load config and massage if necessary
+# load_config - set up our config files
 #
-proc load_adept_config_and_setup {} {
-	load_adept_config
-
-	if {[info exists ::adeptConfig(user)]} {
-		set ::flightaware_user $::adeptConfig(user)
-	}
-
-	if {[info exists ::adeptConfig(password)]} {
-		set ::flightaware_password $::adeptConfig(password)
-	}
-
+proc setup_config {} {
+	::fa_piaware_config::new_combined_config piawareConfig
 	lassign [load_location_info] ::receiverLat ::receiverLon
-
-	return 1
+	reread_piaware_config
 }
 
-#
-# user_password_sanity_check - return 0 if either of the variables
-#  flightaware_user and flightaware_password don't exist or are
-#  empty, else 1.
-#
-proc user_password_sanity_check {} {
-	foreach var "::flightaware_user ::flightaware_password" {
-		if {![info exists $var]} {
-			return 0
-		}
-
-		if {[set $var] == ""} {
-			return 0
-		}
-	}
-
-	return 1
-}
-
-#
-# confirm_nonblank_user_and_password_or_die - either we have existant, non-blank
-#  passwords or we die
-#
-proc confirm_nonblank_user_and_password_or_die {} {
-	if {![user_password_sanity_check]} {
-		puts stdout "FlightAware account user and password settings are empty or missing"
-		puts stdout "Please run piaware-config to update"
-		exit 1
+proc reread_piaware_config {} {
+	set problems [piawareConfig read_config]
+	foreach problem $problems {
+		log_locally "warning: $problem"
 	}
 }
 
-# log_stdout_stderr_to_file - redirect stdout and stderr to a log file
-#
-proc log_stdout_stderr_to_file {} {
-	# log to /tmp/piaware.out
-	set fp [open /tmp/piaware.out a]
+# reopen_logfile - open a logfile (for append) and redirect stdout and stderr there,
+# closing the old stdout/stderr
+proc reopen_logfile {} {
+	if {$::params(debug) || $::params(plainlog)} {
+		# not logging to a file
+		return
+	}
+
+	if {[catch {set fp [open $::params(logfile) a]} result]} {
+		logger "failed to reopen $::params(logfile): $result"
+		return
+	}
+
 	fconfigure $fp -buffering line
 	dup $fp stdout
 	dup $fp stderr
 	close $fp
-}
-
-#
-# switch_logfile - close and rename the log file and open a new one
-#
-proc switch_logfile {} {
-	log_locally "switching log files"
-	file rename -force -- /tmp/piaware.out /tmp/piaware.out.yesterday
-	log_stdout_stderr_to_file
-}
-
-#
-# schedule_logfile_switch - schedule a logfile switch in the appropriate number
-#  of milliseconds that it's at midnight
-#
-proc schedule_logfile_switch {} {
-	set now [clock seconds]
-
-	if {$now < 1423000000} {
-		log_locally "schedule_logfile_switch: system clock isn't current ($now), should be at least 1423000000, maybe ntpd hasn't synchronized time yet, will check again in a minute"
-		after 60000 schedule_logfile_switch
-		return
-	}
-
-	set secsPerDay 86400
-	set clockAtNextMidnight [expr {(((($now + 60) / $secsPerDay) + 1) * $secsPerDay) - 1}]
-	set secondsUntilMidnight [expr {$clockAtNextMidnight - $now}]
-	after [expr {$secondsUntilMidnight * 1000}] schedule_logfile_switch_and_switch_logfile
-}
-
-#
-# schedule_logfile_switch_and_switch_logfile - schedule the next logfile
-#  switch and perform the current logfile switch
-#
-proc schedule_logfile_switch_and_switch_logfile {} {
-	schedule_logfile_switch
-	switch_logfile
 }
 
 #
@@ -227,10 +181,33 @@ proc remove_pidfile {} {
 }
 
 #
+# restart_piaware - restart the piaware program, called from the piaware
+# program, so it's a bit tricky
+#
+proc restart_piaware {} {
+	# unlock the pidfile if we have a lock, so that the new piaware can
+	# get the lock even if we're still running.
+	unlock_pidfile
+
+	logger "restarting piaware. hopefully i'll be right back..."
+	::fa_services::invoke_service_action piaware restart
+
+	# sleep apparently restarts on signals, we want to process them,
+	# so use after/vwait so the event loop runs.
+	after 10000 [list set ::die 1]
+	vwait ::die
+
+	logger "piaware failed to die, pid [pid], that's me, i'm gonna kill myself"
+	exit 0
+}
+
+
+#
 # setup_signals - arrange for common signals to shutdown the program
 #
 proc setup_signals {} {
-	signal trap HUP "shutdown %S"
+	signal trap HUP reload_config
+	signal trap USR1 reopen_logfile
 	signal trap TERM "shutdown %S"
 	signal trap INT "shutdown %S"
 }
@@ -296,6 +273,191 @@ proc try_save_location_info {lat lon} {
 	puts $fp $lat
 	puts $fp $lon
 	close $fp
+
+	set fp [open $::locationFileEnv w]
+	puts $fp "PIAWARE_LAT=\"$lat\""
+	puts $fp "PIAWARE_LON=\"$lon\""
+	puts $fp "PIAWARE_DUMP1090_LOCATION_OPTIONS=\"--lat $lat --lon $lon\""
+	close $fp
+}
+
+
+#
+# get_mac_address_or_quit - return the mac address of eth0 or if unable
+#  to, emit a message to stderr and exit
+#
+proc get_mac_address_or_quit {} {
+	set mac [get_mac_address]
+	if {$mac == ""} {
+		puts stderr "software failed to determine MAC address of the device.  cannot proceed without it."
+		exit 6
+	}
+	return $mac
+}
+
+#
+# run the given command and log any output to our logfile
+# return 1 if it ran OK, 0 if there was a problem
+#
+proc run_command_as_root_log_output {args} {
+    logger "*** running command '$args' and logging output"
+	if {[catch {set fp [::fa_sudo::popen_as -root -stdin "</dev/null" -stdout stdoutPipe -stderr stderrPipe -- {*}$args]} result]} {
+		logger "*** error attempting to start command: $result"
+		return 0
+	}
+
+	if {$result == 0} {
+		logger "*** sudo refused to start command"
+		return 0
+	}
+
+	set name [file tail [lindex $args 0]]
+	set childpid $result
+	set ::pipesRunning($childpid) 2
+
+	log_subprocess_output "${name}($childpid)" $stdoutPipe [list incr ::pipesRunning($childpid) -1]
+	log_subprocess_output "${name}($childpid)" $stderrPipe [list incr ::pipesRunning($childpid) -1]
+
+	while {$::pipesRunning($childpid) > 0} {
+		vwait ::pipesRunning($childpid)
+	}
+
+	unset ::pipesRunning($childpid)
+
+	if {[catch {wait $childpid} result]} {
+		if {[lindex $::errorCode 0] eq "POSIX" && [lindex $::errorCode 1]  eq "ECHILD"} {
+			logger "missed child termination status for pid $childpid, assuming all is OK"
+			return 1
+		} else {
+			logger "unexpected error waiting for child: $::errorCode"
+			return 0
+		}
+	}
+
+	lassign $result deadpid type code
+	if {$type eq "EXIT" && $code eq 0} {
+		return 1
+	} else {
+		logger "child process $deadpid exited with status $type $code"
+		return 0
+	}
+}
+
+
+#
+# read from the given channel (which should be a child process stderr)
+# and log the output via our logger
+#
+proc log_subprocess_output {name channel {closeScript ""}} {
+	fconfigure $channel -buffering line -blocking 0
+	fileevent $channel readable [list subprocess_logger $name $channel $closeScript]
+}
+
+proc subprocess_logger {name channel closeScript} {
+	while 1 {
+		if {[catch {set size [gets $channel line]}] == 1} {
+			catch {close $channel}
+			if {$closeScript ne ""} {
+				{*}$closeScript
+			}
+			return
+		}
+
+		if {$size < 0} {
+			break
+		}
+
+		if {$line ne ""} {
+			logger "$name: $line"
+		}
+	}
+
+	if {[eof $channel]} {
+		catch {close $channel}
+		if {$closeScript ne ""} {
+			{*}$closeScript
+		}
+	}
+}
+
+# wait for a child to die with a timeout
+proc timed_waitpid {timeout childpid} {
+	set deadline [expr {[clock milliseconds] + $timeout}]
+	while {[clock milliseconds] < $deadline} {
+		if {![catch {wait -nohang $childpid} result options]} {
+			lassign $::errorCode type subtype
+			if {$type eq "POSIX" && $subtype eq "ECHILD"} {
+				# child went missing
+				return "$childpid EXIT unknown"
+			}
+
+			# reraise error
+			return -options $options $result
+		}
+
+		if {$result ne ""} {
+			# child status available
+			return $result
+		}
+
+		# still waiting
+		sleep 1
+	}
+}
+
+# periodically try to reap a particular background process
+proc reap_child_later {childpid} {
+	after 5000 [list try_to_reap_child $childpid]
+}
+
+proc try_to_reap_child {childpid} {
+	if {[catch {wait -nohang $childpid} result]} {
+		# I guess we missed it.
+		logger "child pid $deadpid exited with unknown status"
+		return
+	}
+
+	if {$result eq ""} {
+		# I'm not dead!
+		after 5000 [list try_to_reap_child $childpid]
+		return
+	}
+
+	# died
+	lassign $result deadpid status code
+	switch $status {
+		EXIT {
+			if {$code != 0} {
+				logger "child pid $deadpid exited with status $code"
+			}
+		}
+
+		SIG {
+			logger "child pid $deadpid killed by signal $code"
+		}
+
+		default {
+			logger "child pid $deadpid exited with unexpected status $status $code"
+		}
+	}
+}
+
+# called on SIGUSR1
+proc reload_config {} {
+	logger "Reloading configuration and reconnecting."
+
+	# load new config values
+	reread_piaware_config
+
+	# re-init derived values
+	::fa_sudo::clear_sudo_cache
+	setup_faup1090_vars
+
+	# shut down existing stuff and reconnect
+	reopen_logfile
+	disable_mlat
+	adept reconnect
+	restart_faup1090 now
 }
 
 # vim: set ts=4 sw=4 sts=4 noet :

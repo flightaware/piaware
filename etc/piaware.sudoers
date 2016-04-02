@@ -1,0 +1,27 @@
+# This file enables sudo access to allow piaware to run specific commands
+# as root. It should be installed as /etc/sudoers.d/piaware
+
+# None of these rules are required for correct piaware operation; you can
+# disable some of the rules or omit this file entirely. Some functionality
+# won't be available if you do that, e.g. piaware can only trigger upgrades
+# if it can run the upgrade helper script as root.
+
+# piaware prefers to run netstat as root so it can see the process names that
+# are listening on specific ports.
+piaware ALL = NOPASSWD: /bin/netstat
+
+# piaware wants to be able to start/stop/restart services such as dump1090
+# when things get stuck.
+piaware ALL = NOPASSWD: /usr/sbin/invoke-rc.d
+piaware ALL = NOPASSWD: /bin/systemctl --no-block restart *
+piaware ALL = NOPASSWD: /bin/systemctl --no-block try-restart *
+piaware ALL = NOPASSWD: /bin/systemctl is-active *
+
+# if manual or automatic upgrades are enabled, piaware runs this helper script
+# as root to do the privileged upgrade work
+piaware ALL = NOPASSWD: /usr/lib/piaware/helpers/run-apt-get
+
+# if manual or automatic upgrades are enabled, piaware might want to run
+# halt or shutdown in response to a remote command
+piaware ALL = NOPASSWD: /sbin/halt
+piaware ALL = NOPASSWD: /sbin/shutdown

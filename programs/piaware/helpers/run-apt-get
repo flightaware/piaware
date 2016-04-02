@@ -1,0 +1,74 @@
+#!/bin/sh
+
+# A helper script to run apt-get noninteractively with the right settings.
+# Run as one of:
+#   run-apt-get update
+#   run-apt-get upgrade-package packagename
+#   run-apt-get upgrade-all
+
+set -e
+
+DEBIAN_FRONTEND=noninteractive
+export DEBIAN_FRONTEND
+
+options="-o DPkg::Options::=--force-confdef -o DPkg::Options::=--force-confold -o DPkgPM::Progress=0"
+
+keyring=/etc/apt/trusted.gpg.d/flightaware-archive-keyring.gpg
+keyring_source=/usr/lib/piaware/flightaware-archive-keyring.gpg
+sourceslist=/etc/apt/sources.list.d/piaware.list
+
+action="$1"
+shift
+case "$action" in
+    update)
+        # ensure the keyring and sources list are installed
+        # (they may not be if this is a non-sdcard install
+        # or a sdcard upgrade)
+
+        if [ ! -e "$keyring" ]
+        then
+            echo "$keyring does not exist; installing it"
+            ln -s "$keyring_source" "$keyring"
+        fi
+
+        if [ ! -e "$sourcelist" ]
+        then
+            . /etc/os-release
+            case "$ID:$VERSION_ID" in
+                raspbian:7)
+                    url=http://flightaware.com/adsb/piaware/files/raspbian
+                    suite=wheezy
+                    components=piaware
+                    ;;
+
+                raspbian:8)
+                    url=http://flightaware.com/adsb/piaware/files/raspbian
+                    suite=jessie
+                    components=piaware
+                    ;;
+
+                *)
+                    echo "Automatic updates not available for OS $ID:$VERSION_ID ($PRETTY_NAME)" >&2
+                    exit 1
+            esac
+
+            echo "$sourceslist does not exist; creating it"
+            echo "deb $url $suite $components" >$sourceslist
+        fi
+
+        exec apt-get -q -y $options update
+        ;;
+
+    upgrade-package)
+        exec apt-get -q -y $options install "$@"
+        ;;
+
+    upgrade-all)
+        exec apt-get -q -y $options upgrade
+        ;;
+
+    *)
+        echo "Unhandled action: $action"
+        exit 1
+        ;;
+esac

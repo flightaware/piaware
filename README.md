@@ -181,3 +181,8 @@ This can probably be done for people installing piaware from this repo by doing 
 and removed by doing a
 
     update-rc.d piaware remove
+
+FlightAware
+---
+FlightAware has released over a dozen applications  (under the free and liberal BSD license) into the open source community. FlightAware's repositories are available on GitHub for public use, discussion, bug reports, and contribution. Read more at https://flightaware.com/about/code/
+
