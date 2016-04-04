@@ -84,20 +84,6 @@ proc is_pid_running {pid} {
 }
 
 #
-# find_processes - return a list of pids running with a command of exactly "name"
-#
-proc find_processes {name} {
-	set pidlist {}
-    set fp [::fa_sudo::open_as "|pgrep --exact $name"]
-    while {[gets $fp line] >= 0} {
-		set pid [string trim $line]
-		lappend pidlist $pid
-	}
-    catch {close $fp}
-	return $pidlist
-}
-
-#
 # is_piaware_running - find out if piaware is running by checking its pid
 #  file
 #
@@ -357,17 +343,6 @@ proc get_mac_address {} {
 
 	catch {close $fp}
 	return $mac
-}
-
-#
-# parse_mac_address_from_line - find a mac address free-from in a line and
-#   return it or return the empty string
-#
-proc parse_mac_address_from_line {line} {
-	if {[regexp {(([0-9a-fA-F]{2}[:-]){5}([0-9a-fA-F]{2}))} $line dummy mac]} {
-		return $mac
-	}
-	return ""
 }
 
 #

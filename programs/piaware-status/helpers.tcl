@@ -17,11 +17,25 @@ proc report_status {} {
 }
 
 #
+# find_processes - return a list of pids running with a command of exactly "name"
+#
+proc find_processes {name} {
+        set pidlist {}
+    set fp [open "|pgrep --exact $name"]
+    while {[gets $fp line] >= 0} {
+                set pid [string trim $line]
+                lappend pidlist $pid
+        }
+    catch {close $fp}
+        return $pidlist
+}
+
+#
 # process_running_report -check to see if a process is running, say whether
 #  it is or not, and store a 1/0 in the running array for that process
 #
 proc process_running_report {name} {
-    if {[is_process_running $name]} {
+    if {[array size [find_processes $name]] > 0} {
 	puts "$name is running."
 	set ::running($name) 1
     } else {

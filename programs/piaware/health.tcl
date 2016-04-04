@@ -126,10 +126,6 @@ proc construct_health_array {_row} {
 		set row(adsbprogram) $::netstatus(program_30005)
 	}
 
-	if {[info exists ::netstatus(program_10001)]} {
-		set row(transprogram) $::netstatus(program_10001)
-	}
-
 	catch {
 		if {[get_default_gateway_interface_and_ip gateway iface ip]} {
 			set row(local_ip) $ip
