@@ -186,7 +186,7 @@ proc stop_faup1090 {} {
 
 	# record when we were last connected
 	set ::lastAdsbConnectedClock [clock seconds]
-	catch {kill HUP [pid $::faupPipe]}
+	catch {kill HUP $::faupPid}
 	catch {close $::faupPipe}
 
 	catch {
