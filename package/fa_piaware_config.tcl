@@ -816,7 +816,7 @@ namespace eval ::fa_piaware_config {
 
 		set prio 100
 		foreach f [lsort [glob -nocomplain -types f "/media/usb/*/piaware-config.txt"]] {
-			$combined add [new ConfigFile #auto -filename $f -metadata $standardSettings -priority $prio -readonly 1]
+			$combined add [new ConfigFile #auto -filename $f -metadata $metadata -priority $prio -readonly 1]
 			incr prio
 		}
 
