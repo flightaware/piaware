@@ -791,9 +791,6 @@ namespace eval ::fa_piaware_config {
 		return [uplevel 1 ::fa_piaware_config::new ::fa_piaware_config::ConfigMetadata [list $name] [list $settings]]
 	}
 
-	# point standard settings at piaware
-	interp alias {} ::fa_piaware_config::new_standard_settings {} ::fa_piaware_config::piaware_standard_settings
-
 	# Return a new ConfigGroup that handles the standard piaware config location, which are
 	# (starting from the highest priority):
 	#
@@ -806,7 +803,7 @@ namespace eval ::fa_piaware_config {
 	#
 	# Provide a itcl name pattern (e.g. #auto) as "name"
 	proc piaware_combined_config {name} {
-		set metadata [new_standard_settings #auto]
+		set metadata [piaware_standard_settings #auto]
 		set combined [uplevel 1 ::fa_piaware_config::new ::fa_piaware_config::ConfigGroup $name -metadata $metadata]
 
 		$combined add [new ConfigFile #auto -filename "/etc/piaware.conf" -metadata $metadata -priority 0 -writeHelper $::fa_piaware_config::helperPath]
@@ -828,7 +825,7 @@ namespace eval ::fa_piaware_config {
 	# Return a new ConfigGroup that gives readonly access to the legacy config files
 	# in /root/.piaware and /etc/piaware
 	proc new_legacy_config {name} {
-		set metadata [new_standard_settings #auto]
+		set metadata [piaware_standard_settings #auto]
 		set combined [uplevel 1 ::fa_piaware_config::new ::fa_piaware_config::ConfigGroup $name -metadata $metadata]
 
 		set c [new LegacySetConfigFile #auto -filename "/etc/piaware" -metadata $metadata -priority -100 -readonly 1]
