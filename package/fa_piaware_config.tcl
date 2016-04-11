@@ -797,7 +797,6 @@ namespace eval ::fa_piaware_config {
 	# Return a new ConfigGroup that handles the standard piaware config location, which are
 	# (starting from the highest priority):
 	#
-	#  priority 200:      /run/piaware/override.conf (readonly)
 	#  priority 100..199: any config files found in /media/usb/*/piaware-config.txt, ordered arbitrarily (readonly)
 	#  priority 50:       /boot/piaware-config.txt (readwrite)
 	#  priority 0:        /etc/piaware.conf (readwrite)
@@ -819,8 +818,6 @@ namespace eval ::fa_piaware_config {
 			$combined add [new ConfigFile #auto -filename $f -metadata $metadata -priority $prio -readonly 1]
 			incr prio
 		}
-
-		$combined add [new ConfigFile #auto -filename "/run/piaware/override.conf" -metadata $metadata -priority 200 -readonly 1]
 
 		return $combined
 	}
