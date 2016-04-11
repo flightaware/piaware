@@ -805,7 +805,7 @@ namespace eval ::fa_piaware_config {
 	# /boot/piaware-config.txt if the setting was set there.
 	#
 	# Provide a itcl name pattern (e.g. #auto) as "name"
-	proc new_combined_config {name} {
+	proc piaware_combined_config {name} {
 		set metadata [new_standard_settings #auto]
 		set combined [uplevel 1 ::fa_piaware_config::new ::fa_piaware_config::ConfigGroup $name -metadata $metadata]
 
@@ -821,6 +821,9 @@ namespace eval ::fa_piaware_config {
 
 		return $combined
 	}
+
+	# point standard config at piaware
+	interp alias {} ::fa_piaware_config::new_combined_config {} ::fa_piaware_config::piaware_combined_config
 
 	# Return a new ConfigGroup that gives readonly access to the legacy config files
 	# in /root/.piaware and /etc/piaware
