@@ -28,6 +28,11 @@ case "$1" in
         TEMPFILE=/boot/piaware-config.txt.new
         ;;
 
+    /boot/flightfeeder-config.txt)
+        TARGET=/boot/flightfeeder-config.txt
+        TEMPFILE=/boot/flightfeeder-config.txt.new
+        ;;
+
     *)
         # anything else is not allowed
         echo "$0: refusing to update that path" >&2
