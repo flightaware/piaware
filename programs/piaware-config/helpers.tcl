@@ -27,9 +27,10 @@ proc update_config_values {argv} {
 	global config
 	load_config
 
-	foreach {key val} $argv {
-		if {$key eq ""} {
-			puts stderr "warning: ignoring '$keyval': it should be in the form config-option=new-value"
+	set sentinel "!!!SENTINEL!!!"
+
+	foreach {key val} [list {*}$argv $sentinel] {
+		if {$key eq $sentinel} {
 			continue
 		}
 
@@ -39,12 +40,12 @@ proc update_config_values {argv} {
 		}
 
 		if {[$config metadata protect $key]} {
-			if {$val eq ""} {
+			if {$val eq $sentinel} {
 				set val [get_password "Enter a value for $key: "]
 			}
 			set displayVal "<hidden>"
 		} else {
-			if {$val eq ""} {
+			if {$val eq $sentinel} {
 				set val [get_value "Enter a value for $key: "]
 			}
 			set displayVal $val
@@ -61,7 +62,11 @@ proc update_config_values {argv} {
 		}
 
 		if {$result ne ""}  {
-			puts stderr "Set $key to $displayVal in [$result origin $key]"
+			if {$val eq ""} {
+				puts stderr "Cleared setting for $key in [$result origin $key]"
+			} else {
+				puts stderr "Set $key to $displayVal in [$result origin $key]"
+			}
 		} else {
 			puts stderr "$key is unchanged"
 		}
@@ -185,31 +190,58 @@ proc show_piaware_config {showAll keys} {
 	}
 
 	foreach key $keys {
-		if {[$config exists $key]} {
-			set displayKey $key
-			set val [$config metadata format $key [$config get $key]]
-			set origin "from [$config origin $key]"
-		} elseif {[$config metadata default $key] ne ""} {
-			set displayKey $key
-			set val [$config metadata format $key [$config get $key]]
-			set origin "using default value"
-		} else {
-			if {!$showAll} {
-				continue
-			}
-			set displayKey "#$key"
-			set val ""
-			set origin "not set, no default"
-		}
+		set val [$config get $key]
+		set origin [$config origin $key]
+		set defaultValue [$config metadata default $key]
 
-		if {[$config metadata protect $key] && !$showAll} {
-			set val "<hidden>"
+		switch -- $origin {
+			"" {
+				if {!$showAll} {
+					continue
+				}
+
+				set displayKey "#$key"
+				set displayValue "<unset>"
+				set displayOrigin "no value set and no default value"
+			}
+
+			"defaults" {
+				if {!$showAll} {
+					continue
+				}
+
+				set displayKey "#$key"
+				set displayValue "[$config metadata format $key $val]"
+				set displayOrigin "using default value"
+			}
+
+			default {
+				if {$val eq ""} {
+					if {!$showAll} {
+						continue
+					}
+
+					set displayKey "#$key"
+					set displayValue "<unset>"
+					set displayOrigin "value cleared at $origin"
+				} else {
+					set displayKey $key
+					if {[$config metadata protect $key] && !$showAll} {
+						set displayValue "<hidden>"
+					} else {
+						set displayValue [$config metadata format $key $val]
+					}
+					set displayOrigin "value set at $origin"
+				}
+			}
 		}
 
 		if {$verbose} {
-			puts stderr [format "%-30s %-30s # %s" $displayKey $val $origin]
+			puts stderr [format "%-30s %-30s # %s" $displayKey $displayValue $displayOrigin]
 		} else {
-			puts stdout $val
+			if {$val ne ""} {
+				puts stdout [$config metadata format $key $val]
+			}
 		}
 	}
 }
