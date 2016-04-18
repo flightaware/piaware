@@ -12,6 +12,14 @@ package require tryfinallyshim
 package require fa_sudo
 
 namespace eval ::fa_piaware_config {
+	# a note on empty values vs. defaults
+	#
+	# empty values are equivalent to missing values
+	# if a value is empty or missing and there is a default, the default is applied
+	# you can't override a default with an empty value
+	#  (setting an empty value returns that key to its default)
+	# explitly empty values will "white out" any non-empty value in a lower-priority file
+
 	set helperPath [file join [file dirname [info script]] "helpers" "update-piaware-config"]
 
 	proc new {klass name args} {
@@ -275,9 +283,15 @@ namespace eval ::fa_piaware_config {
 							}
 						}
 
-						if {![$metadata validate $configKey $value]} {
-							lappend problems "$filename:[llength $lines]: invalid valid for option $fileKey"
-							continue
+						# Empty values have a special meaning: they are a whiteout marker
+						# Don't process them further.
+						if {$value ne ""} {
+							if {![$metadata validate $configKey $value]} {
+								lappend problems "$filename:[llength $lines]: invalid value for option $fileKey: $value"
+								continue
+							}
+
+							set value [$metadata normalize $configKey $value]
 						}
 
 						if {[info exists values($configKey)]} {
@@ -285,7 +299,7 @@ namespace eval ::fa_piaware_config {
 							# but accept it anyway
 						}
 
-						set values($configKey) [$metadata normalize $configKey $value]
+						set values($configKey) $value
 						set valueSourceLine($configKey) [llength $lines]
 					}
 				}
@@ -325,7 +339,7 @@ namespace eval ::fa_piaware_config {
 		# returns the priority of this file, either that explicitly set
 		# by a "priority" entry, or whatever was set in the ctor.
 		method priority {} {
-			if {[$metadata exists priority] && [exists priority]} {
+			if {[$metadata exists priority] && [get priority] ne ""} {
 				return [get priority]
 			} else {
 				return $priority
@@ -432,16 +446,18 @@ namespace eval ::fa_piaware_config {
 		}
 
 		protected method generate_line {key value} {
-			return "$key $value   # updated by fa_piaware_config"
+			if {$value eq ""} {
+				return "$key $value   # whiteout entry, updated by fa_piaware_config"
+			} else {
+				return "$key $value   # updated by fa_piaware_config"
+			}
 		}
 
 		# get the value for a given config key
 		#
-		# if there's no value but a default is present in the metadata,
-		# returns the default. (use "exists" to distinguish these cases)
-		#
-		# raises an error if the key is unknown, or if the key is known
-		# but has no value set and has no default in the metadata
+		# raises an error if the key is unknown
+		# otherwise, returns the key value ("" for a whiteout or missing value)
+		# defaults are _not_ applied
 		method get {configKey} {
 			set configKey [string tolower $configKey]
 
@@ -451,10 +467,8 @@ namespace eval ::fa_piaware_config {
 
 			if {[info exists values($configKey)]} {
 				return $values($configKey)
-			} elseif {[$metadata default $configKey] ne ""} {
-				return [$metadata default $configKey]
 			} else {
-				error "no value for $key set, and no default available"
+				return ""
 			}
 		}
 
@@ -477,17 +491,24 @@ namespace eval ::fa_piaware_config {
 				set fileKey $configKey
 			}
 
-			if {![$metadata validate $configKey $value]} {
-				error "not a valid value for this key"
+			if {$value ne ""} {
+				if {![$metadata validate $configKey $value]} {
+					error "not a valid value for this key"
+				}
+
+				set value [$metadata normalize $configKey $value]
+				set formatted [$metadata format $configKey $value]
+			} else {
+				# whiteout
+				set formatted ""
 			}
 
-			set value [$metadata normalize $configKey $value]
 			if {[info exists values($configKey)] && $values($configKey) eq $value} {
 				# unchanged
 				return 0
 			}
 
-			set newLine [generate_line $fileKey [$metadata format $configKey $value]]
+			set newLine [generate_line $fileKey $formatted]
 
 			if {[info exists valueSourceLine($configKey)]} {
 				lset lines [expr {$valueSourceLine($configKey)-1}] $newLine
@@ -501,7 +522,7 @@ namespace eval ::fa_piaware_config {
 		}
 
 		# return 1 if the given key has a value set in this file;
-		# ignores any defaults.
+		# ignores any defaults; returns 1 for whiteouts, too.
 		method exists {configKey} {
 			set configKey [string tolower $configKey]
 			if {![$metadata exists $configKey]} {
@@ -639,32 +660,45 @@ namespace eval ::fa_piaware_config {
 			return [$metadata {*}$args]
 		}
 
-		# get a given config key from the highest priority
-		# file in this group. If no file has this key set,
-		# returns the default value if there is one, or
-		# raises an error if there is no default.
-		method get {configKey} {
+		# return the file for this key
+		# return "" if no file has it
+		method file_for_key {configKey} {
 			foreach f $orderedFiles {
 				if {[$f exists $configKey]} {
-					return [$f get $configKey]
+					return $f
 				}
 			}
+		}
 
-			if {[$metadata default $configKey] ne ""} {
-				return [$metadata default $configKey]
+		# get a given config key from the highest priority
+		# file in this group. If no file has this key set,
+		# returns the default value if there is one, otherwise
+		# returns an empty string.
+		method get {configKey} {
+			if {![$metadata exists $configKey]} {
+				error "unknown config key: $configKey"
 			}
 
-			error "No value specified for $configKey, and no default available"
+			set f [file_for_key $configKey]
+			if {$f ne ""} {
+				# it's set somewhere (possibly a whiteout)
+				set value [$f get $configKey]
+			} else {
+				set value ""
+			}
+
+			if {$value eq ""} {
+				# not set, use default
+				set value [$metadata default $configKey]
+			}
+
+			return $value
 		}
 
 		# return 1 if the given key is set in one of the config files
+		# or has a default value
 		method exists {configKey} {
-			foreach f $configFiles {
-				if {[$f exists $configKey]} {
-					return 1
-				}
-			}
-			return 0
+			return [expr {[get $configKey] ne ""}]
 		}
 
 		# try to set an option, return the file we set it in
@@ -716,11 +750,9 @@ namespace eval ::fa_piaware_config {
 		#   "defaults" if it was not explictly set and has a default value
 		#   "" if it was not explictly set and has no default value
 		method origin {configKey} {
-			set configKey [string tolower $configKey]
-			foreach f $orderedFiles {
-				if {[$f exists $configKey]} {
-					return [$f origin $configKey]
-				}
+			set f [file_for_key $configKey]
+			if {$f ne ""} {
+				return [$f origin $configKey]
 			}
 
 			if {[$metadata default $configKey] ne ""} {

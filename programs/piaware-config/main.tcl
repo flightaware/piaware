@@ -31,7 +31,7 @@ proc main {{argv ""}} {
 		{restart "attempt to restart the ADS-B client"}
 		{status "get the status of the ADS-B client"}
 		{show "show current config settings (or just the specified keys)"}
-		{showall "show all config settings including passwords and unset values"}
+		{showall "show all config settings including passwords, unset values, and defaults"}
 	}
 
 	set usage ": $::argv0 -help|-start|-stop|-restart|-status|-showall|-show ?key?|?key value?\n"
