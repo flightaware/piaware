@@ -569,7 +569,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 		close_socket
 		cancel_timers
 
-		set interval [expr {round(($connectRetryIntervalSeconds * (1 + rand())))}]
+		set interval [expr {round(($connectRetryIntervalSeconds * (0.8 + rand() * 0.4)))}]
 		logger "reconnecting in $interval seconds..."
 
 		set reconnectTimerID [after [expr {$interval * 1000}] [list $this connect]]
