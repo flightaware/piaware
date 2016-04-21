@@ -183,7 +183,7 @@ proc inspect_sockets_with_netstat {} {
 
 	# try to run as root if we can, to get the program names
 	if {[catch {
-		set command [list netstat --program --protocol=inet --tcp --wide --all --numeric]
+		set command [list netstat --program --tcp --wide --all --numeric]
 		if {[::fa_sudo::can_sudo root {*}$command]} {
 			set fp [open_nolocale -root "|$command 2>/dev/null"]
 		} else {
