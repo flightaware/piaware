@@ -29,6 +29,7 @@ proc setup_faup1090_vars {} {
 	set ::receiverType [piawareConfig get receiver-type]
 	switch $::receiverType {
 		rtlsdr {
+			# locally running dump1090
 			set ::receiverHost "localhost"
 			set ::receiverPort 30005
 			set ::adsbDataService "dump1090"
@@ -36,20 +37,35 @@ proc setup_faup1090_vars {} {
 		}
 
 		beast {
+			# direct serial connection to a Beast
 			set ::receiverHost "localhost"
 			set ::receiverPort 30005
 			set ::adsbDataService "beast-splitter"
-			set ::adsbDataProgram "beast-splitter"
+			set ::adsbDataProgram "the Mode S Beast serial port (via beast-splitter)"
+		}
+
+		relay {
+			# network connection to a receiver, using
+			# beast-splitter to establish a single connection
+			# and relay to the various piaware clients (faup1090,
+			# fa-mlat-client, dump1090 for map display)
+			set ::receiverHost "localhost"
+			set ::receiverPort 30005
+			set ::adsbDataService "beast-splitter"
+			set ::adsbDataProgram "the ADS-B data program at $::receiverHost/$::receiverPort (with local relay)"
 		}
 
 		radarcape {
-			set ::receiverHost [piawareConfig get radarcape-host]
-			set ::receiverPort 10003
-			set ::adsbDataService ""
-			set ::adsbDataProgram "the Radarcape at $::receiverHost"
+			# network connection to a Radarcape; this
+			# is a specialized form of "relay".
+			set ::receiverHost "localhost"
+			set ::receiverPort 30005
+			set ::adsbDataService "beast-splitter"
+			set ::adsbDataProgram "the Radarcape at $::receiverHost (with local relay)"
 		}
 
 		other {
+			# network connection to a receiver, using direct connections
 			set ::receiverHost [piawareConfig get receiver-host]
 			set ::receiverPort [piawareConfig get receiver-port]
 			set ::adsbDataService ""
