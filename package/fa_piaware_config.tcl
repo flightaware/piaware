@@ -43,7 +43,11 @@ namespace eval ::fa_piaware_config {
 			}
 
 			"integer" {
-				return [string is integer -strict $value]
+				return [string is entier -strict $value]
+			}
+
+			"double" {
+				return [string is double -strict $value]
 			}
 
 			default {
@@ -55,8 +59,12 @@ namespace eval ::fa_piaware_config {
 	# given a user-provided value of a given type, return the normalized form
 	proc normalize_typed_value {type value} {
 		switch $type {
-			"string" - "integer" {
+			"string" {
 				return $value
+			}
+
+			"integer" - "double" {
+				return [expr {$value}]
 			}
 
 			"boolean" {
@@ -85,8 +93,16 @@ namespace eval ::fa_piaware_config {
 			}
 
 			"integer" {
-				if {![string is integer -strict $value]} {
+				if {![string is entier -strict $value]} {
 					error "bad integer value: $value"
+				}
+
+				return $value
+			}
+
+			"double" {
+				if {![string is double -strict $value]} {
+					error "bad double value: $value"
 				}
 
 				return $value
@@ -146,8 +162,8 @@ namespace eval ::fa_piaware_config {
 				error "wrong args: should be \"add_setting key ?-type type? ?-default value? ?-protect 0|1?\""
 			}
 
-			if {$typeName ni {boolean string integer}} {
-				error "wrong args: -type understands \"boolean\", \"string\", or \"integer\""
+			if {$typeName ni {boolean string integer double}} {
+				error "wrong args: -type understands \"boolean\", \"string\", \"double\", or \"integer\""
 			}
 
 			if {[info exists defaultValue]} {
@@ -811,7 +827,7 @@ namespace eval ::fa_piaware_config {
 			{"receiver-type"         -default rtlsdr}
 			{"rtlsdr-device-index"   -type integer -default 0}
 			{"rtlsdr-ppm"            -type integer -default 0}
-			{"rtlsdr-gain"           -type integer -default -10}
+			{"rtlsdr-gain"           -type double -default -10}
 			"radarcape-host"
 			"receiver-host"
 			{"receiver-port"         -type integer -default 30005}
