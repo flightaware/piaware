@@ -824,6 +824,7 @@ namespace eval ::fa_piaware_config {
 			"http-proxy-user"
 			{"http-proxy-password"   -protect 1}
 
+			{"rfkill"                -type boolean -default no}
 			{"receiver-type"         -default rtlsdr}
 			{"rtlsdr-device-index"   -type integer -default 0}
 			{"rtlsdr-ppm"            -type integer -default 0}
