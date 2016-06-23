@@ -67,7 +67,6 @@ proc greetings {} {
 proc setup_adept_client {} {
     ::fa_adept::AdeptClient adept \
 		-mac [get_mac_address_or_quit] \
-		-port $::params(serverport) \
 		-showTraffic $::params(showtraffic) \
 		-logCommand ::log_locally \
 		-loginCommand ::gather_login_info \
@@ -77,6 +76,14 @@ proc setup_adept_client {} {
 
 	if {$::params(serverhosts) ne ""} {
 		adept configure -hosts $::params(serverhosts)
+	} else {
+		adept configure -hosts [piawareConfig get adept-serverhosts]
+	}
+
+	if {$::params(serverport) ne ""} {
+		adept configure -port $::params(serverport)
+	} else {
+		adept configure -port [piawareConfig get adept-serverport]
 	}
 }
 

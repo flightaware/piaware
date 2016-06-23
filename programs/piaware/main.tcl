@@ -35,7 +35,7 @@ proc main {{argv ""}} {
     set options {
         {p.arg "" "specify the name of a file to write our pid in"}
         {serverhosts.arg "" "specify alternate server hosts (for FA testing)"}
-        {serverport.arg "1200" "specify alternate server port (for FA testing)"}
+        {serverport.arg "" "specify alternate server port (for FA testing)"}
         {plainlog "log to stderr without timestamps"}
         {debug "log to stderr, maybe enable more debugging messages"}
 		{logfile.arg "/var/log/piaware.log" "set logfile location (not used if -debug or -plainlog are given)"}
