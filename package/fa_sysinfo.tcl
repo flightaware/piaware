@@ -144,7 +144,4 @@ namespace eval ::fa_sysinfo {
 	}
 }
 
-
-}
-
 package provide fa_sysinfo 0.1
