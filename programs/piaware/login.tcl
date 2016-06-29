@@ -41,14 +41,14 @@ proc gather_login_info {_message} {
 	set message(transprogram) "faup1090"
 
 	catch {
-		if {[get_default_gateway_interface_and_ip gateway iface ip]} {
+		if {[::fa_sysinfo::route_to_flightaware gateway iface ip]} {
 			set message(local_ip) $ip
 			set message(local_iface) $iface
 		}
 	}
 
 	catch {
-		get_os_release rel
+		array set rel [::fa_sysinfo::os_release_info]
 		foreach {k1 k2} {ID os_id VERSION_ID os_version_id VERSION os_version} {
 			if {[info exists rel($k1)]} {
 				set message($k2) $rel($k1)

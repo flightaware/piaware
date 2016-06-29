@@ -38,7 +38,7 @@ proc construct_health_array {_row} {
 	}
 
 	catch {
-		if {[get_default_gateway_interface_and_ip gateway iface ip]} {
+		if {[::fa_sysinfo::route_to_flightaware gateway iface ip]} {
 			set row(local_ip) $ip
 			set row(local_iface) $iface
 		}
