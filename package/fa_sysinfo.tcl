@@ -142,6 +142,100 @@ namespace eval ::fa_sysinfo {
 		catch {close $fp}
 		return $mac
 	}
+
+	#
+	# device_ip_address - figure out the specified device's IP address
+	#
+	# note - does not cache, returns empty string if the machine doesn't
+	#  have one
+	#
+	proc device_ip_address {dev} {
+		set fp [open_nolocale "|ip address show dev $dev"]
+		try {
+			while {[gets $fp line] >= 0} {
+				if {[regexp {inet ([^/]*)} $line dummy ip]} {
+					return $ip
+				}
+			}
+		} finally {
+			catch {close $fp}
+		}
+
+		return ""
+	}
+
+	# route_to_flightaware - find the gateway / interface / source IP for traffic to FlightAware
+	proc route_to_flightaware {_gateway _iface _ip} {
+		upvar $_gateway gateway $_iface iface $_ip ip
+		return [route_to 70.42.6.191 gateway iface ip]
+	}
+
+	# route_to - find the gateway / interface / source IP for traffic to a given IP
+	proc route_to {target _gateway _iface _ip} {
+		upvar $_gateway gateway $_iface iface $_ip ip
+
+		set iface ""
+		set gateway ""
+		set ip ""
+
+		set fp [::fa_sudo::open_as "|ip -o route get to $target"]
+		try {
+			while {[gets $fp line] >= 0} {
+				if {[lindex $line 0] ne $target} {
+					continue
+				}
+
+				for {set i 1} {$i < [llength $line]} {incr i} {
+					set item [lindex $line $i]
+					if {$item eq "via"} {
+						incr i
+						set gateway [lindex $line $i]
+						continue
+					}
+					if {$item eq "dev"} {
+						incr i
+						set iface [lindex $line $i]
+						continue
+					}
+					if {$item eq "src"} {
+						incr i
+						set ip [lindex $line $i]
+						continue
+					}
+				}
+			}
+		} finally {
+			catch {close $fp}
+		}
+
+		if {$gateway ne "" && $iface ne "" && $ip ne ""} {
+			return 1
+		} else {
+			return 0
+		}
+	}
+
+	#
+	# os_release_info - parse /etc/os-release and return a key-value list
+	#
+	proc os_release_info {} {
+		set result ""
+
+		set f [open "/etc/os-release" "r"]
+		try {
+			while {[gets $f line] >= 0} {
+				if {[regexp {^\s*([A-Za-z_]+)="(.+)"} $line -> key value]} {
+					lappend result $key $value
+				} elseif {[regexp {^\s*([A-Za-z_]+)=(\S+)} $line -> key value]} {
+					lappend result $key $value
+				}
+			}
+		} finally {
+			catch {close $f}
+		}
+
+		return $result
+	}
 }
 
 package provide fa_sysinfo 0.1
