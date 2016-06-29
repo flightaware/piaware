@@ -9,6 +9,7 @@ package require tls
 package require fa_piaware_config
 package require fa_services
 package require fa_sudo
+package require fa_sysinfo
 
 # speculatively try to load the extra FF config options
 catch {package require fa_flightfeeder_config}
@@ -294,7 +295,7 @@ proc try_save_location_info {lat lon} {
 #  to, emit a message to stderr and exit
 #
 proc get_mac_address_or_quit {} {
-	set mac [get_mac_address]
+	set mac [::fa_sysinfo::mac_address]
 	if {$mac == ""} {
 		puts stderr "software failed to determine MAC address of the device.  cannot proceed without it."
 		exit 6
