@@ -143,25 +143,92 @@ namespace eval ::fa_sysinfo {
 		return $mac
 	}
 
-	#
-	# device_ip_address - figure out the specified device's IP address
-	#
-	# note - does not cache, returns empty string if the machine doesn't
-	#  have one
-	#
-	proc device_ip_address {dev} {
-		set fp [open_nolocale "|ip address show dev $dev"]
+	proc interface_ip_and_prefix {dev} {
+		set fp [::fa_sudo::open_as "|ip -o address show dev $dev"]
 		try {
 			while {[gets $fp line] >= 0} {
-				if {[regexp {inet ([^/]*)} $line dummy ip]} {
-					return $ip
+				if {[regexp {inet ([^/]*)/(\S+)} $line -> ip prefix]} {
+					return [list $ip $prefix]
 				}
 			}
 		} finally {
 			catch {close $fp}
 		}
 
-		return ""
+		return [list "" ""]
+	}
+
+	#
+	# interface_ip_address - figure out the specified device's IP address
+	#
+	# note - does not cache, returns empty string if the machine doesn't
+	#  have one
+	#
+	proc interface_ip_address {dev} {
+		lassign [interface_ip_and_prefix $dev] addr prefix
+		return $addr
+	}
+
+	# interface_netmask - figure up the specified device's netmask
+	proc interface_netmask {dev} {
+		lassign [interface_ip_and_prefix $dev] addr prefix
+		if {$prefix eq ""} {
+			return ""
+		}
+
+		set netmask [expr {0xFFFFFFFF << (32 - $prefix)}]
+		set b1 [expr {($netmask & 0xFF000000) >> 24}]
+		set b2 [expr {($netmask & 0x00FF0000) >> 16}]
+		set b3 [expr {($netmask & 0x0000FF00) >> 8}]
+		set b4 [expr {($netmask & 0x000000FF)}]
+		return [format "%d.%d.%d.%d" $b1 $b2 $b3 $b4]
+	}
+
+	# generic fetcher for per-interface sysfs values
+	proc interface_sysfs_value {dev path def} {
+		try {
+			set fp [open "/sys/class/net/$dev/$path"]
+			gets $fp state
+			close $fp
+			return $state
+		} on error {} {
+			return $def
+		}
+	}
+
+	# return the state of the given interface ("up"/"down"/"unknown")
+	proc interface_state {dev} {
+		return [interface_sysfs_value $dev "operstate" "unknown"]
+	}
+
+	# return the interface speed in Mbps, or "" if unknown
+	proc interface_speed {dev} {
+		return [interface_sysfs_value $dev "speed" ""]
+	}
+
+	# return the interface duplex setting, or "" if unknown"
+	proc interface_duplex {dev} {
+		return [interface_sysfs_value $dev "duplex" ""]
+	}
+
+	# return the number of bytes transmitted on the interface, or 0 if unknown
+	proc interface_tx_bytes {dev} {
+		return [interface_sysfs_value $dev "statistics/tx_bytes" 0]
+	}
+
+	# return the number of packets transmitted on the interface, or 0 if unknown
+	proc interface_tx_packets {dev} {
+		return [interface_sysfs_value $dev "statistics/tx_packets" 0]
+	}
+
+	# return the number of bytes received on the interface, or 0 if unknown
+	proc interface_rx_bytes {dev} {
+		return [interface_sysfs_value $dev "statistics/rx_bytes" 0]
+	}
+
+	# return the number of packets received on the interface, or 0 if unknown
+	proc interface_rx_packets {dev} {
+		return [interface_sysfs_value $dev "statistics/rx_packets" 0]
 	}
 
 	# route_to_flightaware - find the gateway / interface / source IP for traffic to FlightAware
