@@ -188,10 +188,13 @@ namespace eval ::fa_sysinfo {
 	proc interface_sysfs_value {dev path def} {
 		try {
 			set fp [open "/sys/class/net/$dev/$path"]
-			gets $fp state
-			close $fp
-			return $state
-		} on error {} {
+			try {
+				gets $fp state
+				return $state
+			} finally {
+				catch {close $fp}
+			}
+		} on error {result} {
 			return $def
 		}
 	}
