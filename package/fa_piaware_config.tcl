@@ -43,7 +43,7 @@ namespace eval ::fa_piaware_config {
 			}
 
 			"integer" {
-				return [string is entier -strict $value]
+				return [string is integer -strict $value]
 			}
 
 			"double" {
