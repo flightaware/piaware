@@ -14,7 +14,7 @@ export DEBIAN_FRONTEND
 options="-o DPkg::Options::=--force-confdef -o DPkg::Options::=--force-confold -o DPkgPM::Progress=0"
 
 keyring=/etc/apt/trusted.gpg.d/flightaware-archive-keyring.gpg
-keyring_source=/usr/lib/piaware/flightaware-archive-keyring.gpg
+keyring_source=/usr/lib/piaware/helpers/flightaware-archive-keyring.gpg
 sourceslist=/etc/apt/sources.list.d/piaware.list
 
 action="$1"
