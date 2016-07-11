@@ -31,18 +31,18 @@ case "$action" in
             ln -s "$keyring_source" "$keyring"
         fi
 
-        if [ ! -e "$sourcelist" ]
+        if [ ! -e "$sourceslist" ]
         then
             . /etc/os-release
             case "$ID:$VERSION_ID" in
                 raspbian:7)
-                    url=http://flightaware.com/adsb/piaware/files/raspbian
+                    url=http://flightaware.com/adsb/piaware/files/packages
                     suite=wheezy
                     components=piaware
                     ;;
 
                 raspbian:8)
-                    url=http://flightaware.com/adsb/piaware/files/raspbian
+                    url=http://flightaware.com/adsb/piaware/files/packages
                     suite=jessie
                     components=piaware
                     ;;
