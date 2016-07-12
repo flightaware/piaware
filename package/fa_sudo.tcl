@@ -521,7 +521,7 @@ namespace eval ::fa_sudo {
 			# failed to start because sudo refused to run it for us
 			set result [list 0 SUDOFAILED SUDOFAILED]
 		} elseif {$background} {
-			set result [list 0 0 0]
+			set result [list $childpid BACKGROUND 0]
 		} else {
 			set result [wait $childpid]
 		}
@@ -553,6 +553,11 @@ namespace eval ::fa_sudo {
 					set errcode [list SUDOFAILED $childpid 0 "sudo refused to start the command"]
 				}
 
+				BACKGROUND:* {
+					# Arrange to eventually reap it, as the caller won't.
+					try_to_reap_child $childpid
+				}
+
 				default {
 					set exitmsg "exited with unexpected status $status $code"
 				}
@@ -574,6 +579,21 @@ namespace eval ::fa_sudo {
 				return $stdoutResult
 			}
 		}
+	}
+
+	proc try_to_reap_child {childpid} {
+		if {[catch {wait -nohang $childpid} result]} {
+			# not there.
+			return
+		}
+
+		if {$result ne ""} {
+			# reaped.
+			return
+		}
+
+		# retry later
+		after 5000 [list ::fa_sudo::try_to_reap_child $childpid]
 	}
 
 	# Like regular open-with-a-pipeline, but allows changing user/group (and doesn't
