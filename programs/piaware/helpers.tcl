@@ -392,7 +392,7 @@ proc subprocess_logger {name channel closeScript} {
 proc timed_waitpid {timeout childpid} {
 	set deadline [expr {[clock milliseconds] + $timeout}]
 	while {[clock milliseconds] < $deadline} {
-		if {![catch {wait -nohang $childpid} result options]} {
+		if {[catch {wait -nohang $childpid} result options]} {
 			lassign $::errorCode type subtype
 			if {$type eq "POSIX" && $subtype eq "ECHILD"} {
 				# child went missing
