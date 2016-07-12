@@ -9,6 +9,7 @@ package require http
 package require tls
 package require Itcl
 package require tryfinallyshim
+package require fa_sudo
 
 set piawarePidFile /var/run/piaware.pid
 set piawareConfigFile /etc/piaware
@@ -42,14 +43,16 @@ proc open_nolocale {args} {
 proc query_dpkg_names_and_versions {pattern} {
 	set results [list]
 
-	if {[catch {set fp [open "|dpkg-query --show $pattern 2>/dev/null"]}]} {
+	set queryargs [list dpkg-query --showformat {${binary:Package} ${Version} ${db:Status-Status}\n} --show $pattern]
+	if {[catch {set pipe [::fa_sudo::open_as "|$queryargs" "r"]}]} {
 		# silently swallow
 		return $results
 	}
 
-	while {[gets $fp line] >= 0} {
-		if {[regexp {([^\t]*)\t(.*)} $line dummy packageName packageVersion]} {
-			lappend results $packageName $packageVersion
+	while {[gets $pipe line] >= 0} {
+		lassign [split $line " "] pkg version status
+		if {$status eq "installed"} {
+			lappend results $pkg $version
 		}
 	}
 
