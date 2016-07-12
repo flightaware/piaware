@@ -43,15 +43,15 @@ proc open_nolocale {args} {
 proc query_dpkg_names_and_versions {pattern} {
 	set results [list]
 
-	set queryargs [list dpkg-query --showformat {${binary:Package} ${Version} ${db:Status-Status}\n} --show $pattern]
+	set queryargs [list dpkg-query --showformat {${binary:Package} ${Version} ${Status}\n} --show $pattern]
 	if {[catch {set pipe [::fa_sudo::open_as "|$queryargs" "r"]}]} {
 		# silently swallow
 		return $results
 	}
 
 	while {[gets $pipe line] >= 0} {
-		lassign [split $line " "] pkg version status
-		if {$status eq "installed"} {
+		lassign [split $line " "] pkg version status_want status_eflag status_status
+		if {$status_want eq "install" || $status_status eq "installed"} {
 			lappend results $pkg $version
 		}
 	}
