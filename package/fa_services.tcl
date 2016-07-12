@@ -186,6 +186,43 @@ namespace eval ::fa_services {
 			}
 		}
 	}
+
+	# periodically try to reap a particular background process
+	proc reap_child_later {childpid} {
+		after 5000 [list ::fa_services::try_to_reap_child $childpid]
+	}
+
+	proc try_to_reap_child {childpid} {
+		if {[catch {wait -nohang $childpid} result]} {
+			# I guess we missed it.
+			logger "child pid $childpid exited with unknown status"
+			return
+		}
+
+		if {$result eq ""} {
+			# I'm not dead!
+			after 5000 [list try_to_reap_child $childpid]
+			return
+		}
+
+		# died
+		lassign $result deadpid status code
+		switch $status {
+			EXIT {
+				if {$code != 0} {
+					logger "child pid $deadpid exited with status $code"
+				}
+			}
+
+			SIG {
+				logger "child pid $deadpid killed by signal $code"
+			}
+
+			default {
+				logger "child pid $deadpid exited with unexpected status $status $code"
+			}
+		}
+	}
 }
 
 package provide fa_services 0.1
