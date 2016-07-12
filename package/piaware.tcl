@@ -56,7 +56,7 @@ proc query_dpkg_names_and_versions {pattern} {
 		}
 	}
 
-	catch {close $fp}
+	catch {close $pipe}
 	return $results
 }
 
