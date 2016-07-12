@@ -189,7 +189,16 @@ proc upgrade_all_packages {} {
 # upgrade_piaware - upgrade piaware via apt-get
 #
 proc upgrade_piaware {} {
-	return [single_package_upgrade "piaware"]
+	# If we have piaware-release installed, upgrade that
+	# so the whole release is upgraded. Otherwise,
+	# upgrade just piaware.
+
+	set res [query_dpkg_names_and_versions "piaware-release"]
+	if {$res ne ""} {
+		return [single_package_upgrade "piaware-release"]
+	} else  {
+		return [single_package_upgrade "piaware"]
+	}
 }
 
 
