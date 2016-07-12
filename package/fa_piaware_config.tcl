@@ -848,7 +848,8 @@ namespace eval ::fa_piaware_config {
 	#
 	#  priority 100..199: any config files found in /media/usb/*/piaware-config.txt, ordered arbitrarily (readonly)
 	#  priority 50:       /boot/piaware-config.txt (readwrite)
-	#  priority 0:        /etc/piaware.conf (readwrite)
+	#  priority 40:       /etc/piaware.conf (readwrite)
+	#  priority 30:       /usr/share/piaware-support/piaware-image-config.txt (readonly) (provides additional defaults on PiAware sdcard images)
 	#
 	# which means that in general changes will be written to /etc/piaware.conf where possible, or
 	# /boot/piaware-config.txt if the setting was set there.
@@ -858,7 +859,8 @@ namespace eval ::fa_piaware_config {
 		set metadata [piaware_standard_settings #auto]
 		set combined [uplevel 1 ::fa_piaware_config::new ::fa_piaware_config::ConfigGroup $name -metadata $metadata]
 
-		$combined add [new ConfigFile #auto -filename "/etc/piaware.conf" -metadata $metadata -priority 0 -writeHelper $::fa_piaware_config::helperPath]
+		$combined add [new ConfigFile #auto -filename "/usr/share/piaware-support/piaware-image-config.txt" -metadata $metadata -priority 30 -readonly 1]
+		$combined add [new ConfigFile #auto -filename "/etc/piaware.conf" -metadata $metadata -priority 40 -writeHelper $::fa_piaware_config::helperPath]
 
 		$combined add [new ConfigFile #auto -filename "/boot/piaware-config.txt" -metadata $metadata -priority 50 -writeHelper $::fa_piaware_config::helperPath]
 
