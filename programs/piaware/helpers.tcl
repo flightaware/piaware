@@ -421,7 +421,7 @@ proc reap_child_later {childpid} {
 proc try_to_reap_child {childpid} {
 	if {[catch {wait -nohang $childpid} result]} {
 		# I guess we missed it.
-		logger "child pid $deadpid exited with unknown status"
+		logger "child pid $childpid exited with unknown status"
 		return
 	}
 
