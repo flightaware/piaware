@@ -730,21 +730,34 @@ namespace eval ::fa_piaware_config {
 
 			set target ""
 			foreach f $orderedFiles {
-				if {![$f readonly]} {
+				if {$target eq "" && ![$f readonly]} {
+					# this is the highest priority writable config file
+					# we could put a new value in; remember it but keep
+					# looking for an existing lower-priority value we
+					# could amend in place.
 					set target $f
 				}
 
 				if {[$f exists $configKey]} {
 					# we must change the setting in this file;
 					# setting it anywhere later would just get overridden
-					# here
-					if {[$f readonly]} {
-						# this setting would override whatever we do on lower
-						# priority files, and we can't change it, give up
-						error "cannot update option $configKey in readonly file [$f filename]"
-					} else {
+					# by the existing setting in this file.
+
+					if {![$f readonly]} {
+						# prefer to update an existing setting rather than
+						# creating an override in a higher-priority file
+						set target $f
 						break
 					}
+
+					if {$target ne ""} {
+						# change it in whatever higher-priority writable file we found
+						break
+					}
+
+					# this setting would override whatever we do on lower
+					# priority files, and we can't change it, give up
+					error "cannot update option $configKey in readonly file [$f filename]"
 				}
 			}
 
