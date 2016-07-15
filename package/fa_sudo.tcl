@@ -307,6 +307,7 @@ namespace eval ::fa_sudo {
 
 		# parse the redirects, open any files we need to, create pipes
 		# we do this in the parent so the parent can see errors easily
+		set cleanupList {}
 		_prepare_read_redirect $options(-stdin) stdinChild cleanupList
 		_prepare_write_redirect $options(-stdout) stdoutChild cleanupList
 		_prepare_write_redirect $options(-stderr) stderrChild cleanupList
