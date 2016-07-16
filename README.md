@@ -59,22 +59,20 @@ piaware by:
 $ sudo service piaware restart
 ```
 
-Configuring authentication
+Displaying the current configuration
 ---
 
-To configure the user that piaware logs in as, use:
+Running piaware-config with no arguments will show the current configuration:
 
 ```
-$ sudo piaware-config -user username -password
+$ piaware-config
 ```
 
-This will set the user to "username" and prompt for the password.
+The "-showall" argument will show all settings, including those that are using the default values:
 
-Note that as of PiAware 1.13 it is no longer necessary to set a username and password, although if you do it will still work.
-If PiAware is not pre-configured then the server will generally be able to associate the PiAware host with your FlightAware
-account automatically by looking at your FlightAware web session and the IP address your pi is coming from.  If it can't then
-there's a process for claiming a PiAware receiver as belonging to you.  For more information please check out
-[PiAware build instructions](https://flightaware.com/adsb/piaware/build) at FlightAware.
+```
+$ piaware-config -showall
+```
 
 Configuring updates
 ---
@@ -84,9 +82,9 @@ by you via the FlightAware website control panel) updates and restarts:
 
 ```
 # disable auto updates:
-$ sudo piaware-config -autoUpdate 0
+$ sudo piaware-config allow-auto-updates no
 # disable manual updates:
-$ sudo piaware-config -manualUpdate 0
+$ sudo piaware-config allow-manual-updates no
 ```
 
 Updates default to enabled for Piaware sdcard images, and disabled for package installs.
@@ -98,7 +96,7 @@ Multilateration data is sent to FlightAware by default. To disable it:
 
 ```
 # disable multilateration:
-$ sudo piaware-config -mlat 0
+$ sudo piaware-config allow-mlat no
 ```
 
 Configuring multilateration results
@@ -112,7 +110,7 @@ There are two controls for this. There is an overall enable/disable
 control that can be used to entirely disable returning results if they are not needed:
 
 ```
-$ sudo piaware-config -mlatResults 0
+$ sudo piaware-config mlat-results no
 ```
 
 If you want to send the results elsewhere, you can modify where they are sent and the format used:
@@ -121,7 +119,7 @@ If you want to send the results elsewhere, you can modify where they are sent an
   # Connect to localhost:30104 and send multilateration results in Beast format.
   # Listen on port 310003 and provide multilateration results in Basestation format to anyone who connects
 
-$ sudo piaware-config -mlatResultsFormat "beast,connect,localhost:30104 basestation,listen,31003"
+$ sudo piaware-config mlat-results-format "beast,connect,localhost:30104 basestation,listen,31003"
 ```
 
 The default configuration now connects to port 30104, not 30004. The default FlightAware dump1090 configuration has
@@ -131,7 +129,7 @@ do want to feed to port 30004, and you know that's not going to cause problems w
 shouldn't, you can return to the older behaviour by:
 
 ```
-$ sudo piaware-config -mlatResultsFormat "beast,connect,localhost:30004"
+$ sudo piaware-config mlat-results-format "beast,connect,localhost:30004"
 ```
 
 piaware-status program
@@ -142,7 +140,7 @@ piaware-status will examine your system and try to figure out what's going on.  
 log file
 ---
 
-piaware logs to the file **/tmp/piaware.out**.  At the end of each GMT day that file is renamed to **/tmp/piaware.out.yesterday** and a new piaware.out is started.
+piaware logs to the file **/var/log/piaware.log**.  This is rotated weekly; older logs are at **/var/log/piaware.log.0**, **/var/log/piaware.log.1**, etc.
 
 fa_adept_client package
 ---
@@ -159,28 +157,19 @@ piaware package
 
 The piaware package provides functions used by various of the piaware programs.
 
-/etc/init.d/piaware
+systemd service file
 ---
 
-The piaware control script gets installed into /etc/init.d and piaware
-can be started and stopped with
+piaware is started as a systemd service ("piaware.service"). It can be started and stopped with:
 
-    /etc/init.d/piaware start
+    sudo systemctl start piaware
+    sudo systemctl stop piaware
+    sudo systemctl restart piaware
 
-    /etc/init.d/piaware stop
+The current state can be checked with:
 
-    /etc/init.d/piaware restart
+    systemctl status piaware
 
-
-The piaware install package does the needful to make piaware stop and start automatically as Linux goes to and from multiuser operation.
-
-This can probably be done for people installing piaware from this repo by doing a
-
-    update-rc.d piaware defaults
-
-and removed by doing a
-
-    update-rc.d piaware remove
 
 FlightAware
 ---
