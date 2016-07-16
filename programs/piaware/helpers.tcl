@@ -107,9 +107,25 @@ proc reread_piaware_config {} {
 # reopen_logfile - open a logfile (for append) and redirect stdout and stderr there,
 # closing the old stdout/stderr
 proc reopen_logfile {} {
-	if {$::params(debug) || $::params(plainlog)} {
+	if {$::params(debug)} {
 		# not logging to a file
 		return
+	}
+
+	if {$::params(plainlog)} {
+		# we assume this is going to syslog
+		# ensure /tmp/piaware.out exists to reduce user confusion
+		if {![file exists "/tmp/piaware.out"]} {
+			catch {file link -symbolic "/tmp/piaware.out" "/var/log/piaware.log"}
+		}
+
+		# nothing more to do
+		return
+	}
+
+	# ensure /tmp/piaware.out exists to reduce user confusion
+	if {![file exists "/tmp/piaware.out"]} {
+		catch {file link -symbolic "/tmp/piaware.out" [file normalize $::params(logfile)]}
 	}
 
 	if {[catch {set fp [open $::params(logfile) a]} result]} {
