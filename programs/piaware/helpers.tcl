@@ -104,6 +104,21 @@ proc reread_piaware_config {} {
 	}
 }
 
+proc create_legacy_logfile {where} {
+	# create a dummy logfile in /tmp/piaware.out
+	# so that users who expect the old behavior
+	# know where to look for the new logfile
+	if {![file exists "/tmp/piaware.out"]} {
+		set f [open "/tmp/piaware.out" "w"]
+		try {
+			puts $f "PiAware now writes logging information $where"
+			puts $f "Please see that file for PiAware logs."
+		} finally {
+			close $f
+		}
+	}
+}
+
 # reopen_logfile - open a logfile (for append) and redirect stdout and stderr there,
 # closing the old stdout/stderr
 proc reopen_logfile {} {
@@ -114,20 +129,12 @@ proc reopen_logfile {} {
 
 	if {$::params(plainlog)} {
 		# we assume this is going to syslog
-		# ensure /tmp/piaware.out exists to reduce user confusion
-		if {![file exists "/tmp/piaware.out"]} {
-			catch {file link -symbolic "/tmp/piaware.out" "/var/log/piaware.log"}
-		}
-
+		catch {create_legacy_logfile "via syslog to /var/log/piaware.log"}
 		# nothing more to do
 		return
 	}
 
-	# ensure /tmp/piaware.out exists to reduce user confusion
-	if {![file exists "/tmp/piaware.out"]} {
-		catch {file link -symbolic "/tmp/piaware.out" [file normalize $::params(logfile)]}
-	}
-
+	catch {create_legacy_logfile "to [file normalize $::params(logfile)]"}
 	if {[catch {set fp [open $::params(logfile) a]} result]} {
 		logger "failed to reopen $::params(logfile): $result"
 		return
