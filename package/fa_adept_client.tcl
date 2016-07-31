@@ -193,19 +193,42 @@ set caDir [file join [file dirname [info script]] "ca"]
 						-tls1 1 \
 						-require 1 \
 						-command [list $this tls_callback]} catchResult] == 1} {
-			logger "TLS handshake with adept server at $host/$port failed: $catchResult"
+			logger "TLS initialization with adept server at $host/$port failed: $catchResult"
 			close_socket_and_reopen
 			return
 		}
 
+		# go nonblocking immediately, so we do not block on the handshake
+		fconfigure $sock -blocking 0
+
+		# kick off a nonblocking handshake
+		$this try_to_handshake
+	}
+
+	method try_to_handshake {} {
 		# force the handshake to complete before proceeding
 		# we can get errors from this.  catch them and return failure
 		# if one occurs.
-		if {[catch {::tls::handshake $sock} catchResult] == 1} {
-			logger "TLS handshake with adept server at $host/$port failed: $catchResult"
-			close_socket_and_reopen
+		if {[catch {::tls::handshake $sock} result] == 1} {
+			if {[lindex $::errorCode 0] == "POSIX" && [lindex $::errorCode 1] == "EAGAIN"} {
+				# not completed yet
+				set result 0
+			} else {
+				# a real error
+				logger "TLS handshake with adept server at $host/$port failed: $result"
+				close_socket_and_reopen
+				return
+			}
+		}
+
+		if {!$result} {
+			# handshake is not done yet, try again later
+			fileevent $sock readable [list $this try_to_handshake]
 			return
 		}
+
+		logger "TLS handshake with adept server at $host/$port completed"
+		fileevent $sock readable ""
 
 		# obtain information about the TLS session we negotiated
 		set tlsStatus [::tls::status $sock]
@@ -231,7 +254,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 		# to get better batching of data while still getting it out
 		# promptly
 
-		fconfigure $sock -buffering full -buffersize 4096 -blocking 0 -translation binary
+		fconfigure $sock -buffering full -buffersize 4096 -translation binary
 		fileevent $sock readable [list $this server_data_available]
 		set connected 1
 		set flushPending 0
@@ -287,7 +310,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 			return 0
 		}
 
-		logger "FlightAware server SSL certificate validated"
+		logger "FlightAware server certificate validated"
 		return 1
     }
 
