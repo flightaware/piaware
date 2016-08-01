@@ -10,6 +10,7 @@
 package require Itcl
 package require tryfinallyshim
 package require fa_sudo
+package require Tclx
 
 namespace eval ::fa_piaware_config {
 	# a note on empty values vs. defaults
@@ -426,6 +427,8 @@ namespace eval ::fa_piaware_config {
 					puts $f $line
 				}
 
+				flush $f
+				sync $f
 				close $f
 				unset f
 

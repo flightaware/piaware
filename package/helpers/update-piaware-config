@@ -56,6 +56,7 @@ chmod --reference=$TARGET $TEMPFILE
 cat >>$TEMPFILE
 
 # move the tempfile into place
+sync # paranoia
 mv $TEMPFILE $TARGET
 
 # ok!
