@@ -414,7 +414,7 @@ namespace eval ::fa_piaware_config {
 			} else {
 				# write the file directly ourselves
 				set temppath "${filename}.new"
-				set f [open $temppath "w" $fpstat(mode)]
+				set f [open $temppath "w" [expr {$fpstat(mode) & 0777}]]
 
 				# fix the ownership to match the old file
 				chown -fileid [list $fpstat(uid) $fpstat(gid)] $f
