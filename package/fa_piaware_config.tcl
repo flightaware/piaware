@@ -427,7 +427,7 @@ namespace eval ::fa_piaware_config {
 					puts $f $line
 				}
 
-				if {!$use_helper} {
+				if {!$useHelper} {
 					flush $f
 					sync $f
 				}
