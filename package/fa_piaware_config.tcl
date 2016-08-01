@@ -427,8 +427,11 @@ namespace eval ::fa_piaware_config {
 					puts $f $line
 				}
 
-				flush $f
-				sync $f
+				if {!$use_helper} {
+					flush $f
+					sync $f
+				}
+
 				close $f
 				unset f
 
