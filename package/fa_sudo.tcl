@@ -353,8 +353,13 @@ namespace eval ::fa_sudo {
 
 		# if we got here, we are the child but we failed to exec, so
 		# bail out.
-		catch {puts stderr "$::errorInfo"}
-		exit 42
+		catch {
+			puts stderr "$::errorInfo"
+			flush stderr
+		}
+
+		# kill ourselves to avoid corrupting any channels that we inherited
+		kill KILL [id process]
 	}
 
 	proc _parse_exec_pipeline {_options args} {
