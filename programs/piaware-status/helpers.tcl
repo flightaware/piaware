@@ -9,25 +9,27 @@
 #  a while
 #
 proc report_status {} {
-    report_on_whats_running
+	set ::config [::fa_piaware_config::new_combined_config #auto]
 
-    netstat_report
+	report_on_whats_running
 
-    check_ports_for_data
+	netstat_report
+
+	check_ports_for_data
 }
 
 #
 # find_processes - return a list of pids running with a command of exactly "name"
 #
 proc find_processes {name} {
-        set pidlist {}
-    set fp [open "|pgrep --exact $name"]
-    while {[gets $fp line] >= 0} {
-                set pid [string trim $line]
-                lappend pidlist $pid
-        }
-    catch {close $fp}
-        return $pidlist
+	set pidlist {}
+	set fp [open "|pgrep --exact $name"]
+	while {[gets $fp line] >= 0} {
+		set pid [string trim $line]
+		lappend pidlist $pid
+	}
+	catch {close $fp}
+	return $pidlist
 }
 
 #
@@ -35,13 +37,13 @@ proc find_processes {name} {
 #  it is or not, and store a 1/0 in the running array for that process
 #
 proc process_running_report {name} {
-    if {[array size [find_processes $name]] > 0} {
-	puts "$name is running."
-	set ::running($name) 1
-    } else {
-	puts "$name is not running."
-	set ::running($name) 0
-    }
+	if {[llength [find_processes $name]] > 0} {
+		puts "$name is running."
+		set ::running($name) 1
+	} else {
+		puts "$name is not running."
+		set ::running($name) 0
+	}
 }
 
 #
@@ -49,52 +51,45 @@ proc process_running_report {name} {
 #  know about
 #
 proc report_on_whats_running {} {
-    set programs [list dump1090 faup1090 piaware]
+	set programs [list faup1090 piaware]
 
-    # if they have an alt adsbprogram, use that
-    if {[info exists ::adeptConfig(adsbprogram)]} {
-	set prog $::adeptConfig(adsbprogram)
-	if {$prog != "" && $prog != "dump1090"} {
-	    lappend programs $prog
-	    set ::adsbprog $prog
+	switch -- [$::config get receiver-type] {
+		"rtlsdr" {
+			lappend programs "dump1090" "dump1090-fa"
+		}
+
+		"beast" - "radarcape" - "relay" {
+			lappend programs "beast-splitter"
+		}
 	}
-    }
 
-    foreach program $programs {
-	process_running_report $program
-    }
+	foreach program $programs {
+		process_running_report $program
+	}
 }
 
 #
 # whats_probably_30005 - say what we think is at the other end of port 30005
 #
 proc whats_probably_30005 {} {
-    if {[info exists ::netstatus(program_30005)]} {
-	return $::netstatus(program_30005)
-    }
+	if {[info exists ::netstatus(program_30005)]} {
+		return $::netstatus(program_30005)
+	}
 
-    if {[info exists ::adsbprog]} {
-	if {$::running($::adsbprog)} {
-	    return $::adsbprog
-	} else {
-	    return "dump1090 or $::adsbprog"
+	foreach prog {dump1090-fa beast-splitter} {
+		if {[info exists ::running($prog)] && $::running($prog)} {
+			return $prog
+		}
 	}
-    } else {
-	if {$::running(dump1090)} {
-	    return dump1090
-	} else {
-	    return "maybe dump1090"
-	}
-    }
-    error "software failure"
+	return "maybe dump1090"
 }
 
 #
 # check_ports_for_data - check for data on beast and flightaware-style ports
 #
 proc check_ports_for_data {} {
-    set ::nRunning 1
-    test_port_for_traffic 30005 adsb_data_callback
+	set ::nRunning 1
+	test_port_for_traffic 30005 adsb_data_callback
 }
 
 #
@@ -102,17 +97,17 @@ proc check_ports_for_data {} {
 #  and if it goes to zero, set the die global so the program will exit
 #
 proc decr_nrunning {} {
-    incr ::nRunning -1
-    if {$::nRunning <= 0} {
-	set ::die 1
-    }
+	incr ::nRunning -1
+	if {$::nRunning <= 0} {
+		set ::die 1
+	}
 }
 
 #
 # adsb_data_callback - callback when data is received on the beast 30005 port
 #
 proc adsb_data_callback {state} {
-    set prog [whats_probably_30005]
-    puts [subst_is_or_is_not "$prog %s producing data on port 30005." $state]
-    decr_nrunning
+	set prog [whats_probably_30005]
+	puts [subst_is_or_is_not "$prog %s producing data on port 30005." $state]
+	decr_nrunning
 }
