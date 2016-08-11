@@ -15,6 +15,9 @@ ExecReload=/bin/kill -HUP $MAINPID
 Type=simple
 Restart=on-failure
 RestartSec=30
+# exit code 4 means login failed
+# exit code 6 means startup failed (bad args or missing MAC)
+RestartPreventExitStatus=4 6
 
 [Install]
 WantedBy=default.target

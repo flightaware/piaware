@@ -48,12 +48,12 @@ proc main {{argv ""}} {
 
     if {[catch {array set ::params [::cmdline::getoptions argv $options $usage]} catchResult] == 1} {
         puts stderr $catchResult
-        exit 1
+        exit 6
     }
 
     if {$argv != ""} {
         puts stderr [::cmdline::usage $options]
-        exit 1
+        exit 6
     }
 
 	if {$::params(v)} {
