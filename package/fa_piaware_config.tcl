@@ -245,6 +245,7 @@ namespace eval ::fa_piaware_config {
 		public variable readonly 0
 		public variable priority 0
 		public variable writeHelper
+		public variable eol "lf"
 
 		private variable lines
 		private variable values
@@ -422,7 +423,7 @@ namespace eval ::fa_piaware_config {
 
 			# write the new data
 			try {
-				fconfigure $f -encoding ascii -translation auto
+				fconfigure $f -encoding ascii -translation $eol
 				foreach line $lines {
 					puts $f $line
 				}
@@ -881,7 +882,7 @@ namespace eval ::fa_piaware_config {
 		$combined add [new ConfigFile #auto -filename "/usr/share/piaware-support/piaware-image-config.txt" -metadata $metadata -priority 30 -readonly 1]
 		$combined add [new ConfigFile #auto -filename "/etc/piaware.conf" -metadata $metadata -priority 40 -writeHelper $::fa_piaware_config::helperPath]
 
-		$combined add [new ConfigFile #auto -filename "/boot/piaware-config.txt" -metadata $metadata -priority 50 -writeHelper $::fa_piaware_config::helperPath]
+		$combined add [new ConfigFile #auto -filename "/boot/piaware-config.txt" -metadata $metadata -priority 50 -writeHelper $::fa_piaware_config::helperPath -eol crlf]
 
 		set prio 100
 		foreach f [lsort [glob -nocomplain -types f "/media/usb/*/piaware-config.txt"]] {
