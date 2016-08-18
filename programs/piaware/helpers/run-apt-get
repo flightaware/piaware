@@ -60,12 +60,14 @@ case "$action" in
         ;;
 
     upgrade-package)
-        dpkg --configure -a --force-confdef --force-confold
+        dpkg --configure -a --force-confdef --force-confold || true
+        apt-get -q -y $options -f install || true
         exec apt-get -q -y $options install "$@"
         ;;
 
     upgrade-all)
-        dpkg --configure -a --force-confdef --force-confold
+        dpkg --configure -a --force-confdef --force-confold || true
+        apt-get -q -y $options -f install || true
         exec apt-get -q -y $options upgrade
         ;;
 
