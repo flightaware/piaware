@@ -68,7 +68,7 @@ case "$action" in
     upgrade-all)
         dpkg --configure -a --force-confdef --force-confold || true
         apt-get -q -y $options -f install || true
-        exec apt-get -q -y $options upgrade
+        exec apt-get -q -y $options dist-upgrade
         ;;
 
     *)
