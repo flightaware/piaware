@@ -16,3 +16,6 @@ install: pkgIndex.tcl
 	install ca/*.pem $(DESTDIR)$(LIB)/ca
 	c_rehash $(DESTDIR)$(LIB)/ca
 	$(MAKE) -C helpers install
+
+clean:
+	$(MAKE) -C helpers clean
