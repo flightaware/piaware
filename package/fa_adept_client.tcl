@@ -791,7 +791,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 			if {$row(airGround) == "G"} {
 				append newKey g
 				unset row(airGround)
-			} else if ({$row(airGround) == "A"} {
+			} elseif {$row(airGround) == "A"} {
 				unset row(airGround)
 			}
 		}
