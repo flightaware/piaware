@@ -790,8 +790,10 @@ set caDir [file join [file dirname [info script]] "ca"]
 		if {[info exists row(airGround)]} {
 			if {$row(airGround) == "G"} {
 				append newKey g
+				unset row(airGround)
+			} else if ({$row(airGround) == "A"} {
+				unset row(airGround)
 			}
-			unset row(airGround)
 		}
 
 		# encode tabs and newlines and whatnot
