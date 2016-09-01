@@ -73,12 +73,12 @@ proc main {{argv ""}} {
 	# arrange for a clean shutdown in the event of certain common signals
 	setup_signals
 
+	# start logging to a file unless configured for debug
+	reopen_logfile
+
 	# maintain a pidfile so we don't get multiple copies of ourself
 	# (only does anything if we were invoked with the -p option)
 	create_pidfile
-
-	# start logging to a file unless configured for debug
-	reopen_logfile
 
 	# write json status if configured
 	periodically_update_status_file
