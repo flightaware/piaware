@@ -54,78 +54,92 @@ proc handle_update_request {type _row} {
 
 	logger "performing $type update, action: $row(action)"
 
-	set restartPiaware 0
-	set updatedPackageLists 0
-	set ok 1
-	foreach action [split $row(action) " "] {
-		if {$action in {full packages piaware dump1090}} {
-			# these actions require that the package lists
-			# are up to date, but we don't want to do it
-			# several times
-			if {!$updatedPackageLists} {
-				set ok [update_package_lists]
+	# write our pid to /run/piaware/upgrader.pid;
+	# the piaware postinst scripts look for this to avoid
+	# restarting a piaware that is currently managing the
+	# upgrade
+	set upgraderPidfile "/run/piaware/upgrader.pid"
+	if {[catch {create_named_pidfile $upgraderPidfile} result]} {
+		logger "couldn't lock $upgraderPidfile: $result"
+		return
+	}
+
+	try {
+		set restartPiaware 0
+		set updatedPackageLists 0
+		set ok 1
+		foreach action [split $row(action) " "] {
+			if {$action in {full packages piaware dump1090}} {
+				# these actions require that the package lists
+				# are up to date, but we don't want to do it
+				# several times
+				if {!$updatedPackageLists} {
+					set ok [update_package_lists]
+				}
 			}
-		}
 
-		if {!$ok} {
-			logger "skipping action $action"
-			continue
-		}
-
-		switch $action {
-			"full" - "packages" {
-				set ok [upgrade_all_packages]
+			if {!$ok} {
+				logger "skipping action $action"
+				continue
 			}
 
-			"piaware" {
-				# only restart piaware if upgrade_piaware said it upgraded
-				# successfully
-				set ok [upgrade_piaware]
-				if {$ok} {
+			switch $action {
+				"full" - "packages" {
+					set ok [upgrade_all_packages]
+				}
+
+				"piaware" {
+					# only restart piaware if upgrade_piaware said it upgraded
+					# successfully
+					set ok [upgrade_piaware]
+					if {$ok} {
+						set restartPiaware 1
+					}
+				}
+
+				"restart_piaware" {
 					set restartPiaware 1
+					set ok 1
 				}
-			}
 
-			"restart_piaware" {
-				set restartPiaware 1
-				set ok 1
-			}
+				"dump1090" {
+					# try to upgrade dump1090 and if successful, restart it
+					set ok [upgrade_dump1090]
+					if {$ok} {
+						::fa_services::attempt_service_restart dump1090 restart
+					}
+				}
 
-			"dump1090" {
-				# try to upgrade dump1090 and if successful, restart it
-				set ok [upgrade_dump1090]
-				if {$ok} {
+				"restart_dump1090" {
 					::fa_services::attempt_service_restart dump1090 restart
+					set ok 1
 				}
-			}
 
-			"restart_dump1090" {
-				::fa_services::attempt_service_restart dump1090 restart
-				set ok 1
-			}
+				"restart_receiver" {
+					::fa_services::attempt_service_restart $::adsbDataService restart
+					set ok 1
+				}
 
-			"restart_receiver" {
-				::fa_services::attempt_service_restart $::adsbDataService restart
-				set ok 1
-			}
+				"reboot" {
+					reboot
+					# don't run anything further
+					set ok 0
+				}
 
-			"reboot" {
-				reboot
-				# don't run anything further
-				set ok 0
-			}
+				"halt" {
+					halt
+					# don't run anything further
+					set ok 0
+				}
 
-			"halt" {
-				halt
-				# don't run anything further
-				set ok 0
-			}
-
-			default {
-				logger "unrecognized update action '$action', ignoring..."
-				set ok 0
+				default {
+					logger "unrecognized update action '$action', ignoring..."
+					set ok 0
+				}
 			}
 		}
+	} finally {
+		cleanup_named_pidfile $upgraderPidfile
 	}
 
 	logger "update request complete"
