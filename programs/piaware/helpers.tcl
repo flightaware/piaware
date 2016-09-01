@@ -146,6 +146,59 @@ proc reopen_logfile {} {
 	close $fp
 }
 
+proc create_named_pidfile {path} {
+	log_locally "creating pidfile $path"
+
+	set f [open $path "a+"]
+	set ok 0
+	try {
+		if {![flock -write -nowait $f]} {
+			error "$path is locked by another process"
+		}
+
+		chan seek $f 0 start
+		chan truncate $f 0
+		puts $f [pid]
+		flush $f
+
+		set ::pidfiles($path) $f
+		set ok 1
+	} finally {
+		if {!$ok} {
+			catch {close $f}
+		}
+	}
+}
+
+proc unlock_named_pidfile {path} {
+	if {![info exists ::pidfiles($path)]} {
+		return
+	}
+
+	log_locally "unlocking pidfile $path"
+
+	# closing releases our lock
+	close $::pidfiles($path)
+	unset ::pidfiles($path)
+}
+
+proc cleanup_named_pidfile {path} {
+	if {![info exists ::pidfiles($path)]} {
+		return
+	}
+
+	log_locally "removing pidfile $path"
+
+	# delete before unlocking to avoid a race with a
+	# concurrent process
+	catch {file delete $path}
+
+	# closing releases our lock
+	close $::pidfiles($path)
+	unset ::pidfiles($path)
+}
+
+
 #
 # create_pidfile - create a pidfile for this process if possible if so
 #   configured
@@ -156,59 +209,34 @@ proc create_pidfile {} {
 		return
 	}
 
-	log_locally "creating pidfile $file"
-
-	# a+ so we have write access but don't fail on missing files and don't clobber existing data
-	set ::pidfile [open $file "a+"]
-	if {![flock -write -nowait $::pidfile]} {
-		close $::pidfile
-		unset ::pidfile
-		log_locally "unable to lock pidfile $file; is another piaware instance running?"
+	if {[catch {create_named_pidfile $file} result]} {
+		log_locally "unable to create pidfile $file ($result); is another piaware instance running?"
 		exit 2
 	}
-	chan seek $::pidfile 0 start
-	chan truncate $::pidfile 0
-	puts $::pidfile [pid]
-	flush $::pidfile
-	set ::pidfileIsMine 1
-
-	# keep the pidfile open so we maintain the lock
 }
 
 #
 # unlock_pidfile - release any lock on the pidfile,
 # but otherwise leave the file alone
 proc unlock_pidfile {} {
-	if {![info exists ::pidfile]} {
+	set file $::params(p)
+	if {$file == ""}  {
 		return
 	}
 
-	# closing releases our lock
-	close $::pidfile
-	unset ::pidfile
-
-	# no longer safe to delete the pidfile
-	# as someone else may overwrite it
-	unset -nocomplain ::pidfileIsMine
+	unlock_named_pidfile $file
 }
 
 #
 # remove_pidfile - remove the pidfile if it exists
 #
 proc remove_pidfile {} {
-	if {![info exists ::pidfileIsMine]} {
+	set file $::params(p)
+	if {$file == ""}  {
 		return
 	}
 
-	# delete before unlocking to avoid a race with a concurrently starting
-	# piaware
-	log_locally "removing pidfile $::params(p)"
-	if {[catch {file delete $::params(p)} catchResult] == 1} {
-		log_locally "failed to remove pidfile: $catchResult, continuing..."
-	}
-
-	unset ::pidfileIsMine
-	unlock_pidfile
+	cleanup_named_pidfile $file
 }
 
 #
