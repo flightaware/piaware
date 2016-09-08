@@ -113,9 +113,10 @@ namespace eval ::fa_sudo {
 		array unset ::fa_sudo::cache
 	}
 
-	proc _prepare_read_redirect {where _child _cleanup} {
+	proc _prepare_read_redirect {where _child _cleanup _opened} {
 		upvar 1 $_child child
 		upvar 1 $_cleanup cleanup
+		upvar 1 $_opened opened
 
 		switch -glob $where {
 			"@*" {
@@ -127,12 +128,14 @@ namespace eval ::fa_sudo {
 			"<*" {
 				set child [open [string range $where 1 end] "r"]
 				lappend cleanup $child
+				lappend opened $child
 			}
 
 			"*" {
 				upvar 2 $where parent
 				lassign [makepipe] child parent
 				lappend cleanup $child
+				lappend opened $child $parent
 			}
 
 			default {
@@ -141,9 +144,10 @@ namespace eval ::fa_sudo {
 		}
 	}
 
-	proc _prepare_write_redirect {where _child _cleanup} {
+	proc _prepare_write_redirect {where _child _cleanup _opened} {
 		upvar 1 $_child child
 		upvar 1 $_cleanup cleanup
+		upvar 1 $_opened opened
 
 		switch -glob $where {
 			"@*" {
@@ -155,17 +159,20 @@ namespace eval ::fa_sudo {
 			">>*" {
 				set child [open [string range $where 2 end] "a"]
 				lappend cleanup $child
+				lappend opened $child
 			}
 
 			">*" {
 				set child [open [string range $where 1 end] "w"]
 				lappend cleanup $child
+				lappend opened $child
 			}
 
 			"*" {
 				upvar 2 $where parent
 				lassign [makepipe] parent child
 				lappend cleanup $child
+				lappend opened $child $parent
 			}
 
 			default {
@@ -307,21 +314,66 @@ namespace eval ::fa_sudo {
 
 		# parse the redirects, open any files we need to, create pipes
 		# we do this in the parent so the parent can see errors easily
-		set cleanupList {}
-		_prepare_read_redirect $options(-stdin) stdinChild cleanupList
-		_prepare_write_redirect $options(-stdout) stdoutChild cleanupList
-		_prepare_write_redirect $options(-stderr) stderrChild cleanupList
 
-		if {$::fa_sudo::audit} {
-			puts stderr "AUDIT: Going to run $arglist with stdin:$options(-stdin) stdout:$options(-stdout) stderr:$options(-stderr)"
+		# list of stuff the parent needs to close before returning normally
+		set cleanupList {}
+		# list of stuff that needs closing if an error occurs
+		set openedList {}
+		if {[catch {
+			_prepare_read_redirect $options(-stdin) stdinChild cleanupList openedList
+			_prepare_write_redirect $options(-stdout) stdoutChild cleanupList openedList
+			_prepare_write_redirect $options(-stderr) stderrChild cleanupList openedList
+
+			lassign [makepipe] panicParent panicChild
+			lappend openedList $panicParent $panicChild
+			lappend cleanupList $panicParent
+
+			if {$::fa_sudo::audit} {
+				puts stderr "AUDIT: Going to run $arglist with stdin:$options(-stdin) stdout:$options(-stdout) stderr:$options(-stderr)"
+			}
+
+			set childpid [fork]
+		} catchResult catchOptions]} {
+			foreach fd $openedList {
+				catch {close $fd}
+			}
+
+			return -options $catchOptions $catchResult
 		}
 
-		# spawn things
-		set childpid [fork]
 		if {$childpid != 0} {
-			# we are the parent, close anything we opened
-			foreach fd $cleanupList {
-				catch {close $fd}
+			# we are the parent
+			# read a result from the child
+			# the panic pipe is either closed with nothing
+			# written when the exec successfully happens
+			# or if the exec fails then the child writes
+			# an error message to the pipe then closes it
+
+			catch {close $panicChild}
+
+			if {[catch {
+				gets $panicParent childError
+				if {$childError ne ""} {
+					# child encountered an error
+					wait $childpid
+					error $childError
+				}
+
+				# we are the parent, close anything we opened
+				# except for the pipes we set up for our caller
+				foreach fd $cleanupList {
+					catch {close $fd}
+				}
+			} catchResult catchOptions]} {
+				# error, clean up and bail
+				foreach fd $openedList {
+					# don't double-close panicChild
+					if {$fd ne $panicChild} {
+						catch {close $fd}
+					}
+				}
+
+				return -options $catchOptions $catchResult
 			}
 
 			return $childpid
@@ -342,8 +394,13 @@ namespace eval ::fa_sudo {
 				dup $stderrChild stderr
 			}
 
-			foreach fd $cleanupList {
-				catch {close $fd}
+			foreach fd $openedList {
+				# don't close panicChild, it will be closed
+				# on a successful exec via CLOEXEC and we
+				# need it to report errors if the exec fails
+				if {$fd ne $panicChild} {
+					catch {close $fd}
+				}
 			}
 
 			# do the exec
@@ -354,8 +411,9 @@ namespace eval ::fa_sudo {
 		# if we got here, we are the child but we failed to exec, so
 		# bail out.
 		catch {
-			puts stderr "$::errorInfo"
-			flush stderr
+			puts $panicChild "$::errorInfo"
+			flush $panicChild
+			close $panicChild
 		}
 
 		# kill ourselves to avoid corrupting any channels that we inherited
