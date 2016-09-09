@@ -237,7 +237,7 @@ namespace eval ::fa_piaware_config {
 	# implement other formats
 	::itcl::class ConfigFile {
 		private common reCommentLine {^\s*#.*}
-		private common reOptionLine {^\s*([a-zA-Z0-9_-]+)\s+([^#]+)(?:#.*)?$}
+		private common reOptionLine {^\s*([a-zA-Z0-9_-]+)\s+(.+)$}
 		private common reEmptyOptionLine {^\s*([a-zA-Z0-9_-]+)\s*(?:#.*)?$}
 
 		public variable filename
@@ -452,27 +452,88 @@ namespace eval ::fa_piaware_config {
 
 		}
 
+		proc unquote_value {text} {
+			set text [string trimleft $text]
+			if {[string length $text] == 0} {
+				# empty string
+				return ""
+			}
+
+			set quote [string index $text 0]
+			if {$quote ne "\"" && $quote ne "'"} {
+				# simple case, unquoted value
+				# take everything up to an (optional) comment char
+				# trim whitespace
+				set commentChar [string first "#" $text]
+				if {$commentChar >= 0} {
+					set text [string range $text 0 $commentChar-1]
+				}
+
+				return [string trimright $text]
+			}
+
+			# complex case, quoted value with backslash-escapes
+			# this is very relaxed: we just entirely ignore everything (comments etc) after the close-quote
+			# and we also don't care if the value doesn't have a close-quote
+
+			set out ""
+			set escape 0
+			for {set i 1} {$i < [string length $text]} {incr i} {
+				set ch [string index $text $i]
+				if {$escape} {
+					append out $ch
+					set escape 0
+					continue
+				}
+
+				if {$ch eq $quote} {
+					break
+				}
+
+				if {$ch eq "\\"} {
+					set escape 1
+					continue
+				}
+
+				append out $ch
+			}
+
+			return $out
+		}
+
 		protected method parse_line {line} {
 			if {[regexp $reCommentLine $line]} {
 				return {}
-			}
-
-			if {[regexp $reOptionLine $line -> key value]} {
-				return [list $key [string trim $value]]
 			}
 
 			if {[regexp $reEmptyOptionLine $line -> key]} {
 				return [list $key ""]
 			}
 
+			if {[regexp $reOptionLine $line -> key value]} {
+				return [list $key [unquote_value $value]]
+			}
+
 			return {}
+		}
+
+		proc quote_value {text} {
+			if {[string trim $text] eq $text && [string index $text 0] ne "\"" && [string index $text 0] ne "'" && [string first "#" $text] < 0 && [string first " " $text] < 0} {
+				# safe to just dump it in directly:
+				# no leading/trailing whitespace, doesn't start with a quote, doesn't contain a comment character
+				# we also quote values with embedded whitespace for clarity, though it's not necessary when parsing
+				return $text
+			}
+
+			# needs quoting.
+			return "\"[string map [list "\"" "\\\"" "\\" "\\\\"] $text]\""
 		}
 
 		protected method generate_line {key value} {
 			if {$value eq ""} {
-				return "$key $value   # whiteout entry, updated by fa_piaware_config"
+				return "$key  # whiteout entry, updated by fa_piaware_config"
 			} else {
-				return "$key $value   # updated by fa_piaware_config"
+				return "$key [quote_value $value]   # updated by fa_piaware_config"
 			}
 		}
 

@@ -211,7 +211,7 @@ proc show_piaware_config {showAll keys} {
 				}
 
 				set displayKey "#$key"
-				set displayValue "[$config metadata format $key $val]"
+				set displayValue [::fa_piaware_config::ConfigFile::quote_value [$config metadata format $key $val]]
 				set displayOrigin "using default value"
 			}
 
@@ -229,7 +229,7 @@ proc show_piaware_config {showAll keys} {
 					if {[$config metadata protect $key] && !$showAll} {
 						set displayValue "<hidden>"
 					} else {
-						set displayValue [$config metadata format $key $val]
+						set displayValue [::fa_piaware_config::ConfigFile::quote_value [$config metadata format $key $val]]
 					}
 					set displayOrigin "value set at $origin"
 				}
