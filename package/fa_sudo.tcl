@@ -823,7 +823,7 @@ namespace eval ::fa_sudo {
 					set blocking 0
 				}
 				close $childStdin($channelId)
-				unset childStdin($channelId)
+				array unset childStdin $channelId
 			}
 
 			if {[info exists childStdout($channelId)]} {
@@ -831,7 +831,7 @@ namespace eval ::fa_sudo {
 					set blocking 0
 				}
 				close $childStdout($channelId)
-				unset childStdout($channelId)
+				array unset childStdout $channelId
 			}
 
 			set errcode "NONE"
@@ -839,7 +839,7 @@ namespace eval ::fa_sudo {
 			if {[info exists childStderr($channelId)]} {
 				set errmsg [::read $childStderr($channelId)]
 				close $childStderr($channelId)
-				unset childStderr($channelId)
+				array unset childStderr $channelId
 			}
 
 			if {[info exists childPid($channelId)]} {
@@ -875,7 +875,7 @@ namespace eval ::fa_sudo {
 					}
 				}
 
-				unset childPid($channelId)
+				array unset childPid $channelId
 			}
 
 			if {$errmsg ne ""} {
