@@ -291,7 +291,7 @@ proc send_adsb_line {line} {
 	array set row [split $line "\t"]
 
 	# extra filtering to avoid looping mlat results back
-	if ([info exists row(hexid)]} {
+	if {[info exists row(hexid)]} {
 		set hexid $row(hexid)
 		if {[info exists ::mlatSawResult($hexid)]} {
 			if {($row(clock) - $::mlatSawResult($row(hexid))) < 45.0} {
