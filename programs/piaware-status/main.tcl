@@ -26,21 +26,11 @@ set ::die 0
 # main - the main program
 #
 proc main {{argv ""}} {
-	if {[id user] != "root"} {
-		puts stderr "you need to be root to run this, try 'sudo $::argv0'"
-		exit 1
-	}
-	::fa_piaware_config::new_combined_config piawareConfig
 	report_status
 }
 
 if {!$tcl_interactive} {
     main $argv
-
-	while {!$die} {
-		vwait die
-	}
-
 	exit 0
 }
 

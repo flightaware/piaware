@@ -111,8 +111,8 @@ proc is_piaware_running {} {
 #
 # invokes the callback with a 0 for no data received or a 1 for data recv'd
 #
-proc test_port_for_traffic {port callback {waitSeconds 60}} {
-    if {[catch {set sock [socket localhost $port]} catchResult] == 1} {
+proc test_port_for_traffic {host port callback {waitSeconds 60}} {
+    if {[catch {set sock [socket $host $port]} catchResult] == 1} {
 		puts "got '$catchResult'"
 		{*}$callback 0
 		return
@@ -151,26 +151,25 @@ proc process_netstat_socket_line {line} {
 
 	if {$pidProg eq "-"} {
 		set pid "unknown"
-		set prog "unknown"
+		set prog "unknown process"
 	} else {
 		lassign [split $pidProg "/"] pid prog
 	}
 
-    if {[string match "*:30005" $localAddress] && $state == "LISTEN"} {
-		set ::netstatus(program_30005) $prog
-		set ::netstatus(status_30005) 1
+	if {$state == "LISTEN" && [regexp {(.*):(\d+)} $localAddress -> addr port]} {
+		set ::netstatus($port) [list $prog $pid]
     }
 
     switch $prog {
 		"faup1090" {
-			if {[string match "*:30005" $foreignAddress] && $state == "ESTABLISHED"} {
-				set ::netstatus(faup1090_30005) 1
+			if {$state == "ESTABLISHED"} {
+				set ::netstatus_faup1090 1
 			}
 		}
 
 		"piaware" {
 			if {[string match "*:1200" $foreignAddress] && $state == "ESTABLISHED"} {
-				set ::netstatus(piaware_1200) 1
+				set ::netstatus_piaware 1
 			}
 		}
     }
@@ -180,14 +179,16 @@ proc process_netstat_socket_line {line} {
 # inspect_sockets_with_netstat - run netstat and make a report
 #
 proc inspect_sockets_with_netstat {} {
-    set ::netstatus(status_30005) 0
-    set ::netstatus(faup1090_30005) 0
-    set ::netstatus(piaware_1200) 0
+	array unset ::netstatus
+	set ::netstatus_faup1090 0
+	set ::netstatus_piaware 0
+	set ::netstatus_reliable 0
 
 	# try to run as root if we can, to get the program names
 	if {[catch {
 		set command [list netstat --program --tcp --wide --all --numeric]
 		if {[::fa_sudo::can_sudo root {*}$command]} {
+			set ::netstatus_reliable 1
 			set fp [open_nolocale -root "|$command 2>/dev/null"]
 		} else {
 			# discard the warning about not being able to see all data
@@ -203,37 +204,8 @@ proc inspect_sockets_with_netstat {} {
 		close $fp
 	} result]} {
 		logger "failed to run netstat: $result"
+		set ::netstatus_reliable 0
 	}
-}
-
-#
-# subst_is_or_is_not - substitute "is" or "is not" into a %s in string
-#  based on if value is true or false
-#
-proc subst_is_or_is_not {string value} {
-    if {$value} {
-		set value "is"
-    } else {
-		set value "is NOT"
-    }
-
-    return [format $string $value]
-}
-
-#
-# netstat_report - parse netstat output and report
-#
-proc netstat_report {} {
-    inspect_sockets_with_netstat
-
-	if {!$::netstatus(status_30005)} {
-		puts "no program appears to be listening for connections on port 30005."
-	} else {
-		puts "$::netstatus(program_30005) is listening for connections on port 30005."
-	}
-
-    puts "[subst_is_or_is_not "faup1090 %s connected to port 30005." $::netstatus(faup1090_30005)]"
-    puts "[subst_is_or_is_not "piaware %s connected to FlightAware." $::netstatus(piaware_1200)]"
 }
 
 #
@@ -246,6 +218,90 @@ proc warn_once {message args} {
     set ::warnOnceWarnings($message) ""
 
     logger "WARNING $message"
+}
+
+
+# return the local receiver port, or 0 if it is remote
+proc receiver_local_port {config} {
+	switch -- [$config get receiver-type] {
+		rtlsdr - beast - relay - radarcape {
+			return 30005
+		}
+
+		other {
+			set host [$config get receiver-host]
+			if {$host eq "localhost" || [string match "127.*" $host]} {
+				return [$config get receiver-port]
+			} else {
+				return 0
+			}
+		}
+
+		default {
+			error "unknown receiver type configured: [$config get receiver-type]"
+		}
+	}
+}
+
+# return the local service name, or "" if unknown
+proc receiver_local_service {config} {
+	switch -- [$config get receiver-type] {
+		rtlsdr     { return "dump1090" }
+		beast      { return "beast-splitter" }
+		relay      { return "beast-splitter" }
+		radarcape  { return "beast-splitter" }
+		other      { return "" }
+		default    { error "unknown receiver type configured: [$config get receiver-type]" }
+	}
+}
+
+# return a brief description of what we receive data from
+proc receiver_description {config} {
+	switch -- [$config get receiver-type] {
+		rtlsdr {
+			return "dump1090"
+		}
+		beast {
+			return "the Mode-S Beast serial port"
+		}
+		relay - other {
+			return "the ADS-B data program at [$config get receiver-host]/[$config get receiver-port]"
+		}
+		radarcape  {
+			return "the Radarcape at [$config get radarcape-host]"
+		}
+		default {
+			error "unknown receiver type configured: [$config get receiver-type]"
+		}
+	}
+}
+
+# return the receiver host and port we fetch data from as a list
+# (if we are configured to relay, this returns the relay host/port,
+# not the actual receiver host/port)
+proc receiver_host_and_port {config} {
+	switch -- [$config get receiver-type] {
+		rtlsdr     { return [list localhost 30005] }
+		beast      { return [list localhost 30005] }
+		relay      { return [list localhost 30005] }
+		radarcape  { return [list localhost 30005] }
+		other      { return [list [$config get receiver-host] [$config get receiver-port]] }
+		default    { error "unknown receiver type configured: [$config get receiver-type]" }
+	}
+}
+
+# return the underlying receiver host and port as a list
+# (if we are configured to relay, this returns the actual receiver host/port,
+# not the host/port of our relay)
+proc receiver_underlying_host_and_port {config} {
+	switch -- [$config get receiver-type] {
+		rtlsdr     { return [list localhost 30005] }
+		beast      { return [list localhost 30005] }
+		relay      { return [list [$config get receiver-host] [$config get receiver-port]] }
+		radarcape  { return [list [$config get radarcape-host] 10003] }
+		other      { return [list [$config get receiver-host] [$config get receiver-port]] }
+		default    { error "unknown receiver type configured: [$config get receiver-type]" }
+	}
 }
 
 package provide piaware 1.0

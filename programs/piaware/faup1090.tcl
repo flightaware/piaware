@@ -27,55 +27,10 @@ proc setup_faup1090_vars {} {
 
 	# receiver config
 	set ::receiverType [piawareConfig get receiver-type]
-	switch $::receiverType {
-		rtlsdr {
-			# locally running dump1090
-			set ::receiverHost "localhost"
-			set ::receiverPort 30005
-			set ::adsbDataService "dump1090"
-			set ::adsbDataProgram "dump1090"
-		}
-
-		beast {
-			# direct serial connection to a Beast
-			set ::receiverHost "localhost"
-			set ::receiverPort 30005
-			set ::adsbDataService "beast-splitter"
-			set ::adsbDataProgram "the Mode S Beast serial port (via beast-splitter)"
-		}
-
-		relay {
-			# network connection to a receiver, using
-			# beast-splitter to establish a single connection
-			# and relay to the various piaware clients (faup1090,
-			# fa-mlat-client, dump1090 for map display)
-			set ::receiverHost "localhost"
-			set ::receiverPort 30005
-			set ::adsbDataService "beast-splitter"
-			set ::adsbDataProgram "the ADS-B data program at $::receiverHost/$::receiverPort (with local relay)"
-		}
-
-		radarcape {
-			# network connection to a Radarcape; this
-			# is a specialized form of "relay".
-			set ::receiverHost "localhost"
-			set ::receiverPort 30005
-			set ::adsbDataService "beast-splitter"
-			set ::adsbDataProgram "the Radarcape at $::receiverHost (with local relay)"
-		}
-
-		other {
-			# network connection to a receiver, using direct connections
-			set ::receiverHost [piawareConfig get receiver-host]
-			set ::receiverPort [piawareConfig get receiver-port]
-			set ::adsbDataService ""
-			set ::adsbDataProgram "the ADS-B data program at $::receiverHost/$::receiverPort"
-		}
-
-		default {
-			error "Unrecognized receiverType configured: $::receiverType"
-		}
-	}
+	lassign [receiver_host_and_port piawareConfig] ::receiverHost ::receiverPort
+	set ::adsbLocalPort [receiver_local_port piawareConfig]
+	set ::adsbDataService [receiver_local_service piawareConfig]
+	set ::adsbDataProgram [receiver_description piawareConfig]
 
 	# path to faup1090
 	set path "/usr/lib/piaware/helpers/faup1090"
@@ -83,6 +38,40 @@ proc setup_faup1090_vars {} {
 		logger "No faup1090 found at $path, cannot continue"
 		exit 1
 	}
+}
+
+proc is_local_receiver {} {
+	return [expr {$::adsbLocalPort ne 0}]
+}
+
+#
+# is_adsb_program_running - return 1 if the adsb program (probably dump1090)
+# is running, else 0
+#
+proc is_adsb_program_running {} {
+	if {![is_local_receiver]} {
+		# not local, assume yes
+		return 1
+	}
+
+	return [info exists ::netstatus($::adsbLocalPort)]
+}
+
+proc adsb_local_program_name {} {
+	if {![is_local_receiver]} {
+		return ""
+	}
+
+	if {![info exists ::netstatus($::adsbLocalPort)]} {
+		return ""
+	}
+
+	lassign $::netstatus($::adsbLocalPort) prog pid
+	if {$prog eq "unknown"} {
+		return ""
+	}
+
+	return $prog
 }
 
 #
@@ -111,15 +100,6 @@ proc schedule_adsb_connect_attempt {inSeconds} {
 	#logger "scheduled FA-style ADS-B port connect attempt $explain as timer ID $::adsbPortConnectTimer"
 }
 
-# return 1 if the ADS-B receiver is local (i.e. can be found in netstat, can be restarted)
-proc is_local_receiver {} {
-	if {[string equal -nocase "localhost" $::receiverHost] || [string match "127.*" $::receiverHost]} {
-		return 1
-	} else {
-		return 0
-	}
-}
-
 #
 # connect_adsb_via_faup1090 - connect to the receiver using faup1090 as an intermediary;
 # if it fails, schedule another attempt later
@@ -135,26 +115,29 @@ proc connect_adsb_via_faup1090 {} {
 	if {[is_local_receiver]} {
 		inspect_sockets_with_netstat
 
-		if {![is_adsb_program_running]} {
+		if {$::netstatus_reliable && ![is_adsb_program_running]} {
 			# still no listener, consider restarting
 			set secondsSinceListenerSeen [expr {[clock seconds] - $::lastAdsbConnectedClock}]
 			if {$secondsSinceListenerSeen >= $::adsbNoProducerStartDelaySeconds && $::adsbDataService ne ""} {
-				logger "no ADS-B data program seen listening on port 30005 for $secondsSinceListenerSeen seconds, trying to start it..."
+				logger "no ADS-B data program seen listening on port $::adsbLocalPort for $secondsSinceListenerSeen seconds, trying to start it..."
 				::fa_services::attempt_service_restart $::adsbDataService start
 				# pretend we saw it to reduce restarts if it's failing
 				set ::lastAdsbConnectedClock [clock seconds]
 				schedule_adsb_connect_attempt 10
 			} else {
-				logger "no ADS-B data program seen listening on port 30005 for $secondsSinceListenerSeen seconds, next check in 60s"
+				logger "no ADS-B data program seen listening on port $::adsbLocalPort for $secondsSinceListenerSeen seconds, next check in 60s"
 				schedule_adsb_connect_attempt 60
 			}
 
 			return
 		}
 
-		set ::adsbDataProgram $::netstatus(program_30005)
+		set prog [adsb_local_program_name]
+		if {$prog ne ""} {
+			set ::adsbDataProgram $prog
+		}
 		set ::lastAdsbConnectedClock [clock seconds]
-		logger "ADS-B data program '$::adsbDataProgram' is listening on port 30005, so far so good"
+		logger "ADS-B data program '$::adsbDataProgram' is listening on port $::adsbLocalPort, so far so good"
 	}
 
 	set args $::faup1090Path

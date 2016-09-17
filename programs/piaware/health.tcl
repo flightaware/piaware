@@ -5,20 +5,6 @@
 package require fa_sysinfo
 
 #
-# is_adsb_program_running - return 1 if the adsb program (probably dump1090)
-# is running, else 0
-#
-proc is_adsb_program_running {} {
-	# NB our intention is to go exclusively to the ::netstatus check
-	# but we are falling back for now until we're sure it's all cool
-	if {[info exists ::netstatus(status_30005)]} {
-		return $::netstatus(status_30005)
-	}
-
-	return 0
-}
-
-#
 # construct_health_array - set an array to contain health info about the machine
 #
 proc construct_health_array {_row} {

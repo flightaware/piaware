@@ -118,7 +118,7 @@ proc start_mlat_client {} {
 		inspect_sockets_with_netstat
 
 		if {![is_adsb_program_running]} {
-			logger "no ADS-B data program is serving on port 30005, not starting multilateration client yet"
+			logger "no ADS-B data program is serving on port $::adsbLocalPort, not starting multilateration client yet"
 			schedule_mlat_client_restart
 			return
 		}
