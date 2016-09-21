@@ -913,6 +913,7 @@ namespace eval ::fa_piaware_config {
 			{"rtlsdr-device-index"   -type integer -default 0}
 			{"rtlsdr-ppm"            -type integer -default 0}
 			{"rtlsdr-gain"           -type double -default -10}
+			{"beast-baudrate"        -type integer}
 			"radarcape-host"
 			"receiver-host"
 			{"receiver-port"         -type integer -default 30005}
