@@ -919,6 +919,7 @@ namespace eval ::fa_piaware_config {
 			{"receiver-port"         -type integer -default 30005}
 			{"allow-mlat"            -type boolean -default yes}
 			{"mlat-results"          -type boolean -default yes}
+			{"mlat-results-anon"     -type boolean -default yes}
 			{"mlat-results-format"   -default "beast,connect,localhost:30104 beast,listen,30105 ext_basestation,listen,30106"}
 		}
 
