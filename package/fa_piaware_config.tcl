@@ -917,6 +917,7 @@ namespace eval ::fa_piaware_config {
 			"radarcape-host"
 			"receiver-host"
 			{"receiver-port"         -type integer -default 30005}
+			{"modeac"                -type boolean -default no}
 			{"allow-mlat"            -type boolean -default yes}
 			{"mlat-results"          -type boolean -default yes}
 			{"mlat-results-anon"     -type boolean -default yes}
