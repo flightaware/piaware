@@ -147,6 +147,10 @@ proc start_mlat_client {} {
 		foreach r [piawareConfig get mlat-results-format] {
 			lappend command "--results" $r
 		}
+
+		if {![piawareConfig get mlat-results-anon]} {
+			lappend command "--no-anon-results"
+		}
 	}
 
 	if {$::mlatUdpTransport ne ""} {
