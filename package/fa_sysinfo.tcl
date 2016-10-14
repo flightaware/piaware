@@ -286,6 +286,41 @@ namespace eval ::fa_sysinfo {
 	}
 
 	#
+	# wireless_interface - select a wireless interface to use and return its name
+	#
+	proc wireless_interface {} {
+		set candidates [list]
+		foreach interface [glob -nocomplain -tails -directory /sys/class/net *] {
+			if {![file isdirectory /sys/class/net/$interface/wireless]} {
+				continue
+			}
+
+			# ignore wifi that has rfkill set
+			set rfkill 0
+			set rfkillPath [glob -nocomplain -directory /sys/class/net/$interface/phy80211 rfkill*/state]
+			if {$rfkillPath ne ""} {
+				catch {
+					set f [open [lindex $rfkillPath 0] "r"]
+					try {
+						gets $f rfkillState
+						if {$rfkillState ne 1} {
+							set rfkill 1
+						}
+					} finally {
+						catch {close $f}
+					}
+				}
+			}
+
+			if {!$rfkill} {
+				lappend candidates $interface
+			}
+		}
+
+		return [lindex [lsort $candidates] 0]
+	}
+
+	#
 	# os_release_info - parse /etc/os-release and return a key-value list
 	#
 	proc os_release_info {} {
