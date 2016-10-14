@@ -122,25 +122,59 @@ namespace eval ::fa_sysinfo {
 			return $mac
 		}
 
-		# well, that didn't work, look at the entire output of ifconfig
-		# for a MAC address and use the first one we find
+		# well, that didn't work, look at the entire output of "ip link"
+		# for a MAC address and use one that looks sensible.
+		#
+		# look at broadcom interfaces, non-broadcom UP interfaces,
+		# and everything else, in that order. If there's still a tie,
+		# use the interface name as a tiebreaker.
 
-		if {[catch {set fp [open_nolocale "|/sbin/ip -o link show"]} catchResult] == 1} {
+		if {[catch {set fp [::fa_sudo::open_as "|/sbin/ip -o link show"]} catchResult] == 1} {
 			puts stderr "ip command not found on this version of Linux, you may need to install the iproute2 package and try again"
 			return ""
 		}
 
-		set mac ""
-		while {[gets $fp line] >= 0} {
-			if {[regexp {^\d+: ([^:]+):.*link/ether ((?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2})} $line -> dev mac]} {
-				# gotcha
-				logger "no eth0 device, using $mac from device '$dev'"
-				break
-			}
-		}
+		try {
+			set candidates [list]
+			while {[gets $fp line] >= 0} {
+				if {[regexp -nocase {^\d+: ([^:]+):.*state (\S+).*link/ether ((?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2})} $line -> dev state mac]} {
+					switch -glob -nocase -- "$state|$mac" {
+						"*|b8:27:eb:*" {
+							# Broadcom OUI, any state
+							set prio 1
+						}
 
-		catch {close $fp}
-		return $mac
+						"UP|*" {
+							# Other OUI, interface is up
+							set prio 2
+						}
+
+						default {
+							# Other OUI, interface is not up
+							set prio 3
+						}
+					}
+
+					lappend candidates [list $prio $dev $mac]
+				}
+			}
+
+			# sort by priority, then by interface name (lsort is a stable sort)
+			# (nb: if systemd predictable interface naming is in use, then
+			# wired-ethernet "en" sorts before wireless "wl" which is what
+			# we'd prefer)
+			set candidates [lsort -index 1 $candidates]
+			set candidates [lsort -integer -index 0 $candidates]
+			if {[llength $candidates] > 0} {
+				lassign [lindex $candidates 0] prio dev mac
+				return $mac
+			}
+
+			# nothing suitable
+			return ""
+		} finally {
+			catch {close $fp}
+		}
 	}
 
 	proc interface_ip_and_prefix {dev} {
