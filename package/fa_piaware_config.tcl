@@ -879,6 +879,7 @@ namespace eval ::fa_piaware_config {
 			{"manage-config"         -type boolean -default no}
 			{"flightaware-user"      -protect 1}
 			{"flightaware-password"  -protect 1}
+			"force-macaddress"
 			{"allow-auto-updates"    -type boolean -default no}
 			{"allow-manual-updates"  -type boolean -default no}
 

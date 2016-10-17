@@ -67,6 +67,7 @@ proc gather_login_info {_message} {
 		local_auto_update_enable allow-auto-updates
 		local_manual_update_enable allow-manual-updates
 		local_mlat_enable allow-mlat
+		forced_mac force-macaddress
 	} {
 		if {[piawareConfig exists $configKey]} {
 			set message($msgVar) [piawareConfig get $configKey]
