@@ -608,12 +608,12 @@ namespace eval ::fa_sudo {
 				}
 
 				SIG:* {
-					set exitmsg "$stderrResult\nchild process $childpid killed by uncaught signal $code"
+					set exitmsg "child process $childpid killed by uncaught signal $code"
 					set errcode [list CHILDKILLED $childpid $code "uncaught signal $code"]
 				}
 
 				SUDOFAILED:* {
-					set exitmsg "$stderrResult\nsudo refused to start the command"
+					set exitmsg "sudo refused to start the command"
 					set errcode [list SUDOFAILED $childpid 0 "sudo refused to start the command"]
 				}
 
