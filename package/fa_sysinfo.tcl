@@ -347,11 +347,18 @@ namespace eval ::fa_sysinfo {
 			}
 
 			if {!$rfkill} {
-				lappend candidates $interface
+				# if we have a broadcom wifi (probably the Pi 3 built-in wifi)
+				# and also something else
+				# then prefer the something else
+				if {[string match -nocase b8:27:eb:* [interface_sysfs_value $interface address ""]]} {
+					lappend candidates [list "2:$interface" $interface]
+				} else {
+					lappend candidates [list "1:$interface" $interface]
+				}
 			}
 		}
 
-		return [lindex [lsort $candidates] 0]
+		return [lindex [lindex [lsort -index 0 $candidates] 0] 1]
 	}
 
 	#
