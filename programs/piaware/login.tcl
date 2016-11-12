@@ -24,12 +24,27 @@ proc gather_login_info {_message} {
 	set message(piaware_version) $::piawareVersion
 	set message(piaware_version_full) $::piawareVersionFull
 
-	set res [query_dpkg_names_and_versions "*piaware*"]
-	if {[llength $res] == 2} {
-		# only if it's unambiguous
-		lassign $res packageName packageVersion
-		set message(piaware_package_version) $packageVersion
-		set message(image_type) "${packageName}_package"
+	foreach {packageName packageVersion} [query_dpkg_names_and_versions "*piaware*"] {
+		switch -glob -- $packageName {
+			"piaware-release" - "piaware-support" - "piaware-repository*" {
+				# ignore
+			}
+
+			"piaware" {
+				# exact match, override any fuzzy match earlier
+				set message(piaware_package_version) $packageVersion
+				set message(image_type) "${packageName}_package"
+				break
+			}
+
+			default {
+				# fuzzy match, only use if not already set
+				if {![info exists message(piaware_package_version)]} {
+					set message(piaware_package_version) $packageVersion
+					set message(image_type) "${packageName}_package"
+				}
+			}
+		}
 	}
 
 	set message(dump1090_packages) [query_dpkg_names_and_versions "*dump1090*"]
