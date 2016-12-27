@@ -51,52 +51,90 @@ proc periodically_send_health_information {} {
 	return
 }
 
-set ::gpsLocationValid 0
 proc gps_location_update {lat lon alt} {
 	if {$lat eq "" || $lon eq "" || $alt eq ""} {
-		# not a 3D fix, invalidate any current position and
-		# don't do anything further
-		adept set_location ""
-		set ::gpsLocationValid 0
+		handle_location_update gpsd "" "" "" ""
 		return
 	}
 
 	# valid 3D fix
-	if {!$::gpsLocationValid} {
-		# first time
-		logger [format "GPS: Receiver location: %.5f, %.5f at %.0fm height (WGS84)" $lat $lon $alt]
-		set ::gpsLocationValid 1
-	}
-
-	adept set_location [list $lat $lon $alt wgs84_meters]
-
-	set last [adept last_reported_location]
-	if {$last ne ""} {
-		lassign $last lastLat lastLon lastAlt
-		set moved [expr {abs($lat - $lastLat) > 0.001 || abs($lon - $lastLon) > 0.001 || abs($alt - $lastAlt) > 50}]
-	} else {
-		# have not yet reported a position
-		set moved 1
-	}
-
-	# record the location and maybe restart faup1090 with the new value
-	update_location $lat $lon
-
-	if {$moved} {
-		# trigger a healthcheck immediately to send the new position
-		# if we didn't move much, it can wait until the next normal health update
-		periodically_send_health_information
-	}
+	handle_location_update gpsd $lat $lon $alt wgs84_meters
 }
 
-proc adept_location_changed {lat lon alt altref} {
-	if {$::gpsLocationValid} {
-		# ignore it, we know better
+proc handle_location_update {src lat lon alt altref}
+{
+	if {$lat eq "" || $lon eq ""} {
+		unset -nocomplain ::locationInfo($src)
+	} else {
+		set lat [format "%.5f" $lat]
+		set lon [format "%.5f" $lon]
+		set alt [format "%.0f" $alt]
+
+		if {![info exists ::locationData($src)]} {
+			# first time
+			if {$altref ne ""} {
+				switch -- $altref {
+					wgs84_feet { set unit "ft (WGS84)" }
+					wgs84_meters { set unit "m (WGS84)" }
+					egm96_feet { set unit "ft AMSL" }
+					egm96_meters { set unit "m AMSL" }
+					default { set unit " (unknown unit)" }
+				}
+
+				logger "$src reported location: $lat, $lon, $alt$unit"
+			} else {
+				logger "$src reported location: $lat, $lon"
+			}
+		}
+
+		set ::locationData($src) [list $lat $lon $alt $altref]
+	}
+
+	location_data_changed
+}
+
+proc location_data_changed {} {
+	# find best location, prefer receiver data over gpsd over adept
+	set newloc ""
+	foreach src {receiver gpsd adept} {
+		if {[info exists ::locationData($src)]} {
+			set newloc $::locationData($src)
+			break
+		}
+	}
+
+	if {$newloc eq ""} {
+		# no valid position
+		adept set_location ""
 		return
 	}
 
 	# record the location and maybe restart faup1090 with the new value
 	update_location $lat $lon
+
+	# tell adept about the new location
+	# (unless the location already came from adept)
+	if {$src ne "adept"} {
+		set last [adept last_reported_location]
+		lassign $newloc lat lon alt altref
+		if {$last ne ""} {
+			lassign $last lastLat lastLon lastAlt lastAltref
+			set moved [expr {abs($lat - $lastLat) > 0.001 || abs($lon - $lastLon) > 0.001 || $altreq ne $lastAltref || abs($alt - $lastAlt) > 50}]
+		} else {
+			# have not yet reported a position
+			set moved 1
+		}
+
+		if {$moved} {
+			# trigger a healthcheck immediately to send the new position
+			# if we didn't move much, it can wait until the next normal health update
+			periodically_send_health_information
+		}
+	}
+}
+
+proc adept_location_changed {lat lon alt altref} {
+	handle_location_update "adept" $lat $lon $alt $altref
 }
 
 proc connect_to_gpsd {} {
