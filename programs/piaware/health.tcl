@@ -118,7 +118,7 @@ proc location_data_changed {} {
 		set last [adept last_reported_location]
 		if {$last ne ""} {
 			lassign $last lastLat lastLon lastAlt lastAltref
-			set moved [expr {abs($lat - $lastLat) > 0.001 || abs($lon - $lastLon) > 0.001 || $altreq ne $lastAltref || abs($alt - $lastAlt) > 50}]
+			set moved [expr {abs($lat - $lastLat) > 0.001 || abs($lon - $lastLon) > 0.001 || $altref ne $lastAltref || abs($alt - $lastAlt) > 50}]
 		} else {
 			# have not yet reported a position
 			set moved 1
