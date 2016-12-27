@@ -89,7 +89,7 @@ proc gps_location_update {lat lon alt} {
 	}
 }
 
-proc adept_location_changed {lat lon} {
+proc adept_location_changed {lat lon alt altref} {
 	if {$::gpsLocationValid} {
 		# ignore it, we know better
 		return

@@ -489,7 +489,15 @@ set caDir [file join [file dirname [info script]] "ca"]
 		upvar $_row row
 
 		if {[info exists row(recv_lat)] && [info exists row(recv_lon)] && [info exists updateLocationCommand]} {
-			{*}$updateLocationCommand $row(recv_lat) $row(recv_lon)
+			if {[info exists row(recv_alt)] && [info exists row(recv_altref)]} {
+				set alt $row(recv_alt)
+				set altref $row(recv_altref)
+			} else {
+				set alt 0
+				set altref ""
+			}
+
+			{*}$updateLocationCommand $row(recv_lat) $row(recv_lon) $alt $altref
 		}
 	}
 
