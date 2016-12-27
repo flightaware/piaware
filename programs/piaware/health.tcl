@@ -124,6 +124,8 @@ proc location_data_changed {} {
 			set moved 1
 		}
 
+		adept set_location $newloc
+
 		if {$moved} {
 			# trigger a healthcheck immediately to send the new position
 			# if we didn't move much, it can wait until the next normal health update
