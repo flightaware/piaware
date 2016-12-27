@@ -291,6 +291,14 @@ proc process_mlat_message {_row} {
 		set ::mlatReady 1
 	}
 
+	if {$row(type) eq "mlat_location_update" } {
+		# turn this into a local location update,
+		# we will then tell adept as needed,
+		# don't forward to mlat servers directly
+		handle_location_update "receiver" $row(lat) $row(lon) $row(alt) $row(altref)
+		return
+	}
+
 	adept send_array row
 }
 
