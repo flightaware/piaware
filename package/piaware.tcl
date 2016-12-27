@@ -298,6 +298,20 @@ proc receiver_underlying_host_and_port {config} {
 	}
 }
 
+# return the data format expected from the receiver
+# (in the form that mlat-client understands)
+proc receiver_data_format {config} {
+	switch -- [$config get receiver-type] {
+		rtlsdr     { return "dump1090" }
+		beast      { return "beast" }
+		relay      { return "auto" }
+		radarcape  { return "radarcape" }
+		radarcape-local  { return "radarcape" }
+		other      { return "auto" }
+		default    { error "unknown receiver type configured: [$config get receiver-type]" }
+	}
+}
+
 package provide piaware 1.0
 
 # vim: set ts=4 sw=4 sts=4 noet :

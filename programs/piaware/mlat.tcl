@@ -126,22 +126,7 @@ proc start_mlat_client {} {
 
 	set command $::mlatClientPath
 	lappend command "--input-connect" "${::receiverHost}:${::receiverPort}"
-
-	switch $::receiverType {
-		rtlsdr {
-			set inputType "dump1090"
-		}
-
-		beast - radarcape {
-			set inputType $::receiverType
-		}
-
-		default {
-			set inputType "auto"
-		}
-	}
-
-	lappend command "--input-type" $inputType
+	lappend command "--input-type" $::receiverDataFormat
 
 	if {[piawareConfig get mlat-results]} {
 		foreach r [piawareConfig get mlat-results-format] {

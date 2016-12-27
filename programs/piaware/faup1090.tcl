@@ -28,6 +28,7 @@ proc setup_faup1090_vars {} {
 	# receiver config
 	set ::receiverType [piawareConfig get receiver-type]
 	lassign [receiver_host_and_port piawareConfig] ::receiverHost ::receiverPort
+	set ::receiverDataFormat [receiver_data_format piawareConfig]
 	set ::adsbLocalPort [receiver_local_port piawareConfig]
 	set ::adsbDataService [receiver_local_service piawareConfig]
 	set ::adsbDataProgram [receiver_description piawareConfig]
