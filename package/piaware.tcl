@@ -223,23 +223,11 @@ proc warn_once {message args} {
 
 # return the local receiver port, or 0 if it is remote
 proc receiver_local_port {config} {
-	switch -- [$config get receiver-type] {
-		rtlsdr - beast - relay - radarcape {
-			return 30005
-		}
-
-		other {
-			set host [$config get receiver-host]
-			if {$host eq "localhost" || [string match "127.*" $host]} {
-				return [$config get receiver-port]
-			} else {
-				return 0
-			}
-		}
-
-		default {
-			error "unknown receiver type configured: [$config get receiver-type]"
-		}
+	lassign [receiver_host_and_port $config] host port
+	if {$host eq "localhost" || [string match "127.*" $host]} {
+		return $port
+	} else {
+		return 0
 	}
 }
 
