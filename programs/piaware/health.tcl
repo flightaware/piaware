@@ -61,8 +61,7 @@ proc gps_location_update {lat lon alt} {
 	handle_location_update gpsd $lat $lon $alt wgs84_meters
 }
 
-proc handle_location_update {src lat lon alt altref}
-{
+proc handle_location_update {src lat lon alt altref} {
 	if {$lat eq "" || $lon eq ""} {
 		unset -nocomplain ::locationInfo($src)
 	} else {
@@ -110,13 +109,13 @@ proc location_data_changed {} {
 	}
 
 	# record the location and maybe restart faup1090 with the new value
+	lassign $newloc lat lon alt altref
 	update_location $lat $lon
 
 	# tell adept about the new location
 	# (unless the location already came from adept)
 	if {$src ne "adept"} {
 		set last [adept last_reported_location]
-		lassign $newloc lat lon alt altref
 		if {$last ne ""} {
 			lassign $last lastLat lastLon lastAlt lastAltref
 			set moved [expr {abs($lat - $lastLat) > 0.001 || abs($lon - $lastLon) > 0.001 || $altreq ne $lastAltref || abs($alt - $lastAlt) > 50}]
