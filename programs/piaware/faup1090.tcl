@@ -249,21 +249,30 @@ proc faup1090_data_available {} {
 		log_locally "piaware received a message from $::adsbDataProgram!"
 	}
 
+	array set row [split $line "\t"]
+	if {[info exists row(type)] && $row(type) eq "location_update"} {
+		# we handle this directly
+		handle_location_update "receiver" $row(lat) $row(lon) $row(alt) $row(altref)
+		return
+	}
+
     #puts "faup1090 data: $line"
 	# if logged into flightaware adept, send the data
-	send_if_logged_in $line
+	send_if_logged_in row
 	set ::lastFaupMessageClock [clock seconds]
 }
 
 #
 # send_if_logged_in - send an adept message but only if logged in
 #
-proc send_if_logged_in {line} {
+proc send_if_logged_in {_row} {
+	upvar $_row row
+
     if {![adept is_logged_in]} {
 		return
     }
 
-	if {[catch {send_adsb_line $line} catchResult] == 1} {
+	if {[catch {send_adsb_line row} catchResult] == 1} {
 		log_locally "error uploading ADS-B message: $catchResult"
 	}
 }
@@ -271,8 +280,8 @@ proc send_if_logged_in {line} {
 #
 # send_adsb_line - send an ADS-B message to the adept server
 #
-proc send_adsb_line {line} {
-	array set row [split $line "\t"]
+proc send_adsb_line {_row} {
+	upvar $_row row
 
 	# extra filtering to avoid looping mlat results back
 	if {[info exists row(hexid)]} {

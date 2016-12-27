@@ -280,7 +280,7 @@ proc process_mlat_message {_row} {
 		# turn this into a local location update,
 		# we will then tell adept as needed,
 		# don't forward to mlat servers directly
-		handle_location_update "receiver" $row(lat) $row(lon) $row(alt) $row(altref)
+		handle_location_update "mlat" $row(lat) $row(lon) $row(alt) $row(altref)
 		return
 	}
 

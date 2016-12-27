@@ -95,7 +95,7 @@ proc handle_location_update {src lat lon alt altref} {
 proc location_data_changed {} {
 	# find best location, prefer receiver data over gpsd over adept
 	set newloc ""
-	foreach src {receiver gpsd adept} {
+	foreach src {mlat receiver gpsd adept} {
 		if {[info exists ::locationData($src)]} {
 			set newloc $::locationData($src)
 			break
