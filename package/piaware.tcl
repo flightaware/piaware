@@ -238,6 +238,7 @@ proc receiver_local_service {config} {
 		beast      { return "beast-splitter" }
 		relay      { return "beast-splitter" }
 		radarcape  { return "beast-splitter" }
+		radarcape-local  { return "" }
 		other      { return "" }
 		default    { error "unknown receiver type configured: [$config get receiver-type]" }
 	}
@@ -255,8 +256,11 @@ proc receiver_description {config} {
 		relay - other {
 			return "the ADS-B data program at [$config get receiver-host]/[$config get receiver-port]"
 		}
-		radarcape  {
+		radarcape {
 			return "the Radarcape at [$config get radarcape-host]"
+		}
+		radarcape-local {
+			return "the local Radarcape"
 		}
 		default {
 			error "unknown receiver type configured: [$config get receiver-type]"
@@ -273,6 +277,7 @@ proc receiver_host_and_port {config} {
 		beast      { return [list localhost 30005] }
 		relay      { return [list localhost 30005] }
 		radarcape  { return [list localhost 30005] }
+		radarcape-local  { return [list localhost 10006] }
 		other      { return [list [$config get receiver-host] [$config get receiver-port]] }
 		default    { error "unknown receiver type configured: [$config get receiver-type]" }
 	}
@@ -287,6 +292,7 @@ proc receiver_underlying_host_and_port {config} {
 		beast      { return [list localhost 30005] }
 		relay      { return [list [$config get receiver-host] [$config get receiver-port]] }
 		radarcape  { return [list [$config get radarcape-host] 10003] }
+		radarcape-local  { return [list localhost 10006] }
 		other      { return [list [$config get receiver-host] [$config get receiver-port]] }
 		default    { error "unknown receiver type configured: [$config get receiver-type]" }
 	}
