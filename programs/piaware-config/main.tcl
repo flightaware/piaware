@@ -32,9 +32,10 @@ proc main {{argv ""}} {
 		{status "get the status of the ADS-B client"}
 		{show "show current config settings (or just the specified keys)"}
 		{showall "show all config settings including passwords, unset values, and defaults"}
+		{configfile.arg "" "specify an additional configuration file to read"}
 	}
 
-	set usage ": $::argv0 -help|-start|-stop|-restart|-status|-showall|-show ?key?|?key value?\n"
+	set usage ": $::argv0 ?-configfile <file>? -help|-start|-stop|-restart|-status|-showall|-show ?key?|?key value?\n"
 
 	if {[catch {array set ::params [::cmdline::getoptions argv $options $usage]} catchResult] == 1} {
 		puts stderr $catchResult

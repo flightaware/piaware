@@ -931,7 +931,8 @@ namespace eval ::fa_piaware_config {
 	# Return a new ConfigGroup that handles the standard piaware config location, which are
 	# (starting from the highest priority):
 	#
-	#  priority 100..199: any config files found in /media/usb/*/piaware-config.txt, ordered arbitrarily (readonly)
+	#  priority 100+:     any extra config file given as an argument (readonly)
+	#  priority 100+:     any config files found in /media/usb/*/piaware-config.txt, ordered arbitrarily (readonly)
 	#  priority 50:       /boot/piaware-config.txt (readwrite)
 	#  priority 40:       /etc/piaware.conf (readwrite)
 	#  priority 30:       /usr/share/piaware-support/piaware-image-config.txt (readonly) (provides additional defaults on PiAware sdcard images)
@@ -940,7 +941,7 @@ namespace eval ::fa_piaware_config {
 	# /boot/piaware-config.txt if the setting was set there.
 	#
 	# Provide a itcl name pattern (e.g. #auto) as "name"
-	proc piaware_combined_config {name} {
+	proc piaware_combined_config {name {extraConfigFile ""}} {
 		set metadata [piaware_standard_settings #auto]
 		set combined [uplevel 1 ::fa_piaware_config::new ::fa_piaware_config::ConfigGroup $name -metadata $metadata]
 
@@ -953,6 +954,10 @@ namespace eval ::fa_piaware_config {
 		foreach f [lsort [glob -nocomplain -types f "/media/usb/*/piaware-config.txt"]] {
 			$combined add [new ConfigFile #auto -filename $f -metadata $metadata -priority $prio -readonly 1]
 			incr prio
+		}
+
+		if {$extraConfigFile ne ""} {
+			$combined add [new ConfigFile #auto -filename $extraConfigFile -metadata $metadata -priority $prio -readonly 1]
 		}
 
 		return $combined

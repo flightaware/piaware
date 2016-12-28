@@ -20,12 +20,21 @@ package require cmdline
 package require Tclx
 package require fa_piaware_config
 
-set ::die 0
-
 #
 # main - the main program
 #
 proc main {{argv ""}} {
+	set options {
+		{configfile.arg "" "specify an additional configuration file to read"}
+	}
+
+	set usage ": $::argv0 ?-configfile path?\n"
+
+	if {[catch {array set ::params [::cmdline::getoptions argv $options $usage]} catchResult] == 1} {
+		puts stderr $catchResult
+		exit 1
+	}
+
 	report_status
 }
 

@@ -11,7 +11,7 @@ set ::nRunning 0
 #  a while
 #
 proc report_status {} {
-	set ::config [::fa_piaware_config::new_combined_config #auto]
+	set ::config [::fa_piaware_config::new_combined_config #auto $::params(configfile)]
 	$::config read_config
 
 	report_on_whats_running

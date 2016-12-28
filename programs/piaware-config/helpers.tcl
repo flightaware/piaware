@@ -15,7 +15,7 @@ proc load_config {} {
 	global config
 
 	if {![info exists config]} {
-		set config [::fa_piaware_config::new_combined_config #auto]
+		set config [::fa_piaware_config::new_combined_config #auto $::params(configfile)]
 		set problems [$config read_config]
 		foreach problem $problems {
 			puts stderr "warning: $problem"

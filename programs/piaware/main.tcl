@@ -32,19 +32,20 @@ source $::launchdir/statusfile.tcl
 # main - the main program
 #
 proc main {{argv ""}} {
-    set options {
-        {p.arg "" "specify the name of a file to write our pid in"}
-        {serverhosts.arg "" "specify alternate server hosts (for FA testing)"}
-        {serverport.arg "" "specify alternate server port (for FA testing)"}
-        {plainlog "log to stderr without timestamps"}
-        {debug "log to stderr, maybe enable more debugging messages"}
+	set options {
+		{p.arg "" "specify the name of a file to write our pid in"}
+		{configfile.arg "" "specify an additional configuration file to read"}
+		{serverhosts.arg "" "specify alternate server hosts (for FA testing)"}
+		{serverport.arg "" "specify alternate server port (for FA testing)"}
+		{plainlog "log to stderr without timestamps"}
+		{debug "log to stderr, maybe enable more debugging messages"}
 		{logfile.arg "/var/log/piaware.log" "set logfile location (not used if -debug or -plainlog are given)"}
-        {showtraffic  "emit traffic to stdout (for debugging)"}
+		{showtraffic  "emit traffic to stdout (for debugging)"}
 		{statusfile.arg "" "periodically write json status to this location"}
-        {v  "emit version information and exit"}
-    }
+		{v	"emit version information and exit"}
+	}
 
-    set usage ": $::argv0 ?-p pidfile? ?-v? ?-debug? ?-serverport <port>? ?-serverhost <host>?"
+    set usage ": $::argv0 ?options?"
 
     if {[catch {array set ::params [::cmdline::getoptions argv $options $usage]} catchResult] == 1} {
         puts stderr $catchResult
