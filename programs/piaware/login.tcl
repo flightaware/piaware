@@ -6,6 +6,7 @@
 #
 
 package require fa_sudo
+package require tryfinallyshim
 
 # populates the initial login message
 proc gather_login_info {_message} {
@@ -71,6 +72,11 @@ proc gather_login_info {_message} {
 		}
 	}
 
+	set feederId [read_feeder_id]
+	if {$feederId ne ""} {
+		set message(feeder_id) $feederId
+	}
+
 	set message(local_auto_update_enable) [piawareConfig get allow-auto-updates]
 	set message(local_manual_update_enable) [piawareConfig get allow-manual-updates]
 	set message(local_mlat_enable) [piawareConfig get allow-mlat]
@@ -95,6 +101,10 @@ proc handle_login_result {data} {
 
 	if {$row(status) == "ok"} {
 		logger "logged in to FlightAware as user $row(user)"
+		if {[info exists row(feeder_id)]} {
+			logger "my feeder ID is $row(feeder_id)"
+			write_feeder_id $row(feeder_id)
+		}
 	} else {
 		# NB do more here, like UI stuff
 		log_locally "*******************************************"
@@ -104,5 +114,50 @@ proc handle_login_result {data} {
 		log_locally "piaware will now exit."
 		log_locally "You can start it up again using 'sudo service piaware start'"
 		exit 4
+	}
+}
+
+proc read_feeder_id {} {
+	if {[piawareConfig exists feeder_id]} {
+		return [piawareConfig get feeder_id]
+	}
+
+	if {$::params(feederidfile) eq ""} {
+		return ""
+	}
+
+	catch {
+		set f [open $::params(feederidfile) "r"]
+		try {
+		    if {[gets $f id] > 0} {
+				return $id
+			}
+		} finally {
+		    close $f
+		}
+	}
+
+	return ""
+}
+
+proc write_feeder_id {id} {
+	if {[piawareConfig exists feeder_id]} {
+		return
+	}
+
+	if {$::params(feederidfile) eq ""} {
+		return
+	}
+
+	catch {
+		set newfile "$::params(feederidfile).new"
+		set f [open $newfile "w"]
+		try {
+			puts $f $id
+		} finally {
+			close $f
+		}
+
+		file rename -force -- $newfile $::params(feederidfile)
 	}
 }

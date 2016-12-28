@@ -35,6 +35,7 @@ proc main {{argv ""}} {
 	set options {
 		{p.arg "" "specify the name of a file to write our pid in"}
 		{configfile.arg "" "specify an additional configuration file to read"}
+		{feederidfile.arg "/var/cache/piaware/feeder_id" "specify the name of a file to read/write our feeder ID in"}
 		{serverhosts.arg "" "specify alternate server hosts (for FA testing)"}
 		{serverport.arg "" "specify alternate server port (for FA testing)"}
 		{plainlog "log to stderr without timestamps"}

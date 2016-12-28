@@ -877,6 +877,7 @@ namespace eval ::fa_piaware_config {
 			{"priority"              -type integer}
 			{"image-type"            -type string}
 			{"manage-config"         -type boolean -default no}
+			"feeder-id"
 			{"flightaware-user"      -protect 1}
 			{"flightaware-password"  -protect 1}
 			"force-macaddress"
