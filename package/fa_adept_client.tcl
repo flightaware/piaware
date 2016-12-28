@@ -30,6 +30,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 	public variable mlatCommand
 	public variable updateCommand
 	public variable loginCommand
+	public variable loginResultCommand
 
     protected variable host
     protected variable connected 0
@@ -462,7 +463,6 @@ set caDir [file join [file dirname [info script]] "ca"]
 			# if we received lat/lon data, handle it
 			handle_update_location row
 
-			logger "logged in to FlightAware as user $row(user)"
 			cancel_login_timer
 
 			# modern adept servers always send alive messages within the first
@@ -471,14 +471,20 @@ set caDir [file join [file dirname [info script]] "ca"]
 				set aliveTimerID [after 90000 [list $this alive_timeout]]
 			}
 		} else {
-			# NB do more here, like UI stuff
-			logger "*******************************************"
-			logger "LOGIN FAILED: status '$row(status)': reason '$row(reason)'"
-			logger "please correct this, possibly using piaware-config"
-			logger "to set valid Flightaware user name and password."
-			logger "piaware will now exit."
-			logger "You can start it up again using 'sudo /etc/init.d/piaware start'"
-			exit 4
+			# failed, do not reconnect
+			close_socket
+			cancel_timers
+		}
+
+		if {[info exists loginResultCommand]} {
+			{*}$loginResultCommand [array get row]
+		} else {
+			# better log something at least..
+			if {[info exists row(reason)]} {
+				logger "login: $row(status); $row(reason)"
+			} else {
+				logger "login: $row(status)"
+			}
 		}
 	}
 

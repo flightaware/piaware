@@ -71,6 +71,7 @@ proc setup_adept_client {} {
 		-showTraffic $::params(showtraffic) \
 		-logCommand ::log_locally \
 		-loginCommand ::gather_login_info \
+		-loginResultCommand ::handle_login_result \
 		-updateLocationCommand ::adept_location_changed \
 		-mlatCommand ::forward_to_mlat_client \
 		-updateCommand ::handle_update_request

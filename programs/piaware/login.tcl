@@ -89,3 +89,20 @@ proc gather_login_info {_message} {
 		}
 	}
 }
+
+proc handle_login_result {data} {
+	array set row $data
+
+	if {$row(status) == "ok"} {
+		logger "logged in to FlightAware as user $row(user)"
+	} else {
+		# NB do more here, like UI stuff
+		log_locally "*******************************************"
+		log_locally "LOGIN FAILED: status '$row(status)': reason '$row(reason)'"
+		log_locally "please correct this, possibly using piaware-config"
+		log_locally "to set valid Flightaware user name and password."
+		log_locally "piaware will now exit."
+		log_locally "You can start it up again using 'sudo service piaware start'"
+		exit 4
+	}
+}
