@@ -126,18 +126,17 @@ proc read_feeder_id {} {
 		return ""
 	}
 
+	set id ""
 	catch {
 		set f [open $::params(feederidfile) "r"]
 		try {
-		    if {[gets $f id] > 0} {
-				return $id
-			}
+		    gets $f id
 		} finally {
 		    close $f
 		}
 	}
 
-	return ""
+	return $id
 }
 
 proc write_feeder_id {id} {
