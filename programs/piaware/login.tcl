@@ -118,8 +118,8 @@ proc handle_login_result {data} {
 }
 
 proc read_feeder_id {} {
-	if {[piawareConfig exists feeder_id]} {
-		return [piawareConfig get feeder_id]
+	if {[piawareConfig exists feeder-id]} {
+		return [piawareConfig get feeder-id]
 	}
 
 	if {$::params(feederidfile) eq ""} {
