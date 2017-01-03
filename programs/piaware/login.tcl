@@ -119,11 +119,11 @@ proc handle_login_result {data} {
 
 proc read_feeder_id {} {
 	if {[piawareConfig exists feeder-id]} {
-		return [piawareConfig get feeder-id]
+		return [list "config" [piawareConfig get feeder-id]]
 	}
 
 	if {$::params(cachedir) eq ""} {
-		return ""
+		return [list "none" ""]
 	}
 
 	set id ""
@@ -136,7 +136,7 @@ proc read_feeder_id {} {
 		}
 	}
 
-	return $id
+	return [list "cache" $id]
 }
 
 proc write_feeder_id {id} {
