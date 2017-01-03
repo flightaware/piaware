@@ -337,7 +337,7 @@ proc save_location_info {lat lon} {
 
 proc create_cache_dir {} {
 	# mkdir is a no-op if the dir is already there (no error)
-	if {catch {file mkdir $::params(cachedir)]} {
+	if {[catch {file mkdir $::params(cachedir)}]} {
 		return 0
 	}
 
