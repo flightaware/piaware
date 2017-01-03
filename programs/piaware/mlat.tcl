@@ -136,6 +136,10 @@ proc start_mlat_client {} {
 		if {![piawareConfig get mlat-results-anon]} {
 			lappend command "--no-anon-results"
 		}
+
+		if {![piawareConfig get allow-modeac]} {
+			lappend command "--no-modeac-results"
+		}
 	}
 
 	if {$::mlatUdpTransport ne ""} {
