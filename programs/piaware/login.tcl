@@ -148,7 +148,7 @@ proc write_feeder_id {id} {
 		return
 	}
 
-	catch {
+	if {[catch {
 		create_cache_dir
 		set f [open "$::params(cachedir)/feeder_id.new" "w"]
 		try {
@@ -158,5 +158,7 @@ proc write_feeder_id {id} {
 		}
 
 		file rename -force -- "$::params(cachedir)/feeder_id.new" "$::params(cachedir)/feeder_id"
+	} result]} {
+		logger "Failed to update feeder ID file: $result"
 	}
 }
