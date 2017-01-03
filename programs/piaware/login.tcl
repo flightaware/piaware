@@ -126,9 +126,10 @@ proc read_feeder_id {} {
 		return [list "none" ""]
 	}
 
+	set path "$::params(cachedir)/feeder_id"
 	set id ""
 	catch {
-		set f [open "$::params(cachedir)/feeder_id" "r"]
+		set f [open $path "r"]
 		try {
 		    gets $f id
 		} finally {
@@ -136,7 +137,12 @@ proc read_feeder_id {} {
 		}
 	}
 
-	return [list "cache" $id]
+	# only return this as "cache" if we can actually update it
+	if {![create_cache_dir] || ![file writable $::params(cachedir)] || ([file exists $path] && ![file writable $path])} {
+		return [list "config" $id]
+	} else {
+		return [list "cache" $id]
+	}
 }
 
 proc write_feeder_id {id} {
