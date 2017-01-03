@@ -297,6 +297,10 @@ proc cleanup_and_exit {} {
 # load lat/lon info from /var/lib if available
 #
 proc load_location_info {} {
+	if {$::params(cachedir) eq ""} {
+		return [list "" ""]
+	}
+
 	if {[catch {set ll [try_load_location_info]}] == 1} {
 		return [list "" ""]
 	}
@@ -305,7 +309,7 @@ proc load_location_info {} {
 }
 
 proc try_load_location_info {} {
-	set fp [open $::locationFile r]
+	set fp [open "$::params(cachedir)/location" r]
 	set data [read $fp]
 	close $fp
 
@@ -319,27 +323,39 @@ proc try_load_location_info {} {
 
 # save location info
 proc save_location_info {lat lon} {
+	if {$::params(cachedir) eq ""} {
+		return 0
+	}
+
 	if {[catch {try_save_location_info $lat $lon} catchResult] == 1} {
-		log_locally "got '$catchResult' trying to update $::locationFile"
+		log_locally "got '$catchResult' trying to update location files"
+		return 0
+	}
+
+	return 1
+}
+
+proc create_cache_dir {} {
+	if {![file exists $::params(cachedir)]} {
+		file mkdir $dir
 	}
 }
 
 proc try_save_location_info {lat lon} {
-	set dir [file dirname $::locationFile]
-	if {![file exists $dir]} {
-		file mkdir $dir
-	}
+	create_cache_dir
 
-	set fp [open $::locationFile w]
+	set fp [open "$::params(cachedir)/location.new" w]
 	puts $fp $lat
 	puts $fp $lon
 	close $fp
+	file rename -force -- "$::params(cachedir)/location.new" "$::params(cachedir)/location"
 
-	set fp [open $::locationFileEnv w]
+	set fp [open "$::params(cachedir)/location.env.new" w]
 	puts $fp "PIAWARE_LAT=\"$lat\""
 	puts $fp "PIAWARE_LON=\"$lon\""
 	puts $fp "PIAWARE_DUMP1090_LOCATION_OPTIONS=\"--lat $lat --lon $lon\""
 	close $fp
+	file rename -force -- "$::params(cachedir)/location.env.new" "$::params(cachedir)/location.env"
 }
 
 

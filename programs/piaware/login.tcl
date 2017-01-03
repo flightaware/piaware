@@ -122,13 +122,13 @@ proc read_feeder_id {} {
 		return [piawareConfig get feeder-id]
 	}
 
-	if {$::params(feederidfile) eq ""} {
+	if {$::params(cachedir) eq ""} {
 		return ""
 	}
 
 	set id ""
 	catch {
-		set f [open $::params(feederidfile) "r"]
+		set f [open "$::params(cachedir)/feeder_id" "r"]
 		try {
 		    gets $f id
 		} finally {
@@ -144,19 +144,19 @@ proc write_feeder_id {id} {
 		return
 	}
 
-	if {$::params(feederidfile) eq ""} {
+	if {$::params(cachedir) eq ""} {
 		return
 	}
 
 	catch {
-		set newfile "$::params(feederidfile).new"
-		set f [open $newfile "w"]
+		create_cache_dir
+		set f [open "$::params(cachedir)/feeder_id.new" "w"]
 		try {
 			puts $f $id
 		} finally {
 			close $f
 		}
 
-		file rename -force -- $newfile $::params(feederidfile)
+		file rename -force -- "$::params(cachedir)/feeder_id.new" "$::params(cachedir)/feeder_id"
 	}
 }

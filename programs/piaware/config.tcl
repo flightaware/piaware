@@ -26,8 +26,4 @@ set sendHealthInformationIntervalSeconds 300
 # for before we will attempt to start it
 set adsbNoProducerStartDelaySeconds 360
 
-# where we store our location info
-set locationFile "/var/cache/piaware/location"
-set locationFileEnv "/var/cache/piaware/location.env"
-
 # vim: set ts=4 sw=4 sts=4 noet :

@@ -374,7 +374,7 @@ proc update_location {lat lon} {
 	# This handles the case where the location walks in
 	# small steps.
 
-	save_location_info $lat $lon
+	set saved [save_location_info $lat $lon]
 
 	if {$::receiverLat ne "" && $::receiverLon ne ""} {
 		if {abs($::receiverLat - $lat) < 0.1 && abs($::receiverLon - $lon) < 0.1} {
@@ -389,8 +389,10 @@ proc update_location {lat lon} {
 
 	# speculatively restart dump1090 even if we are not using it as a receiver;
 	# it may be used for display.
-	logger "Receiver location changed, restarting dump1090"
-	::fa_services::attempt_service_restart dump1090 restart
+	if {$saved} {
+		logger "Receiver location changed, restarting dump1090"
+		::fa_services::attempt_service_restart dump1090 restart
+	}
 
 	if {[info exists ::faupPipe]} {
 		logger "Receiver location changed, restarting faup1090"
