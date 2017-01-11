@@ -59,7 +59,7 @@ proc build_status {} {
 	set data(expiry) [expr {$data(time) + $::statusFileInterval * 2 + 1000}]
 
 	# piaware: our own health
-	set data(piaware) [status_entry "green" "Piaware $::piawareVersionFull is running"]
+	set data(piaware) [status_entry "green" "PiAware $::piawareVersionFull is running"]
 
 	# adept: status of the connection to the adept server
 	if {[adept is_logged_in]} {
