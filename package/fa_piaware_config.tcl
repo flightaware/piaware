@@ -902,6 +902,8 @@ namespace eval ::fa_piaware_config {
 			"wireless-gateway"
 			{"wireless-nameservers"  -default {8.8.8.8 8.8.4.4}}
 
+			{"allow-dhcp-duid"       -type boolean -default yes}
+
 			"http-proxy-host"
 			"http-proxy-port"
 			"http-proxy-user"
