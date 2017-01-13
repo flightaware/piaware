@@ -63,7 +63,7 @@ proc gps_location_update {lat lon alt} {
 
 proc handle_location_update {src lat lon alt altref} {
 	if {$lat eq "" || $lon eq ""} {
-		unset -nocomplain ::locationInfo($src)
+		unset -nocomplain ::locationData($src)
 	} else {
 		set lat [format "%.5f" $lat]
 		set lon [format "%.5f" $lon]
