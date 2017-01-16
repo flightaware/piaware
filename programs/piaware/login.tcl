@@ -105,6 +105,12 @@ proc handle_login_result {data} {
 			logger "my feeder ID is $row(feeder_id)"
 			write_feeder_id $row(feeder_id)
 		}
+		if {[info exists row(site_url)]} {
+			logger "site statistics URL: $row(site_url)"
+			set ::siteURL $row(site_url)
+		} else {
+			unset -nocomplain ::siteURL
+		}
 	} else {
 		# NB do more here, like UI stuff
 		log_locally "*******************************************"

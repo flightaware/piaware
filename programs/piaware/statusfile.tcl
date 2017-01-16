@@ -58,6 +58,11 @@ proc build_status {} {
 	set data(interval) $::statusFileInterval
 	set data(expiry) [expr {$data(time) + $::statusFileInterval * 2 + 1000}]
 
+	# site URL, if available
+	if {[info exists ::siteURL]} {
+		set data(site_url) $::siteURL
+	}
+
 	# piaware: our own health
 	set data(piaware) [status_entry "green" "PiAware $::piawareVersionFull is running"]
 
