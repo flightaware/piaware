@@ -60,7 +60,7 @@ proc build_status {} {
 
 	# site URL, if available
 	if {[info exists ::siteURL]} {
-		set data(site_url) $::siteURL
+		set data(site_url) [::json::write string $::siteURL]
 	}
 
 	# piaware: our own health
