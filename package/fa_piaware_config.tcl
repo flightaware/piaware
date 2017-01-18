@@ -94,7 +94,7 @@ namespace eval ::fa_piaware_config {
 			}
 
 			"integer" {
-				if {![string is entier -strict $value]} {
+				if {![string is integer -strict $value]} {
 					error "bad integer value: $value"
 				}
 
