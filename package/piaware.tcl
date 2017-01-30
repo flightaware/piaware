@@ -235,6 +235,7 @@ proc receiver_local_port {config} {
 proc receiver_local_service {config} {
 	switch -- [$config get receiver-type] {
 		rtlsdr     { return "dump1090" }
+		bladerf    { return "dump1090" }
 		beast      { return "beast-splitter" }
 		relay      { return "beast-splitter" }
 		radarcape  { return "beast-splitter" }
@@ -247,7 +248,7 @@ proc receiver_local_service {config} {
 # return a brief description of what we receive data from
 proc receiver_description {config} {
 	switch -- [$config get receiver-type] {
-		rtlsdr {
+		rtlsdr - bladerf {
 			return "dump1090"
 		}
 		beast {
@@ -274,6 +275,7 @@ proc receiver_description {config} {
 proc receiver_host_and_port {config} {
 	switch -- [$config get receiver-type] {
 		rtlsdr     { return [list localhost 30005] }
+		bladerf    { return [list localhost 30005] }
 		beast      { return [list localhost 30005] }
 		relay      { return [list localhost 30005] }
 		radarcape  { return [list localhost 30005] }
@@ -289,6 +291,7 @@ proc receiver_host_and_port {config} {
 proc receiver_underlying_host_and_port {config} {
 	switch -- [$config get receiver-type] {
 		rtlsdr     { return [list localhost 30005] }
+		bladerf    { return [list localhost 30005] }
 		beast      { return [list localhost 30005] }
 		relay      { return [list [$config get receiver-host] [$config get receiver-port]] }
 		radarcape  { return [list [$config get radarcape-host] 10003] }
@@ -303,6 +306,7 @@ proc receiver_underlying_host_and_port {config} {
 proc receiver_data_format {config} {
 	switch -- [$config get receiver-type] {
 		rtlsdr     { return "dump1090" }
+		bladerf    { return "dump1090" }
 		beast      { return "beast" }
 		relay      { return "auto" }
 		radarcape  { return "radarcape" }
