@@ -86,6 +86,9 @@ proc handle_update_request {type _row} {
 			switch $action {
 				"full" - "packages" {
 					set ok [upgrade_all_packages]
+					if {$ok} {
+						set restartPiaware 1
+					}
 				}
 
 				"piaware" {
