@@ -56,19 +56,21 @@ case "$action" in
             echo "deb $url $suite $components" >$sourceslist
         fi
 
-        exec apt-get -q -y $options update
+        apt-get -q -y $options update
         ;;
 
     upgrade-package)
         dpkg --configure -a --force-confdef --force-confold || true
         apt-get -q -y $options -f install || true
-        exec apt-get -q -y $options install "$@"
+        apt-get -q -y $options install "$@" || exit 1
+        apt-get -q $options clean || true
         ;;
 
     upgrade-all)
         dpkg --configure -a --force-confdef --force-confold || true
         apt-get -q -y $options -f install || true
-        exec apt-get -q -y $options dist-upgrade
+        apt-get -q -y $options dist-upgrade || exit 1
+        apt-get -q -y $options clean || true
         ;;
 
     *)
@@ -76,3 +78,5 @@ case "$action" in
         exit 1
         ;;
 esac
+
+exit 0
