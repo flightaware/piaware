@@ -101,10 +101,16 @@ proc handle_login_result {data} {
 
 	if {$row(status) == "ok"} {
 		logger "logged in to FlightAware as user $row(user)"
+		set ::loggedInUser $row(user)
+
 		if {[info exists row(feeder_id)]} {
 			logger "my feeder ID is $row(feeder_id)"
+			set ::feederID $row(feeder_id)
 			write_feeder_id $row(feeder_id)
+		} else {
+			unset -nocomplain ::feederID
 		}
+
 		if {[info exists row(site_url)]} {
 			logger "site statistics URL: $row(site_url)"
 			set ::siteURL $row(site_url)

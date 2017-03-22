@@ -63,6 +63,11 @@ proc build_status {} {
 		set data(site_url) [::json::write string $::siteURL]
 	}
 
+	# site UUID, if unclaimed
+	if {[info exists ::feederID] && [info exists ::loggedInUser] && $::loggedInUser eq "guest"} {
+		set data(unclaimed_feeder_id) [::json::write string $::feederID]
+	}
+
 	# piaware: our own health
 	set data(piaware) [status_entry "green" "PiAware $::piawareVersionFull is running"]
 
