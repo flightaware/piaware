@@ -158,10 +158,6 @@ proc read_feeder_id {} {
 }
 
 proc write_feeder_id {id} {
-	if {[piawareConfig exists feeder-id]} {
-		return
-	}
-
 	if {$::params(cachedir) eq ""} {
 		return
 	}
