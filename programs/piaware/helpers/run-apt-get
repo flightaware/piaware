@@ -56,6 +56,7 @@ case "$action" in
             echo "deb $url $suite $components" >$sourceslist
         fi
 
+        dpkg --configure -a --force-confdef --force-confold || true
         apt-get -q -y $options update
         ;;
 
