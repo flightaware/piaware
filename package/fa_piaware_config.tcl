@@ -3,7 +3,7 @@
 # for the various config sources that piaware and the
 # piaware sdcard image can use.
 #
-# Copyright (C) 2016 FlightAware LLC, All Rights Reserved
+# Copyright (C) 2016-2017 FlightAware LLC, All Rights Reserved
 #
 #
 
@@ -32,6 +32,14 @@ namespace eval ::fa_piaware_config {
 		return [uplevel 1 namespace which -command $cmd]
 	}
 
+	proc valid_mac {mac} {
+		return [regexp -nocase {^[a-z0-9]{2}:[a-z0-9]{2}:[a-z0-9]{2}:[a-z0-9]{2}:[a-z0-9]{2}:[a-z0-9]{2}$} $mac]
+	}
+
+	proc valid_uuid {uuid} {
+		return [regexp -nocase {^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$} $uuid]
+	}
+
 	# check a value of the given type, return 1 if it looks OK
 	proc validate_typed_value {type value} {
 		switch $type {
@@ -49,6 +57,14 @@ namespace eval ::fa_piaware_config {
 
 			"double" {
 				return [string is double -strict $value]
+			}
+
+			"mac" {
+				return [valid_mac [string trim $value]]
+			}
+
+			"uuid" {
+				return [valid_uuid [string trim $value]]
 			}
 
 			default {
@@ -70,6 +86,10 @@ namespace eval ::fa_piaware_config {
 
 			"boolean" {
 				return [string is true -strict $value]
+			}
+
+			"mac" - "uuid" {
+				return [string tolower [string trim $value]]
 			}
 
 			default {
@@ -107,6 +127,20 @@ namespace eval ::fa_piaware_config {
 				}
 
 				return $value
+			}
+
+			"mac" {
+				if {![valid_mac $value]} {
+					error "bad MAC: $value"
+				}
+				return [string tolower [string trim $value]]
+			}
+
+			"uuid" {
+				if {![valid_uuid $value]} {
+					error "bad UUID: $value"
+				}
+				return [string tolower [string trim $value]]
 			}
 
 			default {
@@ -163,8 +197,8 @@ namespace eval ::fa_piaware_config {
 				error "wrong args: should be \"add_setting key ?-type type? ?-default value? ?-protect 0|1?\""
 			}
 
-			if {$typeName ni {boolean string integer double}} {
-				error "wrong args: -type understands \"boolean\", \"string\", \"double\", or \"integer\""
+			if {$typeName ni {boolean string integer double mac uuid}} {
+				error "wrong args: -type understands \"boolean\", \"string\", \"double\", \"integer\", \"mac\", \"uuid\""
 			}
 
 			if {[info exists defaultValue]} {
@@ -877,10 +911,10 @@ namespace eval ::fa_piaware_config {
 			{"priority"              -type integer}
 			{"image-type"            -type string}
 			{"manage-config"         -type boolean -default no}
-			"feeder-id"
+			{"feeder-id"             -type uuid}
 			{"flightaware-user"      -protect 1}
 			{"flightaware-password"  -protect 1}
-			"force-macaddress"
+			{"force-macaddress"      -type mac}
 			{"allow-auto-updates"    -type boolean -default no}
 			{"allow-manual-updates"  -type boolean -default no}
 
