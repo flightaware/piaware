@@ -51,7 +51,7 @@ proc update_config_values {argv} {
 			set displayVal $val
 		}
 
-		if {![$config metadata validate $key $val]} {
+		if {$val ne "" && ![$config metadata validate $key $val]} {
 			puts stderr "warning: could not set option '$key' to value '$displayVal': not a valid value for that key"
 			continue
 		}
