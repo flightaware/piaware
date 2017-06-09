@@ -151,7 +151,7 @@ proc read_feeder_id {} {
 
 	# only return this as "cache" if we can actually update it
 	if {![create_cache_dir] || ![file writable $::params(cachedir)] || ([file exists $path] && ![file writable $path])} {
-		return [list "config" $id]
+		return [list "cache_ro" $id]
 	} else {
 		return [list "cache" $id]
 	}
