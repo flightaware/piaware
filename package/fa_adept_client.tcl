@@ -16,11 +16,11 @@ namespace eval ::fa_adept {
 set caDir [file join [file dirname [info script]] "ca"]
 
 ::itcl::class AdeptClient {
-    public variable sock
-    public variable hosts [list piaware.flightaware.com piaware.flightaware.com 70.42.6.197 70.42.6.198 70.42.6.191]
-    public variable port 1200
-    public variable loginTimeoutSeconds 30
-    public variable connectRetryIntervalSeconds 60
+	public variable sock
+	public variable hosts [list piaware.flightaware.com piaware.flightaware.com [list 70.42.6.197 70.42.6.198 70.42.6.191 70.42.6.225 70.42.6.224 70.42.6.156]] shuffle_hosts
+	public variable port 1200
+	public variable loginTimeoutSeconds 30
+	public variable connectRetryIntervalSeconds 60
 	public variable showTraffic 0
 	public variable mac
 
@@ -32,23 +32,25 @@ set caDir [file join [file dirname [info script]] "ca"]
 	public variable loginCommand
 	public variable loginResultCommand
 
-    protected variable host
-    protected variable connected 0
-    protected variable loggedIn 0
-    protected variable writabilityTimerID
-    protected variable wasWritable 0
-    protected variable loginTimerID
-    protected variable reconnectTimerID
-    protected variable aliveTimerID
-    protected variable nextHostIndex 0
-    protected variable lastCompressClock 0
-    protected variable flushPending 0
+	protected variable shuffledHosts
+	protected variable host
+	protected variable connected 0
+	protected variable loggedIn 0
+	protected variable writabilityTimerID
+	protected variable wasWritable 0
+	protected variable loginTimerID
+	protected variable reconnectTimerID
+	protected variable aliveTimerID
+	protected variable nextHostIndex 0
+	protected variable lastCompressClock 0
+	protected variable flushPending 0
 	protected variable deviceLocation ""
 	protected variable lastReportedLocation ""
 
-    constructor {args} {
+	constructor {args} {
 		configure {*}$args
-    }
+		shuffle_hosts
+	}
 
     #
     # logger - log a message
@@ -57,14 +59,35 @@ set caDir [file join [file dirname [info script]] "ca"]
 		catch { {*}$logCommand $text }
     }
 
+	# shuffle - random shuffle of a list, used to randomize the order of fallback IPs
+	# we just brute-force this since the lists are small
+	proc shuffle {l} {
+		set result [list]
+		while {[llength $l] > 0} {
+			set i [expr {int(rand() * [llength $l])}]
+			lappend result [lindex $l $i]
+			set l [lreplace $l $i $i]
+		}
+		return $result
+	}
+
+	# shuffle_hosts - populate shuffledHosts from hosts
+	method shuffle_hosts {} {
+		set shuffledHosts [list]
+		foreach hostList $hosts {
+			lappend shuffledHosts {*}[shuffle $hostList]
+		}
+	}
+
 	#
 	# next_host - return the next host in the list of hosts
 	#
 	method next_host {} {
-		set host [lindex $hosts $nextHostIndex]
+		set host [lindex $shuffledHosts $nextHostIndex]
 		incr nextHostIndex
-		if {$nextHostIndex >= [llength $hosts]} {
+		if {$nextHostIndex >= [llength $shuffledHosts]} {
 			set nextHostIndex 0
+			shuffle_hosts
 		}
 		return $host
 	}
