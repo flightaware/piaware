@@ -21,6 +21,9 @@ proc report_status {} {
 	puts ""
 
 	check_ports_for_data
+	puts ""
+
+	report_feeder_id
 }
 
 #
@@ -139,4 +142,29 @@ proc check_ports_for_data {} {
 proc adsb_data_callback {what host port state} {
 	puts [subst_is_or_is_not "$what %s producing data on $host:$port." $state]
 	incr ::nRunning -1
+}
+
+# report_feeder_id - see if we've got a feeder ID somewhere and tell the user
+proc report_feeder_id {} {
+	if {[$::config exists feeder-id]} {
+		puts "Your feeder ID is [$::config get feeder-id] (configured at [$::config origin feeder-id])"
+		return
+	}
+
+	set path "/var/cache/piaware/feeder_id"
+	set id ""
+	catch {
+		set f [open $path "r"]
+		try {
+		    gets $f id
+		} finally {
+		    close $f
+		}
+	}
+
+	if {$id eq ""} {
+		puts "You don't have a feeder ID yet."
+	} else {
+		puts "Your feeder ID is $id (from $path)"
+	}
 }
