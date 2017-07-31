@@ -943,7 +943,7 @@ namespace eval ::fa_piaware_config {
 			"http-proxy-user"
 			{"http-proxy-password"   -protect 1}
 
-			{"adept-serverhosts"     -default {piaware.flightaware.com piaware.flightaware.com 70.42.6.197 70.42.6.198 70.42.6.191}}
+			{"adept-serverhosts"     -default {piaware.flightaware.com piaware.flightaware.com {70.42.6.197 70.42.6.198 70.42.6.191 70.42.6.225 70.42.6.224 70.42.6.156}}}
 			{"adept-serverport"      -type integer -default 1200}
 
 			{"rfkill"                -type boolean -default no}
