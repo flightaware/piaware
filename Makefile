@@ -19,6 +19,7 @@ install:
 	$(MAKE) -C programs/piaware install
 	$(MAKE) -C programs/piaware-config install
 	$(MAKE) -C programs/piaware-status install
+	$(MAKE) -C programs/pirehose install
 	$(MAKE) -C doc install
 	$(MAKE) -C scripts install
 	$(MAKE) -C etc install
