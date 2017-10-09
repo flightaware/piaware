@@ -237,6 +237,11 @@ proc forward_to_mlat_client {_row} {
 		close_and_restart_mlat_client
 		return
 	}
+
+	# also forward results to pirehose, if enabled
+	if {$row(type) eq "mlat_result"} {
+		forward_to_pirehose $message
+	}
 }
 
 proc mlat_data_available {} {

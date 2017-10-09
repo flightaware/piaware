@@ -259,6 +259,10 @@ proc faup1090_data_available {} {
     #puts "faup1090 data: $line"
 	# if logged into flightaware adept, send the data
 	send_if_logged_in row
+
+	# also forward to pirehose, if running
+	forward_to_pirehose $line
+
 	set ::lastFaupMessageClock [clock seconds]
 }
 
