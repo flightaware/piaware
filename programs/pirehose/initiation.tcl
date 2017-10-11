@@ -81,7 +81,7 @@ proc read_client_initiation {sock} {
 					set version $arg
 				}
 
-				username {
+				user - username {
 					set username $arg
 				}
 
