@@ -63,7 +63,7 @@
 			if {[info exists tsv(nsvel)] && [info exists tsv(ewvel)]} {
 				# convert N/S + E/W groundspeed into groundspeed and heading
 				if {[last_update heading] <= $when} {
-					set heading [expr {round(atan2($tsv(nsvel),$tsv(ewvel)) * 180 / 3.141592 + 360) % 360}]
+					set heading [expr {round(atan2($tsv(ewvel),$tsv(nsvel)) * 180 / 3.141592 + 360) % 360}]
 					set lastUpdate(heading) $when
 				}
 				if {[last_update speed] <= $when} {
