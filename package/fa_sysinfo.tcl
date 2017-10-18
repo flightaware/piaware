@@ -7,13 +7,16 @@ namespace eval ::fa_sysinfo {
 	proc filesystem_usage {} {
 		set result [list]
 		set fp [::fa_sudo::open_as "|/bin/df --output=target,pcent"]
-		gets $fp ;# skip header line
-		while {[gets $fp line] >= 0} {
-			lassign $line mountpoint percent
-			set percent [string range $percent 0 end-1]
-			lappend result $mountpoint $percent
+		try {
+			gets $fp ;# skip header line
+			while {[gets $fp line] >= 0} {
+				lassign $line mountpoint percent
+				set percent [string range $percent 0 end-1]
+				lappend result $mountpoint $percent
+			}
+		} finally {
+			catch {close $fp}
 		}
-		close $fp
 		return $result
 	}
 
@@ -23,13 +26,9 @@ namespace eval ::fa_sysinfo {
 	proc cpu_temperature {} {
 		set result 0
 		foreach path [lsort [glob -nocomplain "/sys/class/thermal/thermal_zone*/temp"]] {
-			catch {
-				set fp [open /sys/class/thermal/thermal_zone0/temp]
-				gets $fp temp
-				close $fp
-				if {$temp > $result} {
-					set result $temp
-				}
+			set temp [sysfs_value $path 0]
+			if {$temp > $result} {
+				set result $temp
 			}
 		}
 
@@ -44,7 +43,7 @@ namespace eval ::fa_sysinfo {
 	proc cpu_load {} {
 		variable lastCPU
 
-	    lassign [cpu_ticks] load_ticks elapsed_ticks
+		lassign [cpu_ticks] load_ticks elapsed_ticks
 		lassign $lastCPU last_load_ticks last_elapsed_ticks
 
 		set recent_load 0
@@ -61,47 +60,60 @@ namespace eval ::fa_sysinfo {
 
 	# cpu_ticks - return a count of busy cpu ticks and total cpu ticks since boot
 	proc cpu_ticks {} {
-		if {[catch {set fp [open "/proc/stat" r]}]} {
-			return [list 0 0]
-		}
-		try {
-			while {[gets $fp line] >= 0} {
-				set rest [lassign $line key user nice sys idle]
-				if {$key eq "cpu"} {
-					set total [expr {$user + $nice + $sys + $idle}]
-					foreach x $rest {
-						incr total $x
+		set result [list 0 0]
+		catch {
+			set fp [open "/proc/stat" r]
+			try {
+				while {[gets $fp line] >= 0} {
+					set rest [lassign $line key user nice sys idle]
+					if {$key eq "cpu"} {
+						set total [expr {$user + $nice + $sys + $idle}]
+						foreach x $rest {
+							incr total $x
+						}
+						set result [list [expr {$total - $idle}] $total]
+						break
 					}
-					return [list [expr {$total - $idle}] $total]
 				}
+			} finally {
+				catch {close $fp}
 			}
-
-			return [list 0 0]
-		} finally {
-			catch {close $fp}
 		}
+
+		return $result
 	}
 
 	# uptime - returns system uptime in seconds from /proc/uptime, return 0 if failed
 	proc uptime {} {
-		if {[catch {set fp [open "/proc/uptime" r]}]} {
-			return 0
+		set result 0
+		catch {
+			set fp [open "/proc/uptime" r]
+			try {
+				gets $fp line
+			} finally {
+				catch {close $fp}
+			}
+			lassign $line uptime idle
+			set result [expr {round($uptime)}]
 		}
-		gets $fp line
-		close $fp
-		lassign $line uptime idle
-		return [expr {round($uptime)}]
+
+		return $result
 	}
 
 	# loadavg - return 1/5/15 minute load average from /proc/loadavg
 	proc loadavg {} {
-		if {[catch {set fp [open "/proc/loadavg" r]}]} {
-			return [list 0.0 0.0 0.0]
+		set result [list 0.0 0.0 0.0]
+		catch {
+			set fp [open "/proc/loadavg" r]
+			try {
+				gets $fp line
+			} finally {
+				catch {close $fp}
+			}
+			lassign $line load1 load5 load15
+			set result [list $load1 $load5 $load15]
 		}
-		gets $fp line
-		close $fp
-		lassign $line load1 load5 load15
-		return [list $load1 $load5 $load15]
+		return $result
 	}
 
 	#
@@ -114,11 +126,9 @@ namespace eval ::fa_sysinfo {
 	#  if we can't find any mac address at all then return an empty string
 	#
 	proc mac_address {} {
-		set macFile /sys/class/net/eth0/address
-		if {[file readable $macFile]} {
-			set fp [open $macFile]
-			gets $fp mac
-			close $fp
+		# try eth0 directly
+		set mac [sysfs_value "/sys/class/net/eth0/address" ""]
+		if {$mac ne ""} {
 			return $mac
 		}
 
@@ -218,19 +228,23 @@ namespace eval ::fa_sysinfo {
 		return [format "%d.%d.%d.%d" $b1 $b2 $b3 $b4]
 	}
 
-	# generic fetcher for per-interface sysfs values
-	proc interface_sysfs_value {dev path def} {
-		try {
-			set fp [open "/sys/class/net/$dev/$path"]
+	# generic fetcher for sysfs values
+	proc sysfs_value {path def} {
+		set state $def
+		catch {
+			set fp [open $path]
 			try {
 				gets $fp state
-				return $state
 			} finally {
 				catch {close $fp}
 			}
-		} on error {result} {
-			return $def
 		}
+		return $state
+	}
+
+	# generic fetcher for per-interface sysfs values
+	proc interface_sysfs_value {dev path def} {
+		return [sysfs_value "/sys/class/net/$dev/$path" $def]
 	}
 
 	# return the state of the given interface ("up"/"down"/"unknown")
@@ -333,16 +347,9 @@ namespace eval ::fa_sysinfo {
 			set rfkill 0
 			set rfkillPath [glob -nocomplain -directory /sys/class/net/$interface/phy80211 rfkill*/state]
 			if {$rfkillPath ne ""} {
-				catch {
-					set f [open [lindex $rfkillPath 0] "r"]
-					try {
-						gets $f rfkillState
-						if {$rfkillState ne 1} {
-							set rfkill 1
-						}
-					} finally {
-						catch {close $f}
-					}
+				set rfkillState [sysfs_value [lindex $rfkillPath 0] 1]
+				if {$rfkillState ne 1} {
+					set rfkill 1
 				}
 			}
 
