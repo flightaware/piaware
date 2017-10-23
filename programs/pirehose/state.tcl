@@ -94,7 +94,7 @@ package require egm96
 
 	# populate caller's array named $_data with a report of the current aircraft state,
 	# formatted as for firehose; return 1 if it was populated.
-	method build_report {when _data} {
+	method build_report {pitr when _data} {
 		if {![valid lat $when] || ![valid lon $when]} {
 			return 0
 		}
@@ -104,7 +104,7 @@ package require egm96
 		set data(updateType) $updateType
 		set data(id) $flightId
 		set data(clock) $lastUpdate(all)
-		set data(pitr) [clock seconds]
+		set data(pitr) $pitr
 		set data(hexid) $hexid
 		set data(lat) $lat
 		set data(lon) $lon
@@ -208,14 +208,14 @@ package require egm96
 
 	# If the aircraft state passes the configured filters/interval, populate caller's
 	# named $_data with a report of the current aircraft state and return 1
-	method build_and_filter_report {when _data} {
+	method build_and_filter_report {pitr when _data} {
 		upvar $_data data
 
 		if {([clock milliseconds] - $lastEmitted) < $::secondsBetweenPositions * 1000} {
 			return 0
 		}
 
-		if {![build_report $when data]} {
+		if {![build_report $pitr $when data]} {
 			return 0
 		}
 

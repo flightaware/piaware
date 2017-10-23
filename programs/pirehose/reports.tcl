@@ -55,9 +55,17 @@ proc handle_report {line} {
 	# update aircraft state
 	$aircraft update_from_report tsv
 
+	# check for range start / end
+	set now [clock seconds]
+	if {$now > $::maxClock} {
+		# done.
+		logger "End of range reached, exiting"
+		child_exit 0
+	}
+
 	# if this was a position, build a firehose line and maybe send it
-	if {[info exists tsv(lat)] && [info exists tsv(lon)]} {
-		if {[$aircraft build_and_filter_report $tsv(clock) report]} {
+	if {$now >= $::minClock && [info exists tsv(lat)] && [info exists tsv(lon)]} {
+		if {[$aircraft build_and_filter_report $now $tsv(clock) report]} {
 			# stringify everything to match what firehose does
 			foreach field [array names report] {
 				set report($field) [::json::write string $report($field)]

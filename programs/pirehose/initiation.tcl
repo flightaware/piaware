@@ -22,6 +22,24 @@ proc read_client_initiation {sock} {
 	# enable writing to the client now
 	set ::clientSock $sock
 
+	global minClock maxClock filterAirline filterIdents filterLatLong keepaliveInterval secondsBetweenPositions filtersEnabled
+
+	# defaults
+	set version $::maxVersion
+	set username ""
+	set password ""
+	set filterAirline ""
+	set filterIdents ""
+	set filterEvents ""
+	set filterSource ""
+	set filterLatLong ""
+	set filterAirport ""
+	set compressionMode ""
+	set keepaliveInterval 0
+	set strictUnblocking 0
+	set secondsBetweenPositions 0
+	set filtersEnabled 0
+
 	try {
 		set cmd [lindex $line 0]
 		switch -exact -- $cmd {
@@ -53,24 +71,6 @@ proc read_client_initiation {sock} {
 				error "Unrecognized or out-of-sequence command: $cmd"
 			}
 		}
-
-		global filterAirline filterIdents filterLatLong keepaliveInterval secondsBetweenPositions filtersEnabled
-
-		# defaults
-		set version $::maxVersion
-		set username ""
-		set password ""
-		set filterAirline ""
-        set filterIdents ""
-        set filterEvents ""
-        set filterSource ""
-        set filterLatLong ""
-        set filterAirport ""
-        set compressionMode ""
-        set keepaliveInterval 0
-        set strictUnblocking 0
-        set secondsBetweenPositions 0
-		set filtersEnabled 0
 
 		foreach {cmd arg} $line {
 			switch -exact -- $cmd {
