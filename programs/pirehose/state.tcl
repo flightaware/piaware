@@ -155,7 +155,7 @@ package require egm96
 		if {[info exists data(gps_alt)]} {
 			# derive altitude MSL (EGM96 geoid) from GPS height (WGS84 ellipsoid)
 			set geoidHeight [::egm96::geoid_height $data(lat) $data(lon)]         ;# height of the geoid above the ellipsoid, in _meters_
-			set data(alt) [expr {round($data(gps_alt) - $geoidHeight / 0.3038)}]
+			set data(alt) [expr {round($data(gps_alt) - $geoidHeight / 0.3048)}]
 		} elseif {[info exists data(baro_alt)]} {
 			# this is meant to be MSL, but firehose itself is fuzzy about that and will put pressure altitudes in there
 			set data(alt) $data(baro_alt)
