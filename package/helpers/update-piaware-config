@@ -33,9 +33,9 @@ case "$1" in
         TEMPFILE=/boot/flightfeeder-config.txt.new
         ;;
 
-    /boot/flightfeeder-precious.txt)
-        TARGET=/boot/flightfeeder-precious.txt
-        TEMPFILE=/boot/flightfeeder-precious.txt.new
+    /etc/flightfeeder.conf)
+        TARGET=/etc/flightfeeder.conf
+        TEMPFILE=/etc/flightfeeder.conf.new
         ;;
 
     /boot/flightfeeder-state.txt)
