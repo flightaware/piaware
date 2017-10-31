@@ -471,8 +471,10 @@ namespace eval ::fa_piaware_config {
 				unset f
 
 				if {!$useHelper} {
+					catch {exec sync}
 					file rename -force -- $temppath $filename
 					unset temppath
+					catch {exec sync}
 				}
 			} finally {
 				if {[info exists f]} {
