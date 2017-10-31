@@ -33,6 +33,16 @@ case "$1" in
         TEMPFILE=/boot/flightfeeder-config.txt.new
         ;;
 
+    /boot/flightfeeder-precious.txt)
+        TARGET=/boot/flightfeeder-precious.txt
+        TEMPFILE=/boot/flightfeeder-precious.txt.new
+        ;;
+
+    /boot/flightfeeder-state.txt)
+        TARGET=/boot/flightfeeder-state.txt
+        TEMPFILE=/boot/flightfeeder-state.txt.new
+        ;;
+
     *)
         # anything else is not allowed
         echo "$0: refusing to update that path" >&2
