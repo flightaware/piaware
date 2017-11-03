@@ -948,7 +948,7 @@ namespace eval ::fa_piaware_config {
 
 			{"rfkill"                -type boolean -default no}
 			{"receiver-type"         -default rtlsdr}
-			{"rtlsdr-device-index"   -type integer -default 0}
+			{"rtlsdr-device-index"   -default 0}
 			{"rtlsdr-ppm"            -type integer -default 0}
 			{"rtlsdr-gain"           -type double -default -10}
 			{"beast-baudrate"        -type integer}
