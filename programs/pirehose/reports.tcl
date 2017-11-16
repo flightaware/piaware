@@ -3,7 +3,7 @@
 ::json::write aligned 0
 
 set ::nextFlightID 0   ;# sequence number used in flight_id
-set ::newestClock 0    ;# highes 'clock' value seen so far
+set ::newestClock 0	   ;# highes 'clock' value seen so far
 
 # callback when TSV data forwarded by the listener to our pipe is available
 proc read_parent {} {
@@ -41,7 +41,7 @@ proc handle_report {line} {
 		return
 	}
 
-    array set tsv [split $line "\t"]
+	array set tsv [split $line "\t"]
 	if {![info exists tsv(hexid)] || ![info exists tsv(clock)] || ([info exists tsv(anon)] && $tsv(anon) != 0)} {
 		return
 	}

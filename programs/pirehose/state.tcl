@@ -2,29 +2,29 @@ package require egm96
 
 # Object that tracks the state for one aircraft
 ::itcl::class AircraftState {
-	public variable hexid      ;# aircraft address
+	public variable hexid	   ;# aircraft address
 	public variable flightId   ;# unique flight ID assigned by pirehose
 
-	variable lat          ;# last latitude, decimal degrees
-	variable lon          ;# last longitude, decimal degrees
-	variable alt          ;# last barometric altitude, ft
-	variable alt_gnss     ;# last GNSS altitude, ft
-	variable speed        ;# last groundspeed, kts
-	variable speed_tas    ;# last TAS, kts
-	variable speed_ias    ;# last IAS, kts
-	variable heading      ;# last true heading, degrees
+	variable lat		  ;# last latitude, decimal degrees
+	variable lon		  ;# last longitude, decimal degrees
+	variable alt		  ;# last barometric altitude, ft
+	variable alt_gnss	  ;# last GNSS altitude, ft
+	variable speed		  ;# last groundspeed, kts
+	variable speed_tas	  ;# last TAS, kts
+	variable speed_ias	  ;# last IAS, kts
+	variable heading	  ;# last true heading, degrees
 	variable heading_mag  ;# last magnetic heading, degrees
-	variable ident        ;# last callsign/ident
-	variable airGround    ;# last air/ground status, 'A' or 'G'
-	variable squawk       ;# last squawk, 4-digit octal
-	variable updateType   ;# last position type, 'A' (ADS-B) or 'M' (MLAT)
+	variable ident		  ;# last callsign/ident
+	variable airGround	  ;# last air/ground status, 'A' or 'G'
+	variable squawk		  ;# last squawk, 4-digit octal
+	variable updateType	  ;# last position type, 'A' (ADS-B) or 'M' (MLAT)
 
 	variable permaMatch 0 ;# 1 if this aircraft matched a non-bounding-box filter in the past
 
-	public variable lastSeen 0       ;# time of last received message (epoch ms)
-	variable lastEmitted 0           ;# time of last emitted report (epoch ms)
-    variable lastUpdate
-	array set lastUpdate {}          ;# time of last update to each data field, epoch seconds, using 'clock' values
+	public variable lastSeen 0		 ;# time of last received message (epoch ms)
+	variable lastEmitted 0			 ;# time of last emitted report (epoch ms)
+	variable lastUpdate
+	array set lastUpdate {}			 ;# time of last update to each data field, epoch seconds, using 'clock' values
 
 	constructor {args} {
 		configure {*}$args
@@ -154,7 +154,7 @@ package require egm96
 
 		if {[info exists data(gps_alt)]} {
 			# derive altitude MSL (EGM96 geoid) from GPS height (WGS84 ellipsoid)
-			set geoidHeight [::egm96::geoid_height $data(lat) $data(lon)]         ;# height of the geoid above the ellipsoid, in _meters_
+			set geoidHeight [::egm96::geoid_height $data(lat) $data(lon)]		  ;# height of the geoid above the ellipsoid, in _meters_
 			set data(alt) [expr {round($data(gps_alt) - $geoidHeight / 0.3048)}]
 		} elseif {[info exists data(baro_alt)]} {
 			# this is meant to be MSL, but firehose itself is fuzzy about that and will put pressure altitudes in there
