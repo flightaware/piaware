@@ -36,6 +36,11 @@ proc read_parent {} {
 
 # handle one TSV line
 proc handle_report {line} {
+	# discard data while we're waiting for a client initiation command
+	if {![info exists ::clientSock]} {
+		return
+	}
+
     array set tsv [split $line "\t"]
 	if {![info exists tsv(hexid)] || ![info exists tsv(clock)] || ([info exists tsv(anon)] && $tsv(anon) != 0)} {
 		return
