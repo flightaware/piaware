@@ -1,0 +1,104 @@
+# -*- tcl -*- 
+
+package require Itcl
+package require fa_adept_schema
+
+namespace eval ::fa_adept_codec {
+	::itcl::class OldCodec {
+		public variable version
+		protected variable lastDecompressClock 0
+		protected common decompressVar
+		protected common decompressFormat
+
+		foreach "var keyChar format" "clock c I sent_at C I hexid h H6 ident i A8 alt a I lat l R lon m R speed s S squawk q H4 heading H S" {
+			set decompressVar($keyChar) $var
+			set decompressFormat($keyChar) $format
+		}
+
+		constructor {args} {
+			configure {*}$args
+		}
+
+		public method version {} {
+			return $version
+		}
+
+		public method encode {_row} {
+			error "not implemented"
+		}
+
+		public method decode {_row} {
+			upvar $_row row
+
+			foreach var [array names row] {
+				if {[string index $var 0] != "!"} {
+					continue
+				}
+
+				decompress_kv_to_array row $var $row($var)
+				unset row($var)
+			}
+		}
+
+		private method decompress_kv_to_array {_row key value} {
+			upvar $_row row
+
+			set scanString ""
+			set varList [list]
+			foreach char [split [string range $key 1 end] ""] {
+				if {$char == "g"} {
+					set row(airGround) "G"
+					continue
+				}
+
+				if {![info exists decompressVar($char)]} {
+					error "unrecognized compression char '$char'"
+				}
+
+				append scanString $decompressFormat($char)
+				foreach oneVar $decompressVar($char) {
+					lappend varList row($oneVar)
+				}
+			}
+
+			# remap backslashes, tabs and neslines to their real deal
+			set value [string map {\\t \t \\\\ \\ \\n \n} $value]
+
+			# binary scan out all the values
+			binary scan $value $scanString {*}$varList
+
+			# substitute back in the clock if it was taken out
+			if {[info exists row(clock)]} {
+				set lastDecompressClock $row(clock)
+			} else {
+				set row(clock) $lastDecompressClock
+			}
+
+			# trim any spaces off the ends of the ident
+			if {[info exists row(ident)]} {
+				set row(ident) [string toupper [string map {\t {} \n {}} [string trim $row(ident)]]]
+			}
+
+			# map hexid back to uppercase for consistency
+			if {[info exists row(hexid)]} {
+				set row(hexid) [string toupper $row(hexid)]
+			}
+
+			# appropriate round lat and lon back off
+			if {[info exists row(lat)]} {
+				set row(lat) [format "%.5f" $row(lat)]
+			}
+
+			if {[info exists row(lon)]} {
+				set row(lon) [format "%.5f" $row(lon)]
+			}
+		}
+	}	
+}
+
+::fa_adept_schema::register adept 1.0 [list ::fa_adept_codec::OldCodec #auto -version 1.0]
+::fa_adept_schema::register adept 1.1 [list ::fa_adept_codec::OldCodec #auto -version 1.1]
+::fa_adept_schema::register adept 1.2 [list ::fa_adept_codec::OldCodec #auto -version 1.2]
+::fa_adept_schema::register adept 1.3 [list ::fa_adept_codec::OldCodec #auto -version 1.3]
+
+package provide fa_adept_codec 1.0

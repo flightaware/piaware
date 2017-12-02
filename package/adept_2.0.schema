@@ -1,0 +1,46 @@
+# -*- tcl -*- 
+
+package require fa_adept_schema
+
+::fa_adept_schema::define adept 2.0 {
+	meta_source_enum {U S A T}  ;# (U)nchecked-modes, mode(S), (A)dsb, (T)isb
+
+	integer   {0 2147483647} clock -nometa
+	hexdigits 6              hexid -nometa
+	hexdigits 6              otherid -nometa
+	enum {
+		adsb_icao adsb_icao_nt adsr_icao tisb_icao
+		adsb_other adsr_other tisb_other tisb_trackfile
+	} addrtype -nometa
+	integer   {0 2}          adsbVer -nometa
+
+	integer   {-5000 150000} alt
+	enum      {A+ G+}        ag
+	identstring 8            ident
+	latlon                   pos
+	hexdigits 4              squawk
+	integer   {-5000 150000} altGeo
+	integer   {-20000 20000} vrate
+	integer   {-20000 20000} vrateGeo
+	integer   {0 2000}       gs
+	integer   {0 2000}       ias
+	integer   {0 2000}       tas
+	decimal   3              mach
+	integer   {0 359}        trk
+	decimal   2              trkRate
+	decimal   1              roll
+	integer   {0 359}        hdgMag
+	integer   {0 359}        hdgTrue
+	hexdigits 2              category
+	integer   {0 150000}     selAlt
+	integer   {0 359}        selHdg
+	flags {
+		autopilot vnav althold approach lnav
+	} selModes
+	decimal   1              qnh
+
+	hexdigits 14             datalink_caps -nometa
+	hexdigits 14             es_op_status -nometa
+}
+
+package provide fa_adept_codec 1.0

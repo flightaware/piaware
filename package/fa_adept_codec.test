@@ -1,6 +1,10 @@
+# -*- tcl -*-
+
 package require tcltest 2.2
 
-source "fa_adept_codec.tcl"
+source "fa_adept_schema.tcl"
+source "adept_1.x.schema"
+source "adept_2.0.schema"
 
 ::tcltest::configure {*}$argv
 
@@ -43,150 +47,107 @@ namespace eval ::fa_adept_codec::tests {
 	customMatch arrayEqual ::fa_adept_codec::tests::compareArrays
 
 	test codecfactory-1.0 "Verify that we can construct a codec for compression version 1.0" -body {
-		set codec [::fa_adept_codec::new_codec 1.0]
+		set codec [::fa_adept_schema::new_codec adept 1.0]
 	    $codec version
 	} -result 1.0
 
 	test codecfactory-1.1 "Verify that we can construct a codec for compression version 1.1" -body {
-		set codec [::fa_adept_codec::new_codec 1.1]
+		set codec [::fa_adept_schema::new_codec adept 1.1]
 	    $codec version
 	} -result 1.1
 
 	test codecfactory-1.2 "Verify that we can construct a codec for compression version 1.2" -body {
-		set codec [::fa_adept_codec::new_codec 1.2]
+		set codec [::fa_adept_schema::new_codec adept 1.2]
 	    $codec version
 	} -result 1.2
 
 	test codecfactory-2.0 "Verify that we can construct a codec for compression version 2.0" -body {
-		set codec [::fa_adept_codec::new_codec 2.0]
+		set codec [::fa_adept_schema::new_codec adept 2.0]
 	    $codec version
 	} -result 2.0
 
-	set setup [list unset -nocomplain row]
-
-	test codec10-decode "1.x codecs decodes test message correctly" -setup $setup -body {
-		set binData [binary format "I I H6 A8 I R R S H4 S" 123456 234567 C0FFEE COVFEFE 38000 56.12345 0.12345 99 7000 22]
-		set binData [string map {\t \\t \\ \\\\ \n \\n} $binData]
-		array set row [list !cChialmsqH $binData anotherkey 42]
-
-		set codec [::fa_adept_codec::new_codec 1.3]
-		$codec decode_array row
-                getarraylist row
-	} -match arrayEqual -result [arraylist clock 123456 sent_at 234567 hexid C0FFEE ident COVFEFE alt 38000 lat 56.12345 lon 0.12345 speed 99 squawk 7000 heading 22 anotherkey 42]
-
-	test codec10-implicit-clock "1.x codec infers omitted clock values" -setup $setup -body {
-		set codec [::fa_adept_codec::new_codec 1.3]
-
-		# has clock value
-		set binData [binary format "I H6 I" 123456 C0FFEE 38000]
-		set binData [string map {\t \\t \\ \\\\ \n \\n} $binData]
-		array set row [list !cha $binData]
-		$codec decode_array row
-
-		# clock value implied by previous message
-		unset row
-		set binData [binary format "H6 I" C0FFEF 39000]
-		set binData [string map {\t \\t \\ \\\\ \n \\n} $binData]
-		array set row [list !ha $binData]
-		$codec decode_array row
-
-		getarraylist row
-	} -match arrayEqual -result [arraylist clock 123456 hexid C0FFEF alt 39000]
-
-	test codec10-provided-clock "1.x codec resets clock value when provided" -setup $setup -body {
-		set codec [::fa_adept_codec::new_codec 1.3]
-
-		# has clock value
-		set binData [binary format "I H6 I" 123456 C0FFEE 38000]
-		set binData [string map {\t \\t \\ \\\\ \n \\n} $binData]
-		array set row [list !cha $binData]
-		$codec decode_array row
-
-		unset row
-		set binData [binary format "I H6 I" 123457 C0FFEF 39000]
-		set binData [string map {\t \\t \\ \\\\ \n \\n} $binData]
-		array set row [list !cha $binData]
-		$codec decode_array row
-
-		getarraylist row
-	} -match arrayEqual -result [arraylist clock 123457 hexid C0FFEF alt 39000]
+	set setup {
+		unset -nocomplain row
+		set codec [::fa_adept_schema::new_codec adept 2.0]
+	}
 
 	test codec20-encode-everything "Encoding using 2.0 codec encodes all known fields" -setup $setup -body {
-		set codec [::fa_adept_codec::new_codec 2.0]
-		array set row [list clock 1496950335 sent_at 1496950335 hexid 400879 otherid 400879 addrtype adsb_icao ident BAW756 iSource adsb squawk 2015 alt 12475 alt_geom 12425 baro_rate 42 geom_rate -42 gs 379 ias 200 tas 300 mach 0.567 lat 56.00123 lon -0.12345 track 97 track_rate 0.02 roll 1.5 mag_heading 100 airGround A+ category D7 intent_alt 12340 intent_heading 120 alt_setting 1013.2 datalink_caps 0123456789ABCD es_op_status 123456789ABCDE]
-		$codec encode_array row
+		array set row [list clock 1496950335 hexid 400879 otherid 400879 addrtype adsb_icao adsbVer 2 alt {12475 1 A} ag {A+ 1 A} ident {BAW756 1 A} pos {{56.00123 -0.12345} 1 A} squawk {2015 1 A} altGeo {12425 1 A} vrate {42 1 A} vrateGeo {-42 1 A} gs {379 1 A} ias {200 1 A} tas {300 1 A} mach {0.567 1 A} trk {97 1 A} trkRate {0.02 1 A} roll {1.5 1 A} hdgMag {100 1 A} hdgTrue {100 1 A} ag {A+ 1 A} category {D7 1 A} selAlt {12340 1 A} selHdg {120 1 A} selModes {{althold vnav} 0 A} qnh {1013.2 1 A} datalink_caps 0123456789ABCD es_op_status 123456789ABCDE]
+		$codec encode row
 		array names row
 	} -result {!}
 
 	test codec20-roundtrip "Encoding using 2.0 codec round-trips all fields" -setup $setup -body {
-		set codec [::fa_adept_codec::new_codec 2.0]
-		array set row [list clock 1496950335 sent_at 1496950335 hexid 400879 otherid 400879 addrtype adsb_icao ident BAW756 iSource adsb squawk 2015 alt 12475 alt_geom 12425 baro_rate 42 geom_rate -42 gs 379 ias 200 tas 300 mach 0.567 lat 56.00123 lon -0.12345 track 97 track_rate 0.02 roll 1.5 mag_heading 100 airGround A+ category D7 intent_alt 12340 intent_heading 120 alt_setting 1013.2 datalink_caps 0123456789ABCD es_op_status 123456789ABCDE tisb {ident squawk alt alt_geom gs ias tas lat lon track mag_heading airGround category intent_alt intent_heading alt_setting}]
-		$codec encode_array row
-		$codec decode_array row
+		array set row [list clock 1496950335 hexid 400879 otherid 400879 addrtype adsb_icao adsbVer 2 alt {12475 1 A} ag {A+ 1 A} ident {BAW756 1 A} pos {{56.00123 -0.12345} 1 A} squawk {2015 1 A} altGeo {12425 1 A} vrate {42 1 A} vrateGeo {-42 1 A} gs {379 1 A} ias {200 1 A} tas {300 1 A} mach {0.567 1 A} trk {97 1 A} trkRate {0.02 1 A} roll {1.5 1 A} hdgMag {100 1 A} hdgTrue {100 1 A} ag {A+ 1 A} category {D7 1 A} selAlt {12340 1 A} selHdg {120 1 A} selModes {{althold vnav} 0 A} qnh {1013.2 1 A} datalink_caps 0123456789ABCD es_op_status 123456789ABCDE]
+		$codec encode row
+		$codec decode row
 		getarraylist row
-	} -match arrayEqual -result [arraylist clock 1496950335 sent_at 1496950335 hexid 400879 otherid 400879 addrtype adsb_icao ident BAW756 iSource adsb squawk 2015 alt 12475 alt_geom 12425 baro_rate 42 geom_rate -42 gs 379 ias 200 tas 300 mach 0.567 lat 56.00123 lon -0.12345 track 97 track_rate 0.02 roll 1.5 mag_heading 100 airGround A+ category D7 intent_alt 12340 intent_heading 120 alt_setting 1013.2 datalink_caps 0123456789ABCD es_op_status 123456789ABCDE tisb [lsort {ident squawk alt alt_geom gs ias tas lat lon track mag_heading airGround category intent_alt intent_heading alt_setting}]]
+	} -match arrayEqual -result [arraylist clock 1496950335 hexid 400879 otherid 400879 addrtype adsb_icao adsbVer 2 alt {12475 1 A} ag {A+ 1 A} ident {BAW756 1 A} pos {{56.00123 -0.12345} 1 A} squawk {2015 1 A} altGeo {12425 1 A} vrate {42 1 A} vrateGeo {-42 1 A} gs {379 1 A} ias {200 1 A} tas {300 1 A} mach {0.567 1 A} trk {97 1 A} trkRate {0.02 1 A} roll {1.5 1 A} hdgMag {100 1 A} hdgTrue {100 1 A} ag {A+ 1 A} category {D7 1 A} selAlt {12340 1 A} selHdg {120 1 A} selModes {{althold vnav} 0 A} qnh {1013.2 1 A} datalink_caps 0123456789ABCD es_op_status 123456789ABCDE]
 
 	test codec20-optional-fields "Encoding using 2.0 codec handles missing, optional, fields" -setup $setup -body {
-		set codec [::fa_adept_codec::new_codec 2.0]
-		array set row [list clock 1496950335 hexid 400879 addrtype adsb_icao ident BAW756 iSource adsb alt 12475 alt_geom 12425 baro_rate 42 geom_rate -42 gs 379 ias 200 tas 300 mach 0.567 lat 56.00123 lon -0.12345 track 97 roll 1.5 mag_heading 100 airGround A+ category D7 intent_alt 12340 alt_setting 1013.2 tisb {ident alt tas track}]
-		$codec encode_array row
-		$codec decode_array row
+		array set row [list clock 1496950335 hexid 400879 addrtype adsb_icao ident {BAW756 1 A} alt {12475 1 A} alt_geom {12425 1 A} baro_rate {42 1 A} geom_rate {-42 1 A} gs {379 1 A} ias {200 1 A} tas {300 1 A} mach {0.567 1 A} lat {56.00123 1 A} lon {-0.12345 1 A} track {97 1 A} roll {1.5 1 A} heading {100 1 A} airGround {A+ 1 A} category {D7 1 A} intent_alt {12340 1 A} alt_setting {1013.2 1 A}]
+		$codec encode row
+		$codec decode row
 		getarraylist row
-	} -match arrayEqual -result [arraylist clock 1496950335 hexid 400879 addrtype adsb_icao ident BAW756 iSource adsb alt 12475 alt_geom 12425 baro_rate 42 geom_rate -42 gs 379 ias 200 tas 300 mach 0.567 lat 56.00123 lon -0.12345 track 97 roll 1.5 mag_heading 100 airGround A+ category D7 intent_alt 12340 alt_setting 1013.2 tisb [lsort {ident alt tas track}]]
+	} -match arrayEqual -result [arraylist clock 1496950335 hexid 400879 addrtype adsb_icao ident {BAW756 1 A} alt {12475 1 A} alt_geom {12425 1 A} baro_rate {42 1 A} geom_rate {-42 1 A} gs {379 1 A} ias {200 1 A} tas {300 1 A} mach {0.567 1 A} lat {56.00123 1 A} lon {-0.12345 1 A} track {97 1 A} roll {1.5 1 A} heading {100 1 A} airGround {A+ 1 A} category {D7 1 A} intent_alt {12340 1 A} alt_setting {1013.2 1 A}]
 
 	test codec20-unrecognized-field "Encoding using 2.0 codec handles unrecognized fields" -setup $setup -body {
-		set codec [::fa_adept_codec::new_codec 2.0]
 		array set row [list clock 1496950335 someotherfield 42]
-		$codec encode_array row
-		$codec decode_array row
+		$codec encode row
+		$codec decode row
 		getarraylist row
 	} -match arrayEqual -result [arraylist clock 1496950335 someotherfield 42]
 
 	test codec20-unencodeable-enum "Encoding using 2.0 codec handles unencodeable enum values" -setup $setup -body {
-		set codec [::fa_adept_codec::new_codec 2.0]
 		array set row [list addrtype somethingelse]
-		$codec encode_array row
+		$codec encode row
 		getarraylist row
 	} -match arrayEqual -result [arraylist addrtype somethingelse]
 
 	test codec20-unencodeable-enum "Encoding using 2.0 codec handles unencodeable flag value" -setup $setup -body {
-		set codec [::fa_adept_codec::new_codec 2.0]
-		array set row [list tisb {ident squawk somethingelse}]
-		$codec encode_array row
+		array set row [list selModes {althold somethingelse}]
+		$codec encode row
 		getarraylist row
-	} -match arrayEqual -result [arraylist tisb {ident squawk somethingelse}]
+	} -match arrayEqual -result [arraylist selModes {althold somethingelse}]
 
 	test codec20-unencodeable-field "Encoding using 2.0 codec handles unencodeable integers etc" -setup $setup -body {
-		set codec [::fa_adept_codec::new_codec 2.0]
-		array set row [list clock notaninteger hexid BADVAL track 1.234]
-		$codec encode_array row
+		array set row [list clock notaninteger hexid BADVAL track {1.234 0 A} pos {1234 0 A}]
+		$codec encode row
 		getarraylist row
-	} -match arrayEqual -result [arraylist clock notaninteger hexid BADVAL track 1.234]
+	} -match arrayEqual -result [arraylist clock notaninteger hexid BADVAL track {1.234 0 A} pos {1234 0 A}]
+
+	test codec20-missing-meta "Encoding using 2.0 codec handles missing metadata" -setup $setup -body {
+		array set row [list track 1.234 pos {1.2 3.4}]
+		$codec encode row
+		getarraylist row
+	} -match arrayEqual -result [arraylist track 1.234 pos {1.2 3.4}]
 
 	test codec20-decode-sanitizes "Decoding using 2.0 codec sanitizes strings" -setup $setup -body {
-		set codec [::fa_adept_codec::new_codec 2.0]
-		array set row [list ident \ta\tb\nc\nd]
-		$codec encode_array row
-		$codec decode_array row
+		array set row [list ident [list "\ta\tb\nc\nd" 1 A]]
+		$codec encode row
+		$codec decode row
 		getarraylist row
-	} -match arrayEqual -result [arraylist ident ABCD]
+	} -match arrayEqual -result [arraylist ident {ABCD 1 A}]
 
 	test codec20-decode-reformats "Decoding using 2.0 codec applies post-decode reformatting" -setup $setup -body {
-		set codec [::fa_adept_codec::new_codec 2.0]
-		array set row [list hexid aAbBcC lat 1.234567890 ident { ABCD }]
-		$codec encode_array row
-		$codec decode_array row
+		array set row [list hexid aAbBcC pos {{1.234567890 2.345678} 1 A} ident {{ ABCD } 1 A}]
+		$codec encode row
+		$codec decode row
 		getarraylist row
-	} -match arrayEqual -result [arraylist hexid AABBCC lat 1.23457 ident ABCD]
+	} -match arrayEqual -result [arraylist hexid AABBCC pos {{1.23457 2.34568} 1 A} ident {ABCD 1 A}]
 
-	test codec20-encode-shrinks-data "Encoding using 2.0 codec shrinks the data size" -setup $setup -body {
-		set codec [::fa_adept_codec::new_codec 2.0]
-		array set row [list clock 1496950335 sent_at 1496950335 hexid 400879 otherid 400879 addrtype adsb_icao ident BAW756 iSource adsb squawk 2015 alt 12475 alt_geom 12425 baro_rate 42 geom_rate -42 gs 379 ias 200 tas 300 mach 0.567 lat 56.00123 lon -0.12345 track 97 track_rate 0.02 roll 1.5 mag_heading 100 airGround A+ category D7 intent_alt 12340 intent_heading 120 alt_setting 1013.2 datalink_caps 0123456789ABCD es_op_status 123456789ABCDE]
-		set pre_len [string length [array get row]]
-		$codec encode_array row
-		set post_len [string length [array get row]]
-		return [expr {$post_len < $pre_len}]
-	} -result 1
+	proc matchLessThan {expected actual} {
+		return [expr {$actual < $expected}]
+	}
+	customMatch lessThan ::fa_adept_codec::tests::matchLessThan
+	
+	test codec20-encode-shrinks-data "Encoding using 2.0 codec shrinks the data size by at least 40%" -setup $setup -body {
+		array set row [list clock 1496950335 hexid 400879 otherid 400879 addrtype adsb_icao ident {BAW756 1 A} squawk {2015 1 A} alt {12475 1 A} altGeo {12425 1 A} vrate {42 1 A} vrateGeo {-42 1 A} gs {379 1 A} ias {200 1 A} tas {300 1 A} mach {0.567 1 A} pos {{56.00123 -0.12345} 1 A} trk {97 1 A} trkRate {0.02 1 A} roll {1.5 1 A} hdgMag {100 1 A} ag {A+ 1 A} category {D7 1 A} selAlt {12340 1 A} selHdg {120 1 A} qnh {1013.2 1 A} datalink_caps 0123456789ABCD es_op_status 123456789ABCDE]
+		set pre_len [string length [join [array get row] "\t"]]
+		$codec encode row
+		set post_len [string length [join [array get row] "\t"]]
+		return [expr {1.0 * $post_len / $pre_len}]
+	} -match lessThan -result 0.4
 }
 
 namespace delete ::fa_adept_codec::tests
