@@ -29,15 +29,15 @@ namespace eval ::fa_adept_schema {
 			}
 
 			return $bits
-		}			
-		
+		}
+
 		proc flags_decode {flagValues v} {
 			set results [list]
 			for {set i [string first "1" $v]} {$i >= 0} {set i [string first "1" $v $i+1]} {
 				lappend results [lindex $flagValues $i]
 			}
 			return $results
-		}			
+		}
 
 		proc armor {s} {
 			return [string map {\\ \\\\ \t \\t \n \\n} $s]
@@ -46,10 +46,10 @@ namespace eval ::fa_adept_schema {
 		proc unarmor {s} {
 			return [string map {\\\\ \\ \\t \t \\n \n} $s]
 		}
-	
+
 		proc gen_encode_one_field {namesp def} {
 			variable ${namesp}::definition::_meta_source_enum
-			
+
 			lassign $def field hasMeta format encoder decoder
 			if {$encoder eq ""} {
 				set encoder {$v}
@@ -79,9 +79,9 @@ namespace eval ::fa_adept_schema {
 				}
 			}]
 		}
-		
+
 		proc gen_encode {namesp fields} {
-			# build the body		
+			# build the body
 			set encodeFormat "B[llength $fields] a*"
 
 			set encodeBody ""
@@ -118,7 +118,7 @@ namespace eval ::fa_adept_schema {
 					lappend formatVarsList row(${field})
 				}
 			}
-			
+
 			return [subst -nocommands {
 				set formatStrList {$formatStrList}
 				set formatVarsList {$formatVarsList}
@@ -132,7 +132,7 @@ namespace eval ::fa_adept_schema {
 				}
 			}]
 		}
-		
+
 		proc gen_decode_cleanup_loop {namesp fields} {
 			variable ${namesp}::definition::_meta_source_enum
 
@@ -141,7 +141,7 @@ namespace eval ::fa_adept_schema {
 				if {$decoder eq "" && !$hasMeta} {
 					continue
 				}
-				
+
 				if {$decoder ne ""} {
 					set v "\$${field}_value"
 					set decodedValue [subst -nocommands -nobackslashes $decoder]
@@ -194,7 +194,7 @@ namespace eval ::fa_adept_schema {
 				# prepare formatStr and formatVars to read all fields that are present
 				$setupLoop
 
-				# bulk read all the fields			
+				# bulk read all the fields
 				if {[binary scan \$input \$formatStr {*}\$formatVars] != [llength \$formatVars]} {
 					error "truncated message"
 				}
@@ -219,8 +219,8 @@ namespace eval ::fa_adept_schema {
 		}
 
 		set namesp ::fa_adept_schema::${name}_${version}
-		
-		# build a "definition" namespace that defines the DSL commands		
+
+		# build a "definition" namespace that defines the DSL commands
 		namespace eval ${namesp}::definition {
 			variable _fieldExists
 			array set _fieldExists {}
@@ -234,7 +234,7 @@ namespace eval ::fa_adept_schema {
 				}
 				lappend _fields [list $name [expr {"-nometa" ni $args}] $format $encoder $decoder]
 				set _fieldExists($name) 1
-			}				
+			}
 
 			proc meta_source_enum {values} {
 				variable _meta_source_enum
@@ -252,7 +252,7 @@ namespace eval ::fa_adept_schema {
 
 				set _meta_source_enum [lsort $values]
 			}
-			
+
 			proc enum {values name args} {
 				for {set i 0} {$i < [llength $values]-1} {incr i} {
 					set vname [lindex $values $i]
@@ -352,7 +352,7 @@ namespace eval ::fa_adept_schema {
 			}
 		}
 
-		# run the definition code we were given		
+		# run the definition code we were given
 		namespace eval ${namesp}::definition $code
 
 		if {![info exists ${namesp}::definition::_meta_source_enum]} {
@@ -365,9 +365,9 @@ namespace eval ::fa_adept_schema {
 
 		# sort fields by name
 		set sorted [lsort -index 0 [set ${namesp}::definition::_fields]]
-		
+
 		# build the actual code
-	    internals::gen_version $namesp $version
+		internals::gen_version $namesp $version
 		internals::gen_encode $namesp $sorted
 		internals::gen_decode $namesp $sorted
 
@@ -387,7 +387,7 @@ namespace eval ::fa_adept_schema {
 	proc exists {name version} {
 		return [expr {[info exists internals::registry($name-$version)]}]
 	}
-	
+
 	proc register {name version command} {
 		if {[exists $name $version] && [find $name $version] ne $command} {
 			error "$name schema version $version is already registered to a different command"
