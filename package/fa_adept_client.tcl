@@ -10,7 +10,7 @@
 
 package require tls
 package require Itcl
-package require fa_adept_codec
+package require fa_adept_codecs
 
 namespace eval ::fa_adept {
 
@@ -660,7 +660,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 
 		# create the new codec so we can get the codec version,
 		# but don't install it until after sending the login message
-		set newcodec [::fa_adept_codec::new_codec]
+		set newcodec [::fa_adept_codec::new_codec adept]
 
 		set message(type) login
 		set message(mac) $mac

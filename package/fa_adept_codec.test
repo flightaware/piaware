@@ -2,152 +2,193 @@
 
 package require tcltest 2.2
 
+source "fa_adept_codec.tcl"
 source "fa_adept_schema.tcl"
-source "adept_1.x.schema"
-source "adept_2.0.schema"
+source "none.codec"
+source "adept_1.x.codec"
+source "adept_2.0.codec"
 
 ::tcltest::configure {*}$argv
 
 namespace eval ::fa_adept_codec::tests {
 	namespace import ::tcltest::*
 
-	proc getarraylist {_a} {
-		upvar $_a a
-		set r [list]
-		foreach n [lsort [array names a]] {
-			lappend r $n $a($n)
-		}
-		return $r
-	}
-
-	proc arraylist {args} {
-		foreach {k v} $args {
-			set a($k) $v
-		}
-		return [getarraylist a]
-	}
-
-	proc compareArrays {a b} {
-		array set _a $a
-		array set _b $b
-
-		if {[lsort [array names _a]] ne [lsort [array names _b]]} {
-			return 0
-		}
-
-		foreach {k v} $a {
-			if {$v ne $_b($k)} {
-				return 0
-			}
-		}
-
-		return 1
-	}
-
-	customMatch arrayEqual ::fa_adept_codec::tests::compareArrays
+	test codecfactory-none "Verify that we can construct a no-codec codec" -body {
+		set codec [::fa_adept_codec::new_codec none]
+		return ok
+	} -result ok
 
 	test codecfactory-1.0 "Verify that we can construct a codec for compression version 1.0" -body {
-		set codec [::fa_adept_schema::new_codec adept 1.0]
+		set codec [::fa_adept_codec::new_codec adept 1.0]
 	    $codec version
 	} -result 1.0
 
 	test codecfactory-1.1 "Verify that we can construct a codec for compression version 1.1" -body {
-		set codec [::fa_adept_schema::new_codec adept 1.1]
+		set codec [::fa_adept_codec::new_codec adept 1.1]
 	    $codec version
 	} -result 1.1
 
 	test codecfactory-1.2 "Verify that we can construct a codec for compression version 1.2" -body {
-		set codec [::fa_adept_schema::new_codec adept 1.2]
+		set codec [::fa_adept_codec::new_codec adept 1.2]
 	    $codec version
 	} -result 1.2
 
 	test codecfactory-2.0 "Verify that we can construct a codec for compression version 2.0" -body {
-		set codec [::fa_adept_schema::new_codec adept 2.0]
+		set codec [::fa_adept_codec::new_codec adept 2.0]
 	    $codec version
 	} -result 2.0
 
-	set setup {
+	variable setup {
 		unset -nocomplain row
-		set codec [::fa_adept_schema::new_codec adept 2.0]
+		set codec [::fa_adept_codec::new_codec adept 2.0]
 	}
 
-	test codec20-encode-everything "Encoding using 2.0 codec encodes all known fields" -setup $setup -body {
-		array set row [list clock 1496950335 hexid 400879 otherid 400879 addrtype adsb_icao adsbVer 2 alt {12475 1 A} ag {A+ 1 A} ident {BAW756 1 A} pos {{56.00123 -0.12345} 1 A} squawk {2015 1 A} altGeo {12425 1 A} vrate {42 1 A} vrateGeo {-42 1 A} gs {379 1 A} ias {200 1 A} tas {300 1 A} mach {0.567 1 A} trk {97 1 A} trkRate {0.02 1 A} roll {1.5 1 A} hdgMag {100 1 A} hdgTrue {100 1 A} ag {A+ 1 A} category {D7 1 A} selAlt {12340 1 A} selHdg {120 1 A} selModes {{althold vnav} 0 A} qnh {1013.2 1 A} datalink_caps 0123456789ABCD es_op_status 123456789ABCDE]
-		$codec encode row
-		array names row
-	} -result {!}
+	variable testnum 0
+	proc round_trip {field inval {outval ""} {version 2.0} {skipcompress 0}} {
+		variable setup
+		variable testnum
 
-	test codec20-roundtrip "Encoding using 2.0 codec round-trips all fields" -setup $setup -body {
-		array set row [list clock 1496950335 hexid 400879 otherid 400879 addrtype adsb_icao adsbVer 2 alt {12475 1 A} ag {A+ 1 A} ident {BAW756 1 A} pos {{56.00123 -0.12345} 1 A} squawk {2015 1 A} altGeo {12425 1 A} vrate {42 1 A} vrateGeo {-42 1 A} gs {379 1 A} ias {200 1 A} tas {300 1 A} mach {0.567 1 A} trk {97 1 A} trkRate {0.02 1 A} roll {1.5 1 A} hdgMag {100 1 A} hdgTrue {100 1 A} ag {A+ 1 A} category {D7 1 A} selAlt {12340 1 A} selHdg {120 1 A} selModes {{althold vnav} 0 A} qnh {1013.2 1 A} datalink_caps 0123456789ABCD es_op_status 123456789ABCDE]
-		$codec encode row
-		$codec decode row
-		getarraylist row
-	} -match arrayEqual -result [arraylist clock 1496950335 hexid 400879 otherid 400879 addrtype adsb_icao adsbVer 2 alt {12475 1 A} ag {A+ 1 A} ident {BAW756 1 A} pos {{56.00123 -0.12345} 1 A} squawk {2015 1 A} altGeo {12425 1 A} vrate {42 1 A} vrateGeo {-42 1 A} gs {379 1 A} ias {200 1 A} tas {300 1 A} mach {0.567 1 A} trk {97 1 A} trkRate {0.02 1 A} roll {1.5 1 A} hdgMag {100 1 A} hdgTrue {100 1 A} ag {A+ 1 A} category {D7 1 A} selAlt {12340 1 A} selHdg {120 1 A} selModes {{althold vnav} 0 A} qnh {1013.2 1 A} datalink_caps 0123456789ABCD es_op_status 123456789ABCDE]
+		if {$outval eq ""} {
+			set outval $inval
+		}
 
-	test codec20-optional-fields "Encoding using 2.0 codec handles missing, optional, fields" -setup $setup -body {
-		array set row [list clock 1496950335 hexid 400879 addrtype adsb_icao ident {BAW756 1 A} alt {12475 1 A} alt_geom {12425 1 A} baro_rate {42 1 A} geom_rate {-42 1 A} gs {379 1 A} ias {200 1 A} tas {300 1 A} mach {0.567 1 A} lat {56.00123 1 A} lon {-0.12345 1 A} track {97 1 A} roll {1.5 1 A} heading {100 1 A} airGround {A+ 1 A} category {D7 1 A} intent_alt {12340 1 A} alt_setting {1013.2 1 A}]
-		$codec encode row
-		$codec decode row
-		getarraylist row
-	} -match arrayEqual -result [arraylist clock 1496950335 hexid 400879 addrtype adsb_icao ident {BAW756 1 A} alt {12475 1 A} alt_geom {12425 1 A} baro_rate {42 1 A} geom_rate {-42 1 A} gs {379 1 A} ias {200 1 A} tas {300 1 A} mach {0.567 1 A} lat {56.00123 1 A} lon {-0.12345 1 A} track {97 1 A} roll {1.5 1 A} heading {100 1 A} airGround {A+ 1 A} category {D7 1 A} intent_alt {12340 1 A} alt_setting {1013.2 1 A}]
-
-	test codec20-unrecognized-field "Encoding using 2.0 codec handles unrecognized fields" -setup $setup -body {
-		array set row [list clock 1496950335 someotherfield 42]
-		$codec encode row
-		$codec decode row
-		getarraylist row
-	} -match arrayEqual -result [arraylist clock 1496950335 someotherfield 42]
-
-	test codec20-unencodeable-enum "Encoding using 2.0 codec handles unencodeable enum values" -setup $setup -body {
-		array set row [list addrtype somethingelse]
-		$codec encode row
-		getarraylist row
-	} -match arrayEqual -result [arraylist addrtype somethingelse]
-
-	test codec20-unencodeable-enum "Encoding using 2.0 codec handles unencodeable flag value" -setup $setup -body {
-		array set row [list selModes {althold somethingelse}]
-		$codec encode row
-		getarraylist row
-	} -match arrayEqual -result [arraylist selModes {althold somethingelse}]
-
-	test codec20-unencodeable-field "Encoding using 2.0 codec handles unencodeable integers etc" -setup $setup -body {
-		array set row [list clock notaninteger hexid BADVAL track {1.234 0 A} pos {1234 0 A}]
-		$codec encode row
-		getarraylist row
-	} -match arrayEqual -result [arraylist clock notaninteger hexid BADVAL track {1.234 0 A} pos {1234 0 A}]
-
-	test codec20-missing-meta "Encoding using 2.0 codec handles missing metadata" -setup $setup -body {
-		array set row [list track 1.234 pos {1.2 3.4}]
-		$codec encode row
-		getarraylist row
-	} -match arrayEqual -result [arraylist track 1.234 pos {1.2 3.4}]
-
-	test codec20-decode-sanitizes "Decoding using 2.0 codec sanitizes strings" -setup $setup -body {
-		array set row [list ident [list "\ta\tb\nc\nd" 1 A]]
-		$codec encode row
-		$codec decode row
-		getarraylist row
-	} -match arrayEqual -result [arraylist ident {ABCD 1 A}]
-
-	test codec20-decode-reformats "Decoding using 2.0 codec applies post-decode reformatting" -setup $setup -body {
-		array set row [list hexid aAbBcC pos {{1.234567890 2.345678} 1 A} ident {{ ABCD } 1 A}]
-		$codec encode row
-		$codec decode row
-		getarraylist row
-	} -match arrayEqual -result [arraylist hexid AABBCC pos {{1.23457 2.34568} 1 A} ident {ABCD 1 A}]
-
-	proc matchLessThan {expected actual} {
-		return [expr {$actual < $expected}]
+		set testname "roundtrip-adept${version}-${field}-[incr testnum]"
+		test $testname "Round trip field $field" -body [subst -nocommands {
+			set codec [::fa_adept_codec::new_codec adept $version]
+			unset -nocomplain row
+			set row($field) "$inval"
+			\$codec encode row
+			set nocompression [info exists row($field)]
+			\$codec decode row
+			return [list \$nocompression \$row($field)]
+		}] -result [list $skipcompress "$outval"]
 	}
-	customMatch lessThan ::fa_adept_codec::tests::matchLessThan
-	
-	test codec20-encode-shrinks-data "Encoding using 2.0 codec shrinks the data size by at least 40%" -setup $setup -body {
-		array set row [list clock 1496950335 hexid 400879 otherid 400879 addrtype adsb_icao ident {BAW756 1 A} squawk {2015 1 A} alt {12475 1 A} altGeo {12425 1 A} vrate {42 1 A} vrateGeo {-42 1 A} gs {379 1 A} ias {200 1 A} tas {300 1 A} mach {0.567 1 A} pos {{56.00123 -0.12345} 1 A} trk {97 1 A} trkRate {0.02 1 A} roll {1.5 1 A} hdgMag {100 1 A} ag {A+ 1 A} category {D7 1 A} selAlt {12340 1 A} selHdg {120 1 A} qnh {1013.2 1 A} datalink_caps 0123456789ABCD es_op_status 123456789ABCDE]
-		set pre_len [string length [join [array get row] "\t"]]
-		$codec encode row
-		set post_len [string length [join [array get row] "\t"]]
-		return [expr {1.0 * $post_len / $pre_len}]
-	} -match lessThan -result 0.4
+
+	proc round_trip_raw {field inval {outval ""} {version 2.0}} {
+		round_trip $field $inval $outval $version 1
+	}
+
+	round_trip clock 1234567890
+	round_trip_raw clock -123456
+
+	round_trip sent_at 1234567890
+
+	round_trip hexid 012345
+	round_trip hexid ABCDEF
+	round_trip hexid abcdef ABCDEF
+
+	round_trip otherid ABCDEF
+
+	round_trip addrtype adsb_icao
+	round_trip_raw addrtype some_other_thing
+
+	round_trip adsb_version 0
+	round_trip adsb_version 1
+	round_trip adsb_version 2
+	round_trip_raw adsb_version 99
+
+	round_trip category 00
+	round_trip category A0
+	round_trip category A2
+
+	round_trip nac_p {0 0 A}
+	round_trip nac_p {10 0 A}
+	round_trip_raw nac_p {-10 0 A}
+	round_trip_raw nac_p {10 0 Z}
+
+	round_trip position {{1.0 2.0 5 100} 0 A} {{1.00000 2.00000 5 100} 0 A}
+	round_trip position {{-89.123 179.234567 10 10000} 0 A} {{-89.12300 179.23457 10 10000} 0 A}
+	round_trip_raw position {{-92 179 10 10000} 0 A}
+	round_trip_raw position {{92 179 10 10000} 0 A}
+	round_trip_raw position {{92 179 10 10000} 0 A}
+
+	test validate-stream "verify we can process a canned stream of data" -body {
+		set codec [::fa_adept_codec::new_codec adept 2.0]
+		set fp [open "|gunzip -cd test-data/codec-2.0-data.gz" "r"]
+
+		set no_compression_whitelist {! tsv_version}
+
+		try {
+			set linecount 0
+			set inbytes 0
+			set outbytes 0
+			set start [clock milliseconds]
+
+			while {[gets $fp line] >= 0} {
+				incr linecount
+				incr inbytes [string length $line]
+				unset -nocomplain row original
+				array set original [split $line "\t"]
+				array set row [array get original]
+
+				$codec encode row
+				foreach {k v} [array get row] {
+					if {$k ni $no_compression_whitelist} {
+						error "field $k was not compressed when encoding line >$line<"
+					}
+				}
+
+				set outline [join [array get row] "\t"]
+				incr outbytes [string length $outline]
+
+				$codec decode row
+
+				foreach {k v} [array get original] {
+					set v1 $v
+					set v2 $row($k)
+
+					# normalize v1/v2 before comparison
+
+					switch -- $k {
+						clock - sent_at - hexid - otherid - addrtype - adsb_version - category {
+							# no metadata, use values directly
+						}
+
+						ident {
+							# trim whitespace
+							lassign $v1 ident age source
+							set v1 [list [string trim $ident] $age $source]
+							lassign $v2 ident age source
+							set v2 [list [string trim $ident] $age $source]
+						}
+
+						nav_modes {
+							# sort flags
+							lassign $v1 value age source
+							set v1 [list [lsort $value] $age $source]
+							lassign $v2 value age source
+							set v2 [list [lsort $value] $age $source]
+						}
+
+						default {
+							# has metadata, normalize list elements
+							# (faup1090 adds redundant {} in some cases that is stripped when the list is regenerated)
+							lassign $v1 value age source
+							set v1 [list $value $age $source]
+							lassign $v2 value age source
+							set v2 [list $value $age $source]
+						}
+					}
+
+					if {$v1 ne $v2} {
+						error "field $k changed from $v1 to $v2 when encoding line >$line<"
+					}
+				}
+			}
+
+			set end [clock milliseconds]
+			set elapsed [expr {$end - $start}]
+			set rate [expr {$linecount * 1000.0 / $elapsed}]
+			set inPerLine [expr {1.0 * $inbytes / $linecount}]
+			set outPerLine [expr {1.0 * $outbytes / $linecount}]
+			set ratio [expr {100.0 * $outbytes / $inbytes}]
+			puts [outputChannel] [format "%u lines, %u ms, %.0f lines/second" $linecount $elapsed $rate]
+			puts [outputChannel] [format "%u bytes in (%.1f/line), %u bytes out (%.1f/line), compressed to %.1f%%" $inbytes $inPerLine $outbytes $outPerLine $ratio]
+			close $fp
+		} finally {
+		    catch {close $fp}
+		}
+	}
 }
 
 namespace delete ::fa_adept_codec::tests

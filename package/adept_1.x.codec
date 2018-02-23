@@ -1,9 +1,9 @@
-# -*- tcl -*- 
+# -*- tcl -*-
 
 package require Itcl
-package require fa_adept_schema
+package require fa_adept_codec
 
-namespace eval ::fa_adept_codec {
+namespace eval ::fa_adept_codecs {
 	::itcl::class OldCodec {
 		public variable version
 		protected variable lastDecompressClock 0
@@ -93,12 +93,12 @@ namespace eval ::fa_adept_codec {
 				set row(lon) [format "%.5f" $row(lon)]
 			}
 		}
-	}	
+	}
 }
 
-::fa_adept_schema::register adept 1.0 [list ::fa_adept_codec::OldCodec #auto -version 1.0]
-::fa_adept_schema::register adept 1.1 [list ::fa_adept_codec::OldCodec #auto -version 1.1]
-::fa_adept_schema::register adept 1.2 [list ::fa_adept_codec::OldCodec #auto -version 1.2]
-::fa_adept_schema::register adept 1.3 [list ::fa_adept_codec::OldCodec #auto -version 1.3]
+::fa_adept_codec::register adept 1.0 [list ::fa_adept_codecs::OldCodec #auto -version 1.0]
+::fa_adept_codec::register adept 1.1 [list ::fa_adept_codecs::OldCodec #auto -version 1.1]
+::fa_adept_codec::register adept 1.2 [list ::fa_adept_codecs::OldCodec #auto -version 1.2]
+::fa_adept_codec::register adept 1.3 [list ::fa_adept_codecs::OldCodec #auto -version 1.3]
 
-package provide fa_adept_codec 1.0
+package provide fa_adept_codecs 2.0

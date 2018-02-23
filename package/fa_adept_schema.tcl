@@ -1,5 +1,28 @@
+package require fa_adept_codec 0.2
+
 namespace eval ::fa_adept_schema {
 	namespace eval internals {
+		variable debug 0
+
+		proc hexify {s} {
+			set out ""
+			for {set i 0} {$i < [string length $s]} {incr i} {
+				scan [string index $s $i] "%c" ascii
+				append out [format "%02X" $ascii]
+			}
+			return $out
+		}
+
+		proc define_proc {name args body} {
+			variable debug
+
+			if {$debug} {
+				puts stderr "proc $name {$args} {$body}"
+				puts stderr ""
+			}
+			proc $name $args $body
+		}
+
 		proc enum_encode {enumValues v} {
 			set i [lsearch -exact -sorted $enumValues $v]
 			if {$i < 0} {
@@ -39,6 +62,48 @@ namespace eval ::fa_adept_schema {
 			return $results
 		}
 
+		proc position_encode {v} {
+			if {![string is list $v]} {
+				error "bad position list"
+			}
+
+			if {[llength $v] != 4} {
+				error "bad position list"
+			}
+
+			lassign $v lat lon nic rc
+			if {![string is double -strict $lat] || $lat < -90 || $lat > 90} {
+				error "position latitude out of range"
+			}
+			if {![string is double -strict $lon] || $lon < -180 || $lon > 180} {
+				error "position longitude out of range"
+			}
+			if {![string is integer -strict $nic] || $nic < 0 || $nic > 255} {
+				error "position NIC out of range"
+			}
+			if {![string is integer -strict $rc] || $rc < 0 || $rc > 65535} {
+				error "position Rc out of range"
+			}
+			return [binary format "I I cu Su" [expr {round($lat * 100000)}] [expr {round($lon * 100000)}] $nic $rc]
+		}
+
+		proc position_decode {v} {
+			binary scan $v "I I cu Su" lat lon nic rc
+			return [format "%.5f %.5f %u %u" [expr {$lat / 100000.0}] [expr {$lon / 100000.0}] $nic $rc]
+		}
+
+		proc ident_encode {v} {
+			set clean [string trim $v]
+			if {[string length $clean] > 8} {
+				error "ident too long"
+			}
+			return $clean
+		}
+
+		proc ident_decode {v} {
+			return [string toupper [string map {\t {} \n {}} [string trim $v]]]
+		}
+
 		proc armor {s} {
 			return [string map {\\ \\\\ \t \\t \n \\n} $s]
 		}
@@ -50,7 +115,7 @@ namespace eval ::fa_adept_schema {
 		proc gen_encode_one_field {namesp def} {
 			variable ${namesp}::definition::_meta_source_enum
 
-			lassign $def field hasMeta format encoder decoder
+			lassign $def field hasMeta format encoder decoder rangecheck
 			if {$encoder eq ""} {
 				set encoder {$v}
 			}
@@ -58,20 +123,41 @@ namespace eval ::fa_adept_schema {
 			if {$hasMeta} {
 				set v "\$_value"
 				set encodeExpr [subst -nocommands -nobackslashes $encoder]
+				set rangecheckExpr [subst -nocommands -nobackslashes $rangecheck]
 				set innerBody [subst -nocommands {
 					lassign \$row($field) _value _age _source
-					append encodedData [binary format {cu cu $format} \$_age [::fa_adept_schema::internals::enum_encode {$_meta_source_enum} \$_source] $encodeExpr]
+					if {!($rangecheckExpr)} {
+						error "value out of range"
+					}
+					set d [binary format {cu cu $format} \$_age [::fa_adept_schema::internals::enum_encode {$_meta_source_enum} \$_source] $encodeExpr]
+					if {$::fa_adept_schema::internals::debug} {
+						puts stderr "$field: encoded as [::fa_adept_schema::internals::hexify \$d] ([string length \$d] bytes)"
+					}
+					append encodedData \$d
 				}]
 			} else {
 				set v "\$row($field)"
 				set encodeExpr [subst -nocommands -nobackslashes $encoder]
+				set rangecheckExpr [subst -nocommands -nobackslashes $rangecheck]
 				set innerBody [subst -nocommands {
-					append encodedData [binary format {$format} $encodeExpr]
+					if {!($rangecheckExpr)} {
+						error "value out of range"
+					}
+					set d [binary format {$format} $encodeExpr]
+					if {$::fa_adept_schema::internals::debug} {
+						puts stderr "$field: encoded as [::fa_adept_schema::internals::hexify \$d] ([string length \$d] bytes)"
+					}
+					append encodedData \$d
 				}]
 			}
 
 			return [subst -nocommands {
-				if {![info exists row($field)] || [catch {$innerBody}]} {
+				if {![info exists row($field)]} {
+					append header 0
+				} elseif {[catch {$innerBody} result]} {
+					if {$::fa_adept_schema::internals::debug} {
+						puts stderr "Caught error encoding $field: \$result"
+					}
 					append header 0
 				} else {
 					unset row($field)
@@ -100,12 +186,12 @@ namespace eval ::fa_adept_schema {
 			}]
 
 			# define it
-			proc ${namesp}::encode {_row} $procBody
+			define_proc ${namesp}::encode {_row} $procBody
 		}
 
 		proc gen_decode_setup_loop {namesp fields} {
 			for {set fieldIndex 0} {$fieldIndex < [llength $fields]} {incr fieldIndex} {
-				lassign [lindex $fields $fieldIndex] field hasMeta format encoder decoder
+				lassign [lindex $fields $fieldIndex] field hasMeta format encoder decoder rangecheck
 
 				if {$hasMeta} {
 					lappend formatStrList [list cu cu $format]
@@ -137,7 +223,7 @@ namespace eval ::fa_adept_schema {
 			variable ${namesp}::definition::_meta_source_enum
 
 			for {set fieldIndex 0} {$fieldIndex < [llength $fields]} {incr fieldIndex} {
-				lassign [lindex $fields $fieldIndex] field hasMeta format encoder decoder
+				lassign [lindex $fields $fieldIndex] field hasMeta format encoder decoder rangecheck
 				if {$decoder eq "" && !$hasMeta} {
 					continue
 				}
@@ -205,20 +291,19 @@ namespace eval ::fa_adept_schema {
 			}]
 
 			# define it
-			proc ${namesp}::decode {_row} $procBody
+			define_proc ${namesp}::decode {_row} $procBody
 		}
 
 		proc gen_version {namesp version} {
-			proc ${namesp}::version {} [list return $version]
+			define_proc ${namesp}::version {} [list return $version]
 		}
 	}
 
 	proc define {name version code} {
-		if {[exists $name $version]} {
-			error "$name schema version $version already exists"
+		set namesp ::fa_adept_codecs::${name}_${version}
+		if {[namespace exists $namesp]} {
+			namespace delete $namesp
 		}
-
-		set namesp ::fa_adept_schema::${name}_${version}
 
 		# build a "definition" namespace that defines the DSL commands
 		namespace eval ${namesp}::definition {
@@ -226,13 +311,13 @@ namespace eval ::fa_adept_schema {
 			array set _fieldExists {}
 			variable _fields {}
 
-			proc _direct_field {name format encoder decoder args} {
+			proc _direct_field {name format encoder decoder rangecheck args} {
 				variable _fields
 				variable _fieldExists
 				if {[info exists _fieldExists($name)]} {
 					error "duplicated field: $name"
 				}
-				lappend _fields [list $name [expr {"-nometa" ni $args}] $format $encoder $decoder]
+				lappend _fields [list $name [expr {"-nometa" ni $args}] $format $encoder $decoder $rangecheck]
 				set _fieldExists($name) 1
 			}
 
@@ -264,7 +349,7 @@ namespace eval ::fa_adept_schema {
 				set values [lsort $values]
 				set encoder "\[::fa_adept_schema::internals::enum_encode [list $values] \$v\]"
 				set decoder "\[::fa_adept_schema::internals::enum_decode [list $values] \$v\]"
-				_direct_field $name "cu" $encoder $decoder {*}$args
+				_direct_field $name "cu" $encoder $decoder "1" {*}$args
 			}
 
 			proc flags {values name args} {
@@ -279,76 +364,77 @@ namespace eval ::fa_adept_schema {
 				set format "B[llength $values]"
 				set encoder "\[::fa_adept_schema::internals::flags_encode [list $values] \$v\]"
 				set decoder "\[::fa_adept_schema::internals::flags_decode [list $values] \$v\]"
-				_direct_field $name $format $encoder $decoder {*}$args
+				_direct_field $name $format $encoder $decoder "1" {*}$args
 			}
 
-			proc integer {range name args} {
-				lassign $range low high
-				if {$low eq "" || $high eq ""} {
-					error "missing range bounds"
-				}
-				if {$high < $low} {
-					error "bad integer bounds: $low,$high"
+			proc signed {precision args} {
+				_integer "" $precision {*}$args
+			}
+
+			proc unsigned {precision args} {
+				_integer "u" $precision {*}$args
+			}
+
+			proc _integer {extraFormat precision name args} {
+				lassign [split $precision "/"] width dp
+				if {$width eq "" || $dp eq ""} {
+					error "missing precision"
 				}
 
-				if {$low < 0} {
-					# signed
-					if {$low >= -128 && $high <= 127} {
-						set format c
-					} elseif {$low >= -32768 && $high <= 32767} {
-						set format S
-					} elseif {$low >= -2147483648 && $high <= 2147483647} {
-						set format I
-					} elseif {$low >= -9223372036854775808 && $high <= 9223372036854775807} {
-						set format W
-					} else {
-						error "can't handle an integer with bounds $low,$high"
-					}
+				set places [expr {$width + $dp}]
+				if {$places <= 2} { # -99 .. 99 fits in 8 bits
+					set format c
+				} elseif {$places <= 4} { # -9,999 .. 9,999 fits in 16 bits
+					set format S
+				} elseif {$places <= 9} { # -999,999,999 .. 999,999,999 fits in 32 bits
+					set format I
 				} else {
-					# unsigned
-					if {$high <= 255} {
-						set format cu
-					} elseif {$high <= 65535} {
-						set format Su
-					} elseif {$high <= 4294967295} {
-						set format Iu
-					} elseif {$high <= 18446744073709551615} {
-						set format W
-					} else {
-						error "can't handle an integer with bounds $low,$high"
-					}
+					set format W
 				}
 
-				_direct_field $name $format {} {} {*}$args
+				set high "[string repeat 9 $width].[string repeat 9 $dp]5"
+
+				if {$extraFormat eq "u"} {
+					set rangecheck [subst -nocommands {[string is double -strict \$v] && \$v >= 0 && \$v < $high}]
+				} else {
+					set rangecheck [subst -nocommands {[string is double -strict \$v] && \$v > -$high && \$v < $high}]
+				}
+
+				if {$dp > 0} {
+					set shift [expr {10.0 ** $dp}]
+					set encoder [subst -nocommands {[expr {round(\$v * $shift)}]}]
+					set decoder [subst -nocommands {[format %.${dp}f [expr {\$v / $shift}]]}]
+				} else {
+					set encoder ""
+					set decoder ""
+				}
+
+				_direct_field $name "${format}${extraFormat}" $encoder $decoder $rangecheck {*}$args
 			}
 
 			proc hexdigits {width name args} {
 				if {$width <= 0} {
 					error "field $name declared with bad width $width"
 				}
-				_direct_field $name H${width} {} {[string toupper $v]} {*}$args
+				set rangecheck [subst -nocommands {[string is xdigit -strict \$v] && [string length \$v] <= $width}]
+				_direct_field $name H${width} {} {[string toupper $v]} $rangecheck {*}$args
 			}
 
-			proc identstring {width name args} {
-				if {$width <= 0} {
-					error "field $name declared with bad width $width"
-				}
-
-				set cleanup {[string toupper [string map {\t {} \n {}} [string trim $v]]]}
-				_direct_field $name A${width} $cleanup $cleanup {*}$args
+			proc identstring {name args} {
+				set encoder "\[::fa_adept_schema::internals::ident_encode \$v\]"
+				set decoder "\[::fa_adept_schema::internals::ident_decode \$v\]"
+				_direct_field $name A8 $encoder $decoder "1" {*}$args
 			}
 
-			proc decimal {precision name args} {
-				if {$precision <= 0} {
-					error "field $name declared with bad precision $precision"
-				}
-				set decoder [subst -nocommands {[format %.${precision}f \$v]}]
-				_direct_field $name R {} $decoder {*}$args
+			proc position {name args} {
+				set encoder "\[::fa_adept_schema::internals::position_encode \$v\]"
+				set decoder "\[::fa_adept_schema::internals::position_decode \$v\]"
+				_direct_field $name a11 $encoder $decoder "1" {*}$args
 			}
 
-			proc latlon {name args} {
-				set decoder [subst -nocommands {[format "%.5f %.5f" {*}\$v]}]
-				_direct_field $name R2 {} $decoder {*}$args
+			proc epoch {name args} {
+				set rangecheck [subst -nocommands {[string is wideinteger -strict \$v] && \$v >= 0}]
+				_direct_field $name Wu {} {} $rangecheck {*}$args
 			}
 		}
 
@@ -380,31 +466,11 @@ namespace eval ::fa_adept_schema {
 		namespace delete ${namesp}::definition
 
 		# these codecs are stateless, so just return the ensemble command
-		register $name $version [list expr \{$namesp\} ]
+		::fa_adept_codec::register $name $version [list expr \{$namesp\} ]
 		return $namesp
 	}
 
-	proc exists {name version} {
-		return [expr {[info exists internals::registry($name-$version)]}]
-	}
-
-	proc register {name version command} {
-		if {[exists $name $version] && [find $name $version] ne $command} {
-			error "$name schema version $version is already registered to a different command"
-		}
-
-		set internals::registry($name-$version) $command
-	}
-
-	proc new_codec {name version} {
-		if {[info exists internals::registry($name-$version)]} {
-			return [uplevel 1 $internals::registry($name-$version)]
-		} else {
-			error "no $name schema registered with version $version"
-		}
-	}
-
-	namespace export define register exists new_codec
+	namespace export define
 }
 
 package provide fa_adept_schema 1.0
