@@ -784,7 +784,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 			set row(clock) [clock seconds]
 		}
 
-		$codec encode_array row
+		$codec encode row
 
 		set message ""
 		foreach field [lsort [array names row]] {
