@@ -24,6 +24,8 @@ proc setup_faup1090_vars {} {
 	set ::lastFaupMessageClock [clock seconds]
 	# time we were last connected to port 30005
 	set ::lastAdsbConnectedClock [clock seconds]
+	# last banner tsv_version we saw
+	set ::tsvVersion ""
 
 	# receiver config
 	set ::receiverType [piawareConfig get receiver-type]
@@ -254,6 +256,11 @@ proc faup1090_data_available {} {
 		# we handle this directly
 		handle_location_update "receiver" $row(lat) $row(lon) $row(alt) $row(altref)
 		return
+	}
+
+	# remember tsv_version when seen
+	if {[info exists row(tsv_version)]} {
+		set ::tsvVersion $row(tsv_version)
 	}
 
     #puts "faup1090 data: $line"

@@ -117,6 +117,16 @@ proc handle_login_result {data} {
 		} else {
 			unset -nocomplain ::siteURL
 		}
+
+		# repeat the last tsv_version we saw from faup1090, if any
+		# (we do this here, not in the login message, to avoid a race
+		# between faup1090 producing tsv_version for the first time
+		# and the login response arriving)
+		if {$::tsvVersion ne ""} {
+			set header(clock) [clock seconds]
+			set header(tsv_version) $::tsvVersion
+			adept send_array header
+		}
 	} else {
 		# NB do more here, like UI stuff
 		log_locally "*******************************************"
