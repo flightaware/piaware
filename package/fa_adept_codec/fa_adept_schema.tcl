@@ -433,8 +433,8 @@ namespace eval ::fa_adept_schema {
 			}
 
 			proc epoch {name args} {
-				set rangecheck [subst -nocommands {[string is wideinteger -strict \$v] && \$v >= 0}]
-				_direct_field $name Wu {} {} $rangecheck {*}$args
+				set rangecheck [subst -nocommands {[string is integer -strict \$v] && \$v >= 0 && \$v <= 0xFFFFFFFF}]
+				_direct_field $name Iu {} {} $rangecheck {*}$args
 			}
 		}
 
