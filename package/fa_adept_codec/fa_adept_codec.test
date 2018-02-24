@@ -96,7 +96,7 @@ namespace eval ::fa_adept_codec::tests {
 	round_trip_raw position {{92 179 10 10000} 0 A}
 	round_trip_raw position {{92 179 10 10000} 0 A}
 
-	test validate-stream "verify we can process a canned stream of data" -body {
+	test validate-stream-2.0 "verify we can process a canned stream of data" -body {
 		set codec [::fa_adept_codec::new_codec adept 2.1]
 		set fp [open "|gunzip -cd test-data/codec-2.1-data.gz" "r"]
 
@@ -183,6 +183,74 @@ namespace eval ::fa_adept_codec::tests {
 			catch {close $fp}
 		}
 	}
+
+	test validate-expected-1.x "verify we can decompress a canned stream of compressed 1.x data" -body {
+		set codec [::fa_adept_codec::new_codec adept 1.3]
+		set compressedfp [open "|gunzip -cd test-data/codec-1.x-compressed.gz" "r"]
+		set expectedfp [open "|gunzip -cd test-data/codec-1.x-expected.gz" "r"]
+
+		fconfigure $compressedfp -encoding binary -translation lf
+		fconfigure $expectedfp -encoding binary -translation lf
+
+		try {
+			set linecount 0
+			set inbytes 0
+			set outbytes 0
+			set start [clock milliseconds]
+
+			while {[gets $compressedfp line] >= 0} {
+				gets $expectedfp expectedLine
+
+				incr linecount
+				incr inbytes [string length $expectedLine]
+				incr outbytes [string length $line]
+
+				unset -nocomplain row expectedRow
+				array set row [split $line "\t"]
+				array set expectedRow [split $expectedLine "\t"]
+
+				$codec decode row
+
+				if {[lsort [array names row]] ne [lsort [array names expectedRow]]} {
+					error "keys mismatch, expected {[lsort [array names expectedRow]]} but got {[lsort [array names row]]} at line $linecount: >$expectedLine<"
+				}
+
+				foreach {k v} [array get row] {
+					set v1 $v
+					set v2 $expectedRow($k)
+
+					# normalize v1/v2 before comparison
+
+					switch -- $k {
+						ident {
+							# trim whitespace
+							set v1 [string trim $v1]
+							set v2 [string trim $v2]
+						}
+					}
+
+					if {$v1 ne $v2} {
+						error "field $k changed from $v1 to $v2 when decoding line >$expectedLine<"
+					}
+				}
+			}
+
+			set end [clock milliseconds]
+			set elapsed [expr {$end - $start}]
+			set rate [expr {$linecount * 1000.0 / $elapsed}]
+			set inPerLine [expr {1.0 * $inbytes / $linecount}]
+			set outPerLine [expr {1.0 * $outbytes / $linecount}]
+			set ratio [expr {100.0 * $outbytes / $inbytes}]
+			puts [outputChannel] [format "%u lines, %u ms, %.0f lines/second" $linecount $elapsed $rate]
+			puts [outputChannel] [format "%u bytes in (%.1f/line), %u bytes out (%.1f/line), compressed to %.1f%%" $inbytes $inPerLine $outbytes $outPerLine $ratio]
+			close $compressedfp
+			close $expectedfp
+		} finally {
+			catch {close $compressedfp}
+			catch {close $expectedfp}
+		}
+	}
+
 }
 
 namespace delete ::fa_adept_codec::tests
