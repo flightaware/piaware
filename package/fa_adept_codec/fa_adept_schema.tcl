@@ -416,7 +416,7 @@ namespace eval ::fa_adept_schema {
 				if {$width <= 0} {
 					error "field $name declared with bad width $width"
 				}
-				set rangecheck [subst -nocommands {[string is xdigit -strict \$v] && [string length \$v] <= $width}]
+				set rangecheck [subst -nocommands {[string is xdigit -strict \$v] && [string length \$v] == $width}]
 				_direct_field $name H${width} {} {[string toupper $v]} $rangecheck {*}$args
 			}
 
