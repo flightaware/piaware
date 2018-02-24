@@ -42,4 +42,4 @@ namespace eval ::fa_adept_codec {
 	namespace export register exists new_codec
 }
 
-package provide fa_adept_codec 0.2
+package provide fa_adept_codec 2.1

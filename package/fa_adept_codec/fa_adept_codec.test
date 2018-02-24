@@ -6,7 +6,7 @@ source "fa_adept_codec.tcl"
 source "fa_adept_schema.tcl"
 source "none.codec"
 source "adept_1.x.codec"
-source "adept_2.0.codec"
+source "adept_2.1.codec"
 
 ::tcltest::configure {*}$argv
 
@@ -20,32 +20,26 @@ namespace eval ::fa_adept_codec::tests {
 
 	test codecfactory-1.0 "Verify that we can construct a codec for compression version 1.0" -body {
 		set codec [::fa_adept_codec::new_codec adept 1.0]
-	    $codec version
+		$codec version
 	} -result 1.0
 
 	test codecfactory-1.1 "Verify that we can construct a codec for compression version 1.1" -body {
 		set codec [::fa_adept_codec::new_codec adept 1.1]
-	    $codec version
+		$codec version
 	} -result 1.1
 
 	test codecfactory-1.2 "Verify that we can construct a codec for compression version 1.2" -body {
 		set codec [::fa_adept_codec::new_codec adept 1.2]
-	    $codec version
+		$codec version
 	} -result 1.2
 
-	test codecfactory-2.0 "Verify that we can construct a codec for compression version 2.0" -body {
-		set codec [::fa_adept_codec::new_codec adept 2.0]
-	    $codec version
-	} -result 2.0
-
-	variable setup {
-		unset -nocomplain row
-		set codec [::fa_adept_codec::new_codec adept 2.0]
-	}
+	test codecfactory-2.1 "Verify that we can construct a codec for compression version 2.1" -body {
+		set codec [::fa_adept_codec::new_codec adept 2.1]
+		$codec version
+	} -result 2.1
 
 	variable testnum 0
-	proc round_trip {field inval {outval ""} {version 2.0} {skipcompress 0}} {
-		variable setup
+	proc round_trip {field inval {outval ""} {version 2.1} {skipcompress 0}} {
 		variable testnum
 
 		if {$outval eq ""} {
@@ -64,7 +58,7 @@ namespace eval ::fa_adept_codec::tests {
 		}] -result [list $skipcompress "$outval"]
 	}
 
-	proc round_trip_raw {field inval {outval ""} {version 2.0}} {
+	proc round_trip_raw {field inval {outval ""} {version 2.1}} {
 		round_trip $field $inval $outval $version 1
 	}
 
@@ -103,8 +97,8 @@ namespace eval ::fa_adept_codec::tests {
 	round_trip_raw position {{92 179 10 10000} 0 A}
 
 	test validate-stream "verify we can process a canned stream of data" -body {
-		set codec [::fa_adept_codec::new_codec adept 2.0]
-		set fp [open "|gunzip -cd test-data/codec-2.0-data.gz" "r"]
+		set codec [::fa_adept_codec::new_codec adept 2.1]
+		set fp [open "|gunzip -cd test-data/codec-2.1-data.gz" "r"]
 
 		set no_compression_whitelist {! tsv_version}
 
@@ -186,7 +180,7 @@ namespace eval ::fa_adept_codec::tests {
 			puts [outputChannel] [format "%u bytes in (%.1f/line), %u bytes out (%.1f/line), compressed to %.1f%%" $inbytes $inPerLine $outbytes $outPerLine $ratio]
 			close $fp
 		} finally {
-		    catch {close $fp}
+			catch {close $fp}
 		}
 	}
 }

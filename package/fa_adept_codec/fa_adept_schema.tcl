@@ -1,4 +1,4 @@
-package require fa_adept_codec 0.2
+package require fa_adept_codec 2.1
 
 namespace eval ::fa_adept_schema {
 	namespace eval internals {
@@ -473,4 +473,4 @@ namespace eval ::fa_adept_schema {
 	namespace export define
 }
 
-package provide fa_adept_schema 1.0
+package provide fa_adept_schema 2.1

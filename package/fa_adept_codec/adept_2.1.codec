@@ -2,7 +2,7 @@
 
 package require fa_adept_schema
 
-::fa_adept_schema::define adept 2.0 {
+::fa_adept_schema::define adept 2.1 {
 	meta_source_enum {U S A T}	;# (U)nchecked-modes, mode(S), (A)dsb, (T)isb
 
 	epoch					 clock -nometa
@@ -55,4 +55,4 @@ package require fa_adept_schema
 	hexdigits 14			 es_op_status -nometa
 }
 
-package provide fa_adept_codecs 2.0
+package provide fa_adept_codecs 2.1
