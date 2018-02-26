@@ -15,4 +15,4 @@ install: pkgIndex.tcl
 	install $(FILES) pkgIndex.tcl $(DESTDIR)$(LIB)
 
 test:
-	$(TCLSH) ./fa_adept_codec.test
+	$(TCLSH) ./fa_adept_codec.test -verbose pbte
