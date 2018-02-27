@@ -788,7 +788,9 @@ set caDir [file join [file dirname [info script]] "ca"]
 
 		set message ""
 		foreach field [lsort [array names row]] {
-			append message "\t$field\t$row($field)"
+			# last ditch effort to remove characters that are going to interfere with the message structure
+			set value [string map {\n \\n \t \\t} $row($field)]
+			append message "\t$field\t$value"
 		}
 
 		send [string range $message 1 end]
