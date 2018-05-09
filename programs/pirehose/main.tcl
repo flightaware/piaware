@@ -15,7 +15,7 @@ package require Tclx
 package require Itcl
 
 if {![info exists ::launchdir]} {
-    set ::launchdir "."
+	set ::launchdir "."
 }
 
 source $::launchdir/config.tcl
@@ -38,17 +38,17 @@ proc main {{argv ""}} {
 		{keyfile.arg "/etc/piaware/pirehose.key.pem" "path to SSL key file"}
 	}
 
-    set usage ": $::argv0 ?options?"
+	set usage ": $::argv0 ?options?"
 
-    if {[catch {array set ::params [::cmdline::getoptions argv $options $usage]} catchResult] == 1} {
-        puts stderr $catchResult
-        exit 6
-    }
+	if {[catch {array set ::params [::cmdline::getoptions argv $options $usage]} catchResult] == 1} {
+		puts stderr $catchResult
+		exit 6
+	}
 
-    if {$argv != ""} {
-        puts stderr [::cmdline::usage $options]
-        exit 6
-    }
+	if {$argv != ""} {
+		puts stderr [::cmdline::usage $options]
+		exit 6
+	}
 
 	if {![file readable $::params(certfile)]} {
 		puts stderr "Certificate file $::params(certfile) is not readable, giving up"
@@ -74,7 +74,7 @@ proc main {{argv ""}} {
 }
 
 if {!$tcl_interactive} {
-    main $argv
+	main $argv
 }
 
 # vim: set ts=4 sw=4 sts=4 noet :

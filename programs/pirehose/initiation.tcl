@@ -190,9 +190,9 @@ proc read_client_initiation {sock} {
 
 		if {$username == "" || $password == ""} {
 			error "Login credentials missing"
-        } elseif {$username ne $::params(username) || $password ne $::params(password)} {
+		} elseif {$username ne $::params(username) || $password ne $::params(password)} {
 			error "Login credentials denied: $username"
-        }
+		}
 
 		if {$filterEvents ne "" && "position" ni $filterEvents} {
 			error "No supported event types requested (pirehose provides only 'position' type events)"
@@ -219,7 +219,7 @@ proc read_client_initiation {sock} {
 	# clear the alarm clock
 	alarm 0
 	logger "initiation OK, feeding data"
-    setproctitle "waiting for data"
+	setproctitle "waiting for data"
 	chan event $::clientSock readable [list read_client_discard $sock]
 
 	# enable compression if requested

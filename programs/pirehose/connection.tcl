@@ -25,7 +25,7 @@ proc handle_client_connection {sock} {
 	}
 
 	logger "TLS handshake complete: [::tls::status $sock]"
-    setproctitle "waiting for initiation command"
+	setproctitle "waiting for initiation command"
 
 	chan configure $sock -blocking 0 -buffering line -encoding ascii -translation {auto lf}
 	chan configure stdin -blocking 0 -buffering line -encoding ascii -translation lf
