@@ -89,7 +89,7 @@ package require egm96
 					lassign $tsv($field) value age src
 					set when [expr {$tsv(clock) - $age}]
 					if {[last_update $tofield] <= $when} {
-						set $tofield $tsv($field)
+						set $tofield $value
 						set lastUpdate($tofield) $when
 					}
 				}
