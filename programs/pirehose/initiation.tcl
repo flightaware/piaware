@@ -220,7 +220,7 @@ proc read_client_initiation {sock} {
 	alarm 0
 	logger "initiation OK, feeding data"
 	setproctitle "waiting for data"
-	chan event $::clientSock readable [list read_client_discard $sock]
+	chan event $::clientSock readable [list read_client_post_init $sock]
 
 	# enable compression if requested
 	if {$compressionMode ne ""} {

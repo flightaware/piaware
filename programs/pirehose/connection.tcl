@@ -38,9 +38,10 @@ proc handle_client_connection {sock} {
 
 #
 # handle data from the client after initiation command
-# ignore the content, just watch for EOF or errors
+# watch for EOF or errors
+# reject additional input
 #
-proc read_client_discard {sock} {
+proc read_client_post_init {sock} {
 	try {
 		set count [gets $sock line]
 	} on error {result} {
@@ -53,12 +54,11 @@ proc read_client_discard {sock} {
 		child_exit 0
 	}
 
-	if {$line eq ""} {
-		# nothing this time
-		return
+	if {$count > 0} {
+		logger "client sent extra data after initiation"
+		write_to_client "Error: already specified connection mode line"
+		child_exit 2
 	}
-
-	# silently swallow it
 }
 
 proc write_to_client {line} {
