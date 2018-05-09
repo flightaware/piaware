@@ -170,6 +170,13 @@ package require egm96
 			set data(alt) [expr {round($data(gps_alt) - $geoidHeight / 0.3048)}]
 		}
 
+		# round various fields that might not be integer
+		foreach field {alt gps_alt gs heading baro_alt} {
+			if {[info exists data($field)]} {
+				set data($field) [::tcl::mathfunc::round $data($field)]
+			}
+		}
+
 		return 1
 	}
 
