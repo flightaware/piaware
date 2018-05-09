@@ -69,7 +69,7 @@ proc handle_report {line} {
 	}
 
 	# if this was a position, build a firehose line and maybe send it
-	if {$now >= $::minClock && [info exists tsv(lat)] && [info exists tsv(lon)]} {
+	if {$now >= $::minClock && ([info exists tsv(position)] || ([info exists tsv(lat)] && [info exists tsv(lon)]))} {
 		if {[$aircraft build_and_filter_report $now $tsv(clock) report]} {
 			# stringify everything to match what firehose does
 			foreach field [array names report] {

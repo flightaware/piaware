@@ -5,8 +5,7 @@ package require egm96
 	public variable hexid	   ;# aircraft address
 	public variable flightId   ;# unique flight ID assigned by pirehose
 
-	variable lat		  ;# last latitude, decimal degrees
-	variable lon		  ;# last longitude, decimal degrees
+	variable position	  ;# last lat/lon, decimal degrees
 	variable alt		  ;# last barometric altitude, ft
 	variable alt_gnss	  ;# last GNSS altitude, ft
 	variable speed		  ;# last groundspeed, kts
@@ -48,18 +47,20 @@ package require egm96
 	method update_from_report {_tsv} {
 		upvar $_tsv tsv
 
-		set when $tsv(clock)
-
 		if {[info exists tsv(type)] && $tsv(type) eq "mlat_result"} {
 			# mlat result
 
 			set updateType "M"
+			set when $tsv(clock)
 
-			foreach {field} {lat lon alt} {
-				if {[info exists tsv($field)] && [last_update $field] <= $when} {
-					set $field $tsv($field)
-					set lastUpdate($field) $when
-				}
+			if {[info exists tsv(alt)] && [last_update alt] <= $when} {
+				set alt $tsv(alt)
+				set lastUpdate(alt) $when
+			}
+
+			if {[info exists tsv(lat)] && [info exists tsv(lon)] && [last_update position] <= $when} {
+				set position [list $tsv(lat) $tsv(lon) 0 0]
+				set lastUpdate(position) $when
 			}
 
 			if {[info exists tsv(nsvel)] && [info exists tsv(ewvel)]} {
@@ -78,10 +79,19 @@ package require egm96
 
 			set updateType "A"
 
-			foreach {field} {lat lon alt alt_gnss speed speed_tas speed_ias heading heading_mag ident airGround squawk} {
-				if {[info exists tsv($field)] && [last_update $field] <= $when} {
-					set $field $tsv($field)
-					set lastUpdate($field) $when
+			foreach mapping {position alt alt_gnss speed speed_tas speed_ias {track heading} {heading_magnetic heading_mag} ident airGround squawk} {
+				lassign $mapping field tofield
+				if {$tofield eq ""} {
+					set tofield $field
+				}
+
+				if {[info exists tsv($field)]} {
+					lassign $tsv($field) value age src
+					set when [expr {$tsv(clock) - $age}]
+					if {[last_update $tofield] <= $when} {
+						set $tofield $tsv($field)
+						set lastUpdate($tofield) $when
+					}
 				}
 			}
 		}
@@ -95,7 +105,7 @@ package require egm96
 	# populate caller's array named $_data with a report of the current aircraft state,
 	# formatted as for firehose; return 1 if it was populated.
 	method build_report {pitr when _data} {
-		if {![valid lat $when] || ![valid lon $when]} {
+		if {![valid position $when]} {
 			return 0
 		}
 
@@ -106,8 +116,7 @@ package require egm96
 		set data(clock) $lastUpdate(all)
 		set data(pitr) $pitr
 		set data(hexid) $hexid
-		set data(lat) $lat
-		set data(lon) $lon
+		lassign $position data(lat) data(lon) _ _
 
 		switch -exact -- $updateType {
 			"A" {
