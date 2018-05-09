@@ -96,8 +96,8 @@ package require egm96
 			}
 		}
 
-		if {[last_update all] <= $when} {
-			set lastUpdate(all) $when
+		if {[last_update all] <= $tsv(clock)} {
+			set lastUpdate(all) $tsv(clock)
 			set lastSeen [clock milliseconds]
 		}
 	}
