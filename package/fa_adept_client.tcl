@@ -10,6 +10,7 @@
 
 package require tls
 package require Itcl
+package require fa_adept_codecs 2.1
 
 namespace eval ::fa_adept {
 
@@ -42,7 +43,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 	protected variable reconnectTimerID
 	protected variable aliveTimerID
 	protected variable nextHostIndex 0
-	protected variable lastCompressClock 0
+	protected variable codec
 	protected variable flushPending 0
 	protected variable deviceLocation ""
 	protected variable lastReportedLocation ""
@@ -282,6 +283,9 @@ set caDir [file join [file dirname [info script]] "ca"]
 		fileevent $sock readable [list $this server_data_available]
 		set connected 1
 		set flushPending 0
+
+		# reset the codec until we have sent our login message
+		set codec [::fa_adept_codec::new_codec none]
 
 		schedule_writability_check
 
@@ -654,9 +658,13 @@ set caDir [file join [file dirname [info script]] "ca"]
 			error "tried to login while not connected"
 		}
 
+		# create the new codec so we can get the codec version,
+		# but don't install it until after sending the login message
+		set newcodec [::fa_adept_codec::new_codec adept]
+
 		set message(type) login
 		set message(mac) $mac
-		set message(compression_version) 1.2
+		set message(compression_version) [$newcodec version]
 
 		if {$deviceLocation ne ""} {
 			lassign $deviceLocation message(receiverlat) message(receiverlon) message(receiveralt) message(receiveraltref)
@@ -667,6 +675,8 @@ set caDir [file join [file dirname [info script]] "ca"]
 		{*}$loginCommand message
 
 		send_array message
+
+		set codec $newcodec
 	}
 
 	#
@@ -774,70 +784,16 @@ set caDir [file join [file dirname [info script]] "ca"]
 			set row(clock) [clock seconds]
 		}
 
-		if {$loggedIn} {
-			compress_array row
-		}
+		$codec encode row
 
 		set message ""
 		foreach field [lsort [array names row]] {
-			append message "\t$field\t$row($field)"
+			# last ditch effort to remove characters that are going to interfere with the message structure
+			set value [string map {\n \\n \t \\t} $row($field)]
+			append message "\t$field\t$value"
 		}
 
 		send [string range $message 1 end]
-	}
-
-	#
-	# compress_array - compress some of the key-value pairs in the array
-	# into a single quoted binary key-value pair
-	#
-	method compress_array {_row} {
-		upvar $_row row
-
-		set newKey "!"
-		set binData ""
-
-		# remove clocks from consecutive messages that are the same as
-		# the last clock emitted
-		if {[info exists row(clock)]} {
-			if {$row(clock) == $lastCompressClock} {
-				unset row(clock)
-			} else {
-				set lastCompressClock $row(clock)
-			}
-		}
-
-		foreach "var keyChar format" "clock c I sent_at C I hexid h H6 ident i A8 alt a I lat l R lon m R speed s S squawk q H4 heading H S" {
-			if {[info exists row($var)]} {
-				append newKey $keyChar
-				append binData [binary format $format $row($var)]
-				unset row($var)
-			}
-		}
-
-		# These keys expect a list-format value:
-		foreach "var keyChar format" "m_short S H12H14 m_long L H12H28 m_sync Y H12H28H12H28" {
-			if {[info exists row($var)]} {
-				append newKey $keyChar
-				append binData [binary format $format {*}$row($var)]
-				unset row($var)
-			}
-		}
-
-		# encode airGround into special key if G and remove completely if A
-		if {[info exists row(airGround)]} {
-			if {$row(airGround) == "G"} {
-				append newKey g
-				unset row(airGround)
-			} elseif {$row(airGround) == "A"} {
-				unset row(airGround)
-			}
-		}
-
-		# encode tabs and newlines and whatnot
-		set binData [string map {\t \\t \\ \\\\ \n \\n} $binData]
-
-		set row($newKey) $binData
-		return
 	}
 
 	#

@@ -1,0 +1,26 @@
+# -*- tcl -*-
+
+package require Itcl
+package require fa_adept_codec
+
+namespace eval ::fa_adept_codecs {
+	::itcl::class NoCodec {
+		public variable version
+		protected variable lastDecompressClock 0
+
+		constructor {args} {
+			configure {*}$args
+		}
+
+		public method version {} {
+			return $version
+		}
+
+		public method encode {_row} {}
+		public method decode {_row} {}
+	}
+}
+
+::fa_adept_codec::register none 1.0 [list ::fa_adept_codecs::NoCodec #auto -version 1.0]
+
+package provide fa_adept_codecs 2.1

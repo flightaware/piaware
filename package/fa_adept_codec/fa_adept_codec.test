@@ -1,0 +1,256 @@
+# -*- tcl -*-
+
+package require tcltest 2.2
+
+source "fa_adept_codec.tcl"
+source "fa_adept_schema.tcl"
+source "none.codec"
+source "adept_1.x.codec"
+source "adept_2.1.codec"
+
+::tcltest::configure {*}$argv
+
+namespace eval ::fa_adept_codec::tests {
+	namespace import ::tcltest::*
+
+	test codecfactory-none "Verify that we can construct a no-codec codec" -body {
+		set codec [::fa_adept_codec::new_codec none]
+		return ok
+	} -result ok
+
+	test codecfactory-1.0 "Verify that we can construct a codec for compression version 1.0" -body {
+		set codec [::fa_adept_codec::new_codec adept 1.0]
+		$codec version
+	} -result 1.0
+
+	test codecfactory-1.1 "Verify that we can construct a codec for compression version 1.1" -body {
+		set codec [::fa_adept_codec::new_codec adept 1.1]
+		$codec version
+	} -result 1.1
+
+	test codecfactory-1.2 "Verify that we can construct a codec for compression version 1.2" -body {
+		set codec [::fa_adept_codec::new_codec adept 1.2]
+		$codec version
+	} -result 1.2
+
+	test codecfactory-2.1 "Verify that we can construct a codec for compression version 2.1" -body {
+		set codec [::fa_adept_codec::new_codec adept 2.1]
+		$codec version
+	} -result 2.1
+
+	variable testnum 0
+	proc round_trip {field inval {outval ""} {version 2.1} {skipcompress 0}} {
+		variable testnum
+
+		if {$outval eq ""} {
+			set outval $inval
+		}
+
+		set testname "roundtrip-adept${version}-${field}-[incr testnum]"
+		test $testname "Round trip field $field" -body [subst -nocommands {
+			set codec [::fa_adept_codec::new_codec adept $version]
+			unset -nocomplain row
+			set row($field) "$inval"
+			\$codec encode row
+			set nocompression [info exists row($field)]
+			\$codec decode row
+			return [list \$nocompression \$row($field)]
+		}] -result [list $skipcompress "$outval"]
+	}
+
+	proc round_trip_raw {field inval {outval ""} {version 2.1}} {
+		round_trip $field $inval $outval $version 1
+	}
+
+	round_trip clock 1234567890
+	round_trip_raw clock -123456
+
+	round_trip sent_at 1234567890
+
+	round_trip hexid 012345
+	round_trip hexid ABCDEF
+	round_trip hexid abcdef ABCDEF
+
+	round_trip otherid ABCDEF
+
+	round_trip addrtype adsb_icao
+	round_trip_raw addrtype some_other_thing
+
+	round_trip adsb_version 0
+	round_trip adsb_version 1
+	round_trip adsb_version 2
+	round_trip_raw adsb_version 99
+
+	round_trip category 00
+	round_trip category A0
+	round_trip category A2
+
+	round_trip nac_p {0 0 A}
+	round_trip nac_p {10 0 A}
+	round_trip_raw nac_p {-10 0 A}
+	round_trip_raw nac_p {10 0 Z}
+
+	round_trip position {{1.0 2.0 5 100} 0 A} {{1.00000 2.00000 5 100} 0 A}
+	round_trip position {{-89.123 179.234567 10 10000} 0 A} {{-89.12300 179.23457 10 10000} 0 A}
+	round_trip_raw position {{-92 179 10 10000} 0 A}
+	round_trip_raw position {{92 179 10 10000} 0 A}
+	round_trip_raw position {{92 179 10 10000} 0 A}
+
+	test validate-stream-2.0 "verify we can process a canned stream of data" -body {
+		set codec [::fa_adept_codec::new_codec adept 2.1]
+		set fp [open "|gunzip -cd test-data/codec-2.1-data.gz" "r"]
+
+		set no_compression_whitelist {! tsv_version}
+
+		try {
+			set linecount 0
+			set inbytes 0
+			set outbytes 0
+			set start [clock milliseconds]
+
+			while {[gets $fp line] >= 0} {
+				incr linecount
+				incr inbytes [string length $line]
+				unset -nocomplain row original
+				array set original [split $line "\t"]
+				array set row [array get original]
+
+				$codec encode row
+				foreach {k v} [array get row] {
+					if {$k ni $no_compression_whitelist} {
+						error "field $k was not compressed when encoding line >$line<"
+					}
+				}
+
+				set outline [join [array get row] "\t"]
+				incr outbytes [string length $outline]
+
+				$codec decode row
+
+				foreach {k v} [array get original] {
+					set v1 $v
+					set v2 $row($k)
+
+					# normalize v1/v2 before comparison
+
+					switch -- $k {
+						clock - sent_at - hexid - otherid - addrtype - adsb_version - category {
+							# no metadata, use values directly
+						}
+
+						ident {
+							# trim whitespace
+							lassign $v1 ident age source
+							set v1 [list [string trim $ident] $age $source]
+							lassign $v2 ident age source
+							set v2 [list [string trim $ident] $age $source]
+						}
+
+						nav_modes {
+							# sort flags
+							lassign $v1 value age source
+							set v1 [list [lsort $value] $age $source]
+							lassign $v2 value age source
+							set v2 [list [lsort $value] $age $source]
+						}
+
+						default {
+							# has metadata, normalize list elements
+							# (faup1090 adds redundant {} in some cases that is stripped when the list is regenerated)
+							lassign $v1 value age source
+							set v1 [list $value $age $source]
+							lassign $v2 value age source
+							set v2 [list $value $age $source]
+						}
+					}
+
+					if {$v1 ne $v2} {
+						error "field $k changed from $v1 to $v2 when encoding line >$line<"
+					}
+				}
+			}
+
+			set end [clock milliseconds]
+			set elapsed [expr {$end - $start}]
+			set rate [expr {$linecount * 1000.0 / $elapsed}]
+			set inPerLine [expr {1.0 * $inbytes / $linecount}]
+			set outPerLine [expr {1.0 * $outbytes / $linecount}]
+			set ratio [expr {100.0 * $outbytes / $inbytes}]
+			puts [outputChannel] [format "%u lines, %u ms, %.0f lines/second" $linecount $elapsed $rate]
+			puts [outputChannel] [format "%u bytes in (%.1f/line), %u bytes out (%.1f/line), compressed to %.1f%%" $inbytes $inPerLine $outbytes $outPerLine $ratio]
+			close $fp
+		} finally {
+			catch {close $fp}
+		}
+	}
+
+	test validate-expected-1.x "verify we can decompress a canned stream of compressed 1.x data" -body {
+		set codec [::fa_adept_codec::new_codec adept 1.3]
+		set compressedfp [open "|gunzip -cd test-data/codec-1.x-compressed.gz" "r"]
+		set expectedfp [open "|gunzip -cd test-data/codec-1.x-expected.gz" "r"]
+
+		fconfigure $compressedfp -encoding binary -translation lf
+		fconfigure $expectedfp -encoding binary -translation lf
+
+		try {
+			set linecount 0
+			set inbytes 0
+			set outbytes 0
+			set start [clock milliseconds]
+
+			while {[gets $compressedfp line] >= 0} {
+				gets $expectedfp expectedLine
+
+				incr linecount
+				incr inbytes [string length $expectedLine]
+				incr outbytes [string length $line]
+
+				unset -nocomplain row expectedRow
+				array set row [split $line "\t"]
+				array set expectedRow [split $expectedLine "\t"]
+
+				$codec decode row
+
+				if {[lsort [array names row]] ne [lsort [array names expectedRow]]} {
+					error "keys mismatch, expected {[lsort [array names expectedRow]]} but got {[lsort [array names row]]} at line $linecount: >$expectedLine<"
+				}
+
+				foreach {k v} [array get row] {
+					set v1 $v
+					set v2 $expectedRow($k)
+
+					# normalize v1/v2 before comparison
+
+					switch -- $k {
+						ident {
+							# trim whitespace
+							set v1 [string trim $v1]
+							set v2 [string trim $v2]
+						}
+					}
+
+					if {$v1 ne $v2} {
+						error "field $k changed from $v1 to $v2 when decoding line >$expectedLine<"
+					}
+				}
+			}
+
+			set end [clock milliseconds]
+			set elapsed [expr {$end - $start}]
+			set rate [expr {$linecount * 1000.0 / $elapsed}]
+			set inPerLine [expr {1.0 * $inbytes / $linecount}]
+			set outPerLine [expr {1.0 * $outbytes / $linecount}]
+			set ratio [expr {100.0 * $outbytes / $inbytes}]
+			puts [outputChannel] [format "%u lines, %u ms, %.0f lines/second" $linecount $elapsed $rate]
+			puts [outputChannel] [format "%u bytes in (%.1f/line), %u bytes out (%.1f/line), compressed to %.1f%%" $inbytes $inPerLine $outbytes $outPerLine $ratio]
+			close $compressedfp
+			close $expectedfp
+		} finally {
+			catch {close $compressedfp}
+			catch {close $expectedfp}
+		}
+	}
+
+}
+
+namespace delete ::fa_adept_codec::tests

@@ -16,6 +16,7 @@ install: pkgIndex.tcl
 	install ca/*.pem $(DESTDIR)$(LIB)/ca
 	c_rehash $(DESTDIR)$(LIB)/ca
 	$(MAKE) -C helpers install
+	$(MAKE) -C fa_adept_codec install
 
 clean:
 	$(MAKE) -C helpers clean

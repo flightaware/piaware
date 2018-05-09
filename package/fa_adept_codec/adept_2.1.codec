@@ -1,0 +1,58 @@
+# -*- tcl -*-
+
+package require fa_adept_schema
+
+::fa_adept_schema::define adept 2.1 {
+	meta_source_enum {U S A T}	;# (U)nchecked-modes, mode(S), (A)dsb, (T)isb
+
+	epoch					 clock -nometa
+	epoch					 sent_at -nometa
+	hexdigits 6				 hexid -nometa
+	hexdigits 6				 otherid -nometa
+	enum {
+		adsb_icao adsb_icao_nt adsr_icao tisb_icao
+		adsb_other adsr_other tisb_other tisb_trackfile
+	} addrtype -nometa
+	signed    1/0			 adsb_version -nometa
+	hexdigits 2				 category -nometa
+
+	unsigned  2/0			 nac_p
+	unsigned  2/0			 nac_v
+	unsigned  1/0			 sil
+	enum {
+		unknown perhour persample invalid
+	} sil_type
+	unsigned  1/0			 nic_baro
+
+	enum	  {? A+ G+}		 airGround
+	hexdigits 4				 squawk
+	identstring				 ident
+	signed	  6/0			 alt
+	position				 position
+	signed	  6/0			 alt_gnss
+	signed	  5/0			 vrate
+	signed	  5/0			 vrate_geom
+	unsigned  3/1			 speed
+	unsigned  3/0			 speed_ias
+	unsigned  3/0			 speed_tas
+	unsigned  1/3			 mach
+	unsigned  3/1			 track
+	signed	  2/2			 track_rate
+	signed	  2/1			 roll
+	unsigned  3/1			 heading_magnetic
+	unsigned  3/1			 heading_true
+	signed	  6/0			 nav_alt
+	unsigned  3/1			 nav_heading
+	flags {
+		autopilot vnav althold approach lnav tcas
+	} nav_modes
+	unsigned  4/1			 nav_qnh
+	enum {
+		none general lifeguard minfuel nordo unlawful downed reserved
+	} emergency
+
+	hexdigits 14			 datalink_caps -nometa
+	hexdigits 14			 es_op_status -nometa
+}
+
+package provide fa_adept_codecs 2.1
