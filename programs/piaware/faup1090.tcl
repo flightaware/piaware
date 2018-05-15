@@ -299,8 +299,15 @@ proc send_adsb_line {_row} {
 		set hexid $row(hexid)
 		if {[info exists ::mlatSawResult($hexid)]} {
 			if {($row(clock) - $::mlatSawResult($row(hexid))) < 45.0} {
-				# keep alt as it might be from Mode S
-				unset -nocomplain row(lat) row(lon) row(heading) row(speed)
+				foreach field {alt alt_gnss vrate vrate_geom position track speed} {
+					if {[info exists row($field)]} {
+						lassign $row($field) value age src
+						if {$src eq "A"} {
+							# This is suspect, claims to be ADS-B while we're doing mlat, clear it.
+							unset -nocomplain row($field)
+						}
+					}
+				}
 			}
 		}
 	}
