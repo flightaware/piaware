@@ -580,6 +580,12 @@ set caDir [file join [file dirname [info script]] "ca"]
 
 		if {[info exists row(clock)]} {
 			set ::myClockOffset [expr {$now - $row(clock)}]
+
+			# update the adept server with our new offset
+			set message(clock) $now
+			set message(offset) $::myClockOffset
+			set message(type) alive
+			send_array message
 		}
 	}
 
