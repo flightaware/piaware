@@ -31,18 +31,21 @@ proc write_status_file {} {
 	try {
 		set f [open $newfile "w"]
 		puts $f $contents
-		close $f
-		unset f
+		try {
+			close $f
+		} finally {
+			unset f
+		}
 
 		file rename -force -- $newfile $::params(statusfile)
 		unset newfile
 	} finally {
 		if {[info exists f]} {
-			close $f
+			catch {close $f}
 		}
 
 		if {[info exists newfile]} {
-			file delete -- $newfile
+			catch {file delete -- $newfile}
 		}
 	}
 }
