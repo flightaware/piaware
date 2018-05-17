@@ -389,6 +389,43 @@ namespace eval ::fa_sysinfo {
 
 		return $result
 	}
+
+	#
+	# ntp_status - extract the specified vars (or "stratum" and "offset" if
+	# none are specified) from from the local ntp via the "rv" ntpq command.
+	#
+	# returns a key-value list suitable for 'array set'
+	# returns an empty list on failure
+	#
+	proc ntp_status {args} {
+		if {[llength $args] == 0} {
+			set args {stratum offset}
+		}
+
+		set result [list]
+		set options "-c {timeout 100}"	 ;# milliseconds, actual is about 2x this
+		foreach item $args {
+			append options " -c {rv 0 $item}"  ;# read system (assocID 0) variable
+		}
+
+		set f [open "|ntpq $options" "r"]
+		try {
+			while {[gets $f line] >= 0} {
+				set sep [string first "=" $line]
+				if {$sep >= 0} {
+					set key [string trim [string range $line 0 $sep-1]]
+					set value [string trim [string range $line $sep+1 end]]
+					if {$key in $args} {
+						lappend result $key $value
+					}
+				}
+			}
+		} finally {
+			catch {close $f}
+		}
+
+		return $result
+	}
 }
 
 package provide fa_sysinfo 0.1

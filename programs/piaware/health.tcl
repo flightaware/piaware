@@ -29,6 +29,13 @@ proc construct_health_array {_row} {
 			set row(local_iface) $iface
 		}
 	}
+
+	catch {
+		set ntp [::fa_sysinfo::ntp_status stratum offset]
+		if {$ntp ne ""} {
+			set row(ntp_status) $ntp
+		}
+	}
 }
 
 #
