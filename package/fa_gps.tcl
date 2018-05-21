@@ -170,17 +170,21 @@ namespace eval ::fa_gps {
 							}
 
 							"2" {
-								debug "2D fix at $j_lat $j_lon"
-								set lat $j_lat
-								set lon $j_lon
-								set alt ""
+								if {[info exists j_lat] && [info exists j_lon]} {
+									debug "2D fix at $j_lat $j_lon"
+									set lat $j_lat
+									set lon $j_lon
+									set alt ""
+								}
 							}
 
 							"3" {
-								debug "3D fix at $j_lat $j_lon $j_alt"
-								set lat $j_lat
-								set lon $j_lon
-								set alt $j_alt
+								if {[info exists j_lat] && [info exists j_lon] && [info exists j_alt]} {
+									debug "3D fix at $j_lat $j_lon $j_alt"
+									set lat $j_lat
+									set lon $j_lon
+									set alt $j_alt
+								}
 							}
 
 							default {
