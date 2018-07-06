@@ -47,6 +47,12 @@ case "$action" in
                     components=piaware
                     ;;
 
+                raspbian:9)
+                    url=http://flightaware.com/adsb/piaware/files/packages
+                    suite=stretch
+                    components=piaware
+                    ;;
+
                 *)
                     echo "Automatic updates not available for OS $ID:$VERSION_ID ($PRETTY_NAME)" >&2
                     exit 1
