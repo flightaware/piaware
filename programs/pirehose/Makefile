@@ -14,3 +14,4 @@ install:
 	install -d $(DESTDIR)$(PREFIX)/bin $(DESTDIR)$(LIB)
 	install -m 0755 $(TCLLAUNCHER) $(DESTDIR)$(PREFIX)/bin/pirehose
 	install *.tcl $(DESTDIR)$(LIB)
+	install -m 0755 *.sh $(DESTDIR)$(LIB)

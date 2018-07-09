@@ -17,4 +17,5 @@ endif
 ifdef SYSTEMD
 	install -d $(DESTDIR)$(SYSTEMD)
 	install piaware.service $(DESTDIR)$(SYSTEMD)/piaware.service
+	install generate-pirehose-cert.service $(DESTDIR)$(SYSTEMD)/generate-pirehose-cert.service
 endif

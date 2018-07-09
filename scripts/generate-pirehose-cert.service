@@ -1,0 +1,18 @@
+# Generates a certificate for pirehose if missing
+# install in /etc/systemd/system
+
+[Unit]
+Description=Generate Pirehose certificate if missing
+Documentation=https://flightaware.com/adsb/piaware/
+Before=piaware.service
+ConditionPathExists=!/etc/piaware/pirehose.cert.pem
+ConditionPathExists=!/etc/piaware/pirehose.key.pem
+
+[Service]
+User=piaware
+ExecStart=/usr/lib/pirehose/generate-cert.sh
+Type=oneshot
+RemainAfterExit=yes
+
+[Install]
+WantedBy=piaware.service
