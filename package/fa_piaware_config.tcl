@@ -57,8 +57,9 @@ namespace eval ::fa_piaware_config {
 		}
 
 		if {$code ni $supportedCountryCodes} {
-			error "Invalid country code."
+			return 0
 		}
+
 		return 1
 	}
 
@@ -972,7 +973,7 @@ namespace eval ::fa_piaware_config {
 			"wireless-broadcast"
 			"wireless-gateway"
 			{"wireless-nameservers"  -default {8.8.8.8 8.8.4.4}}
-			{"wireless-country"      -type country -default "UdS"}
+			{"wireless-country"      -type country -default "US"}
 
 			{"allow-dhcp-duid"       -type boolean -default yes}
 
