@@ -3,7 +3,7 @@
 # for the various config sources that piaware and the
 # piaware sdcard image can use.
 #
-# Copyright (C) 2016-2017 FlightAware LLC, All Rights Reserved
+# Copyright (C) 2016-2018 FlightAware LLC, All Rights Reserved
 #
 #
 
@@ -935,6 +935,7 @@ namespace eval ::fa_piaware_config {
 			"wireless-broadcast"
 			"wireless-gateway"
 			{"wireless-nameservers"  -default {8.8.8.8 8.8.4.4}}
+			{"wireless-country"      -default "US"}
 
 			{"allow-dhcp-duid"       -type boolean -default yes}
 
