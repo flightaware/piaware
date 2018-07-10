@@ -9,7 +9,7 @@ ConditionPathExists=!/etc/piaware/pirehose.cert.pem
 ConditionPathExists=!/etc/piaware/pirehose.key.pem
 
 [Service]
-User=piaware
+User=root
 ExecStart=/usr/lib/pirehose/generate-cert.sh
 Type=oneshot
 RemainAfterExit=yes
