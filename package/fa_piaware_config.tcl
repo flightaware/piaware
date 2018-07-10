@@ -40,6 +40,28 @@ namespace eval ::fa_piaware_config {
 		return [regexp -nocase {^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$} $uuid]
 	}
 
+	proc valid_country_code {code} {
+
+		# Find better way to do this?
+		set supportedCountryCodes {
+			AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL
+			BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV
+			CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD
+			GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HT HU ID IE IL IM IN
+			IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR
+			LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX
+			MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS
+			PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST
+			SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ
+			VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW
+		}
+
+		if {$code ni $supportedCountryCodes} {
+			error "Invalid country code."
+		}
+		return 1
+	}
+
 	# check a value of the given type, return 1 if it looks OK
 	proc validate_typed_value {type value} {
 		switch $type {
@@ -67,6 +89,10 @@ namespace eval ::fa_piaware_config {
 				return [valid_uuid [string trim $value]]
 			}
 
+			"country" {
+				return [valid_country_code [string trim $value]]
+			}
+
 			default {
 				error "unrecognized type: $type"
 			}
@@ -90,6 +116,10 @@ namespace eval ::fa_piaware_config {
 
 			"mac" - "uuid" {
 				return [string tolower [string trim $value]]
+			}
+
+			"country" {
+				return [string toupper [string trim $value]]
 			}
 
 			default {
@@ -141,6 +171,13 @@ namespace eval ::fa_piaware_config {
 					error "bad UUID: $value"
 				}
 				return [string tolower [string trim $value]]
+			}
+
+			"country" {
+				if {![valid_country_code $value]} {
+					error "bad Country code: $value"
+				}
+				return [string toupper [string trim $value]]
 			}
 
 			default {
@@ -197,8 +234,8 @@ namespace eval ::fa_piaware_config {
 				error "wrong args: should be \"add_setting key ?-type type? ?-default value? ?-protect 0|1?\""
 			}
 
-			if {$typeName ni {boolean string integer double mac uuid}} {
-				error "wrong args: -type understands \"boolean\", \"string\", \"double\", \"integer\", \"mac\", \"uuid\""
+			if {$typeName ni {boolean string integer double mac uuid country}} {
+				error "wrong args: -type understands \"boolean\", \"string\", \"double\", \"integer\", \"mac\", \"uuid\", \"country\""
 			}
 
 			if {[info exists defaultValue]} {
@@ -935,7 +972,7 @@ namespace eval ::fa_piaware_config {
 			"wireless-broadcast"
 			"wireless-gateway"
 			{"wireless-nameservers"  -default {8.8.8.8 8.8.4.4}}
-			{"wireless-country"      -default "US"}
+			{"wireless-country"      -type country -default "UdS"}
 
 			{"allow-dhcp-duid"       -type boolean -default yes}
 
