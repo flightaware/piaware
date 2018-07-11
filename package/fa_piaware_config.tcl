@@ -53,7 +53,7 @@ namespace eval ::fa_piaware_config {
 			MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS
 			PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST
 			SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ
-			VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW
+			VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW 00
 		}
 
 		if {$code ni $supportedCountryCodes} {
@@ -91,7 +91,7 @@ namespace eval ::fa_piaware_config {
 			}
 
 			"country" {
-				return [valid_country_code [string trim $value]]
+				return [valid_country_code [string toupper [string trim $value]]]
 			}
 
 			default {
@@ -973,7 +973,7 @@ namespace eval ::fa_piaware_config {
 			"wireless-broadcast"
 			"wireless-gateway"
 			{"wireless-nameservers"  -default {8.8.8.8 8.8.4.4}}
-			{"wireless-country"      -type country -default "US"}
+			{"wireless-country"      -type country -default "00"}
 
 			{"allow-dhcp-duid"       -type boolean -default yes}
 
