@@ -1,5 +1,11 @@
 #!/bin/sh
 
+if [ `piaware-config -show enable-firehose` != "yes" ]
+then
+    # not enabled, no need for the cert
+    exit 0
+fi
+
 if [ ! -e /etc/piaware/pirehose.cert.pem ] && [ ! -e /etc/piaware/pirehose.key.pem ]
 then
     echo "Generating pirehose self-signed certificate.." >&2
