@@ -396,7 +396,7 @@ proc update_location {lat lon} {
 
 	if {$::receiverLat ne "" && $::receiverLon ne ""} {
 		if {abs($::receiverLat - $lat) < 0.1 && abs($::receiverLon - $lon) < 0.1} {
-			# Didn't change enough to care about saving location/restarting
+			# Didn't change enough to care about restarting
 			return
 		}
 	}
