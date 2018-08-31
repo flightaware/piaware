@@ -381,11 +381,9 @@ proc traffic_report {} {
 # when adept tells us the receiver location,
 # record it and maybe restart dump1090 / faup1090
 proc update_location {lat lon} {
-	if {$::receiverLat ne "" && $::receiverLon ne ""} {
-		if {abs($::receiverLat - $lat) < 0.1 && abs($::receiverLon - $lon) < 0.1} {
-			# Didn't change enough to care about saving location/restarting
-			return
-		}
+	if {$lat eq $::receiverLat && $lon eq $::receiverLon} {
+		# unchanged
+		return
 	}
 
 	# nb: we always save the new location, but the globals
@@ -396,6 +394,12 @@ proc update_location {lat lon} {
 
 	set saved [save_location_info $lat $lon]
 
+	if {$::receiverLat ne "" && $::receiverLon ne ""} {
+		if {abs($::receiverLat - $lat) < 0.1 && abs($::receiverLon - $lon) < 0.1} {
+			# Didn't change enough to care about saving location/restarting
+			return
+		}
+	}
 
 	# changed nontrivially; restart faup1090 to use the new values
 	set ::receiverLat $lat
