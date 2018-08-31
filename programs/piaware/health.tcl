@@ -117,6 +117,18 @@ proc location_data_changed {} {
 
 	# record the location and maybe restart faup1090 with the new value
 	lassign $newloc lat lon alt altref
+
+	# if we recieve new location from gpsd, only update location if moved a signifcant amount to avoid writing everytime location has changed due to gps jitter
+	if {$src eq "gpsd"} {
+		set last [adept last_reported_location]
+		if {$last ne ""} {
+			lassign $last lastLat lastLon lastAlt lastAltref
+			if {abs($lat - $lastLat) < 0.0001 && abs($lon - $lastLon) < 0.0001} {
+				return
+			}
+		}
+	}
+
 	update_location $lat $lon
 
 	# tell adept about the new location
