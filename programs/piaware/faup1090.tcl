@@ -386,28 +386,27 @@ proc update_location {lat lon} {
 		return
 	}
 
-	# nb: we always save the new location, but the globals
-	# reflect what dump1090 was last started with and
-	# are only updated if we decide to restart dump1090.
-	# This handles the case where the location walks in
-	# small steps.
-
-	set saved [save_location_info $lat $lon]
+	# only update the on-disk location & restart things
+	# if the location moves by more than about 250m since
+	# the last time we updated
 
 	if {$::receiverLat ne "" && $::receiverLon ne ""} {
-		if {abs($::receiverLat - $lat) < 0.1 && abs($::receiverLon - $lon) < 0.1} {
+		# approx distances in km along lat/lon axes, don't bother with the full GC distance
+		set dLat [expr {111 * ($::receiverLat - $lat)}]
+		set dLon [expr {111 * ($::receiverLon - $lon) * cos($lat * 3.1415927 / 180.0)}]
+		if {abs($dLat) < 0.250 && abs($dLon) < 0.250} {
 			# Didn't change enough to care about restarting
 			return
 		}
 	}
 
-	# changed nontrivially; restart faup1090 to use the new values
+	# changed nontrivially; restart dump1090 / faup1090 to use the new values
 	set ::receiverLat $lat
 	set ::receiverLon $lon
 
 	# speculatively restart dump1090 even if we are not using it as a receiver;
 	# it may be used for display.
-	if {$saved} {
+	if {[save_location_info $lat $lon]} {
 		logger "Receiver location changed, restarting dump1090"
 		::fa_services::attempt_service_restart dump1090 restart
 	}
