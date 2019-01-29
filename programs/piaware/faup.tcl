@@ -43,17 +43,17 @@ package require Itcl 3.4
 	}
 
 	destructor {
-		disconnect
+		faup_disconnect
 	}
 
 	#
 	# Connect to faup program and configure channel
 	#
-        method connect {} {
+        method faup_connect {} {
 		unset -nocomplain adsbPortConnectTimer
 
 		# just in case..
-		disconnect
+		faup_disconnect
 
 		set lastConnectAttemptClock [clock seconds]
 
@@ -67,13 +67,13 @@ package require Itcl 3.4
 
 		if {[catch {::fa_sudo::popen_as -noroot -stdout faupStdout -stderr faupStderr {*}$args} result] == 1} {
 			logger "got '$result' starting $this, will try again in 5 minutes"
-			#schedule_adsb_connect_attempt 300
+			schedule_adsb_connect_attempt 300
 			return
 		}
 
 		if {$result == 0} {
 			logger "could not start $this: sudo refused to start the command, will try again in 5 minutes"
-			#schedule_adsb_connect_attempt 300
+			schedule_adsb_connect_attempt 300
 			return
 		}
 
@@ -95,7 +95,7 @@ package require Itcl 3.4
 	#
 	# clean up faup pipe, don't schedule a reconnect
 	#
-	method disconnect {} {
+	method faup_disconnect {} {
 		if {![info exists faupPipe]} {
                         # nothing to do.
                         return
@@ -120,22 +120,62 @@ package require Itcl 3.4
 	}
 
 	#
+	#
+	#
+	method faup_restart {{delay 30}} {
+		faup_disconnect
+
+		if {$delay eq "now" || [clock seconds] - $lastConnectAttemptClock > $delay} {
+			logger "reconnecting to $adsbDataProgram"
+			schedule_adsb_connect_attempt 1
+			return
+		}
+
+		logger "will reconnect to $::adsbDataProgram in $delay seconds"
+		schedule_adsb_connect_attempt $delay
+	}
+
+        #
+        # schedule_adsb_connect_attempt - schedule an attempt to connect
+        #  to the ADS-B port canceling the prior one if one was already scheduled
+        #
+        # support "idle" as an argument to do "after idle" else a number of seconds
+        #
+        method schedule_adsb_connect_attempt {inSeconds} {
+                if {[info exists adsbPortConnectTimer]} {
+                        after cancel $adsbPortConnectTimer
+                        #logger "canceled prior adsb port connect attempt timer $::adsbPortConnectTimer"
+                }
+
+                if {$inSeconds == "idle"} {
+                        set ms "idle"
+                        set explain "when idle"
+                } elseif {[string is integer -strict $inSeconds]} {
+                        set ms [expr {$inSeconds * 1000}]
+                        set explain "in $inSeconds seconds"
+                } else {
+                        error "argument must be an integer or 'idle'"
+                }
+
+                set adsbPortConnectTimer [after $ms [list $this faup_connect]]
+                #logger "scheduled FA-style ADS-B port connect attempt $explain as timer ID $::adsbPortConnectTimer"
+        }
+
+	#
 	# filevent callback routine when data available on socket
 	#
 	method data_available {} {
 		# if eof, cleanly close the faup socket and reconnect...
 		if {[eof $faupPipe]} {
 			logger "lost connection to $adsbDataProgram via $this"
-			# todo: implement restart_faup1090
-			disconnect
+			faup_restart
 			return
 		}
 
 		# try to read, if that fails, disconnect and reconnect...
 		if {[catch {set size [gets $faupPipe line]} catchResult] == 1} {
 			logger "got '$catchResult' reading from $this"
-			#todo: implement restart_faup1090
-			disconnect
+			faup_restart
 			return
 		}
 
