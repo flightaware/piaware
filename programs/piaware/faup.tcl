@@ -19,17 +19,19 @@ package require Itcl 3.4
 	public variable faupProgramPath
 
 	# total message from faup program
-	private variable nfaupMessagesReceived
+	private variable nfaupMessagesReceived 0
 	# number of message from faup program since we last logged about is
-	private variable nfaupMessagesThisPeriod
+	private variable nfaupMessagesThisPeriod 0
 	# total messages sent to adept
-	private variable nMessagesSent
+	private variable nMessagesSent 0
 	# last time we considered (re)starting faup program
-	private variable lastConnectAttemptClock
+	private variable lastConnectAttemptClock 0
 	# time of the last message from faup program
-	private variable lastFaupMessageClock
+	private variable lastFaupMessageClock [clock seconds]
 	# time we were last connected to data port
-	private variable lastAdsbConnectedClock
+	private variable lastAdsbConnectedClock [clock seconds]
+	# timer for traffic report
+	private variable faupMessagesPeriodStartClock
 	# last banner tsv_version we saw - REVISIT!
 	#private variable tsvVersion ""
 	# timer to start faup program connection
@@ -144,7 +146,7 @@ package require Itcl 3.4
         method schedule_adsb_connect_attempt {inSeconds} {
                 if {[info exists adsbPortConnectTimer]} {
                         after cancel $adsbPortConnectTimer
-                        #logger "canceled prior adsb port connect attempt timer $::adsbPortConnectTimer"
+                        #logger "canceled prior adsb port connect attempt timer $adsbPortConnectTimer"
                 }
 
                 if {$inSeconds == "idle"} {
@@ -158,7 +160,7 @@ package require Itcl 3.4
                 }
 
                 set adsbPortConnectTimer [after $ms [list $this faup_connect]]
-                #logger "scheduled FA-style ADS-B port connect attempt $explain as timer ID $::adsbPortConnectTimer"
+                #logger "scheduled FA-style ADS-B port connect attempt $explain as timer ID $adsbPortConnectTimer"
         }
 
 	#
@@ -192,8 +194,55 @@ package require Itcl 3.4
 		}
 
 		# TODO : PROCESS 1090 VS 978 MESSAGE APPROPRIATELY AND SEND TO ADEPT/PIREHOSE
-		puts $line
+		#puts $line
 
 		set lastFaupMessageClock [clock seconds]
 	}
+
+	#
+	# check_adsb_traffic - see if ADS-B messages are being received.
+	# restart stuff as necessary
+	#
+	method check_traffic {} {
+		set secondsSinceLastMessage [expr {[clock seconds] - $lastFaupMessageClock}]
+
+		if {[info exists faupPipe]} {
+			# faup1090 is running, check we are hearing some messages
+			if {$secondsSinceLastMessage >= $::noMessageActionIntervalSeconds} {
+				# force a restart
+				logger "no new messages received in $secondsSinceLastMessage seconds, it might just be that there haven't been any aircraft nearby but I'm going to try to restart everything, just in case..."
+				faup_disconnect
+				if {$adsbDataService ne ""} {
+					::fa_services::attempt_service_restart $adsbDataService restart
+				}
+				schedule_adsb_connect_attempt 10
+			}
+		} else {
+			if {![info exists adsbPortConnectTimer]} {
+				# faup1090 not running and no timer set! Bad doggie.
+				logger "$this not running, but no restart timer set! Fixing it.."
+				schedule_adsb_connect_attempt 5
+			}
+		}
+
+	}
+
+	#
+	# traffic_report - log a traffic report of messages received from the adsb
+	#   program and messages sent to FlightAware
+	#
+	method traffic_report {} {
+		set periodString ""
+		if {[info exists faupMessagesPeriodStartClock]} {
+			logger "faupMessagesPeriodStartClock: $faupMessagesPeriodStartClock"
+			set minutesThisPeriod [expr {round(([clock seconds] - $faupMessagesPeriodStartClock) / 60.0)}]
+			set periodString " ($nfaupMessagesThisPeriod in last ${minutesThisPeriod}m)"
+		}
+		set faupMessagesPeriodStartClock [clock seconds]
+		set nfaupMessagesThisPeriod 0
+
+		logger "$nfaupMessagesReceived msgs recv'd from $adsbDataProgram$periodString; $nMessagesSent msgs sent to FlightAware"
+
+	}
+
 }
