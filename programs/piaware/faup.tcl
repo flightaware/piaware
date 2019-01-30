@@ -220,8 +220,25 @@ package require Itcl 3.4
 			log_locally "piaware received a message from $adsbDataProgram!"
 		}
 
-		# TODO : PROCESS 1090 VS 978 MESSAGE APPROPRIATELY AND SEND TO ADEPT/PIREHOSE
-		#puts $line
+		array set row [split $line "\t"]
+		if {[info exists row(type)] && $row(type) eq "location_update"} {
+			# we handle this directly
+			handle_location_update "receiver" $row(lat) $row(lon) $row(alt) $row(altref)
+			return
+		}
+
+		# remember tsv_version when seen
+		if {[info exists row(tsv_version)]} {
+			set ::tsvVersion $row(tsv_version)
+		}
+
+		#puts "faup1090 data: $line"
+
+		# if logged into flightaware adept, send the data
+		send_if_logged_in row
+
+		# also forward to pirehose, if running
+		#forward_to_pirehose $line
 
 		set lastFaupMessageClock [clock seconds]
 	}
@@ -261,7 +278,6 @@ package require Itcl 3.4
 	method traffic_report {} {
 		set periodString ""
 		if {[info exists faupMessagesPeriodStartClock]} {
-			logger "faupMessagesPeriodStartClock: $faupMessagesPeriodStartClock"
 			set minutesThisPeriod [expr {round(([clock seconds] - $faupMessagesPeriodStartClock) / 60.0)}]
 			set periodString " ($nfaupMessagesThisPeriod in last ${minutesThisPeriod}m)"
 		}
@@ -305,4 +321,52 @@ package require Itcl 3.4
 
 		return $prog
 	}
+
+	#
+	# send_if_logged_in - send an adept message but only if logged in
+	#
+	method send_if_logged_in {_row} {
+		upvar $_row row
+
+		if {![adept is_logged_in]} {
+			return
+		}
+
+		if {[catch {send_adsb_line row} catchResult] == 1} {
+			log_locally "error uploading ADS-B message: $catchResult"
+		}
+	}
+
+	#
+	# send_adsb_line - send an ADS-B message to the adept server
+	#
+	method send_adsb_line {_row} {
+		upvar $_row row
+
+		# extra filtering to avoid looping mlat results back
+		if {[info exists row(hexid)]} {
+			set hexid $row(hexid)
+			if {[info exists ::mlatSawResult($hexid)]} {
+				if {($row(clock) - $::mlatSawResult($row(hexid))) < 45.0} {
+					foreach field {alt alt_gnss vrate vrate_geom position track speed} {
+						if {[info exists row($field)]} {
+							lassign $row($field) value age src
+							if {$src eq "A"} {
+								# This is suspect, claims to be ADS-B while we're doing mlat, clear it.
+								unset -nocomplain row($field)
+							}
+						}
+					}
+				}
+			}
+		}
+
+		adept send_array row
+
+		incr nMessagesSent
+		if {$nMessagesSent == 7} {
+			log_locally "piaware has successfully sent several msgs to FlightAware!"
+		}
+	}
+
 }
