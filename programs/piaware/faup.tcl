@@ -6,7 +6,6 @@ package require Itcl 3.4
 # Class that handles connection between faup programs and adept
 #
 ::itcl::class FaupConnection {
-	# faup program this connection is receving data from (faup1090, faup978, etc.)
 	public variable receiverType
 	public variable receiverHost
 	public variable receiverPort
@@ -58,6 +57,34 @@ package require Itcl 3.4
 		faup_disconnect
 
 		set lastConnectAttemptClock [clock seconds]
+
+		if {[is_local_receiver]} {
+			inspect_sockets_with_netstat
+
+			if {$::netstatus_reliable && ![is_adsb_program_running]} {
+				# still no listener, consider restarting
+				set secondsSinceListenerSeen [expr {[clock seconds] - $lastAdsbConnectedClock}]
+				if {$secondsSinceListenerSeen >= $::adsbNoProducerStartDelaySeconds && $adsbDataService ne ""} {
+					logger "no ADS-B data program seen listening on port $adsbLocalPort for $secondsSinceListenerSeen seconds, trying to start it..."
+					::fa_services::attempt_service_restart $adsbDataService start
+					# pretend we saw it to reduce restarts if it's failing
+					set lastAdsbConnectedClock [clock seconds]
+					schedule_adsb_connect_attempt 10
+				} else {
+					logger "no ADS-B data program seen listening on port $adsbLocalPort for $secondsSinceListenerSeen seconds, next check in 60s"
+					schedule_adsb_connect_attempt 60
+				}
+
+				return
+			}
+
+			set prog [adsb_local_program_name]
+			if {$prog ne ""} {
+				set adsbDataProgram $prog
+			}
+			set lastAdsbConnectedClock [clock seconds]
+			logger "ADS-B data program '$adsbDataProgram' is listening on port $adsbLocalPort, so far so good"
+		}
 
 		set args $faupProgramPath
 		lappend args "--net-bo-ipaddr" $receiverHost "--net-bo-port" $receiverPort "--stdout"
@@ -133,7 +160,7 @@ package require Itcl 3.4
 			return
 		}
 
-		logger "will reconnect to $::adsbDataProgram in $delay seconds"
+		logger "will reconnect to $adsbDataProgram in $delay seconds"
 		schedule_adsb_connect_attempt $delay
 	}
 
@@ -207,7 +234,7 @@ package require Itcl 3.4
 		set secondsSinceLastMessage [expr {[clock seconds] - $lastFaupMessageClock}]
 
 		if {[info exists faupPipe]} {
-			# faup1090 is running, check we are hearing some messages
+			# faup program is running, check we are hearing some messages
 			if {$secondsSinceLastMessage >= $::noMessageActionIntervalSeconds} {
 				# force a restart
 				logger "no new messages received in $secondsSinceLastMessage seconds, it might just be that there haven't been any aircraft nearby but I'm going to try to restart everything, just in case..."
@@ -219,7 +246,7 @@ package require Itcl 3.4
 			}
 		} else {
 			if {![info exists adsbPortConnectTimer]} {
-				# faup1090 not running and no timer set! Bad doggie.
+				# faup program not running and no timer set! Bad doggie.
 				logger "$this not running, but no restart timer set! Fixing it.."
 				schedule_adsb_connect_attempt 5
 			}
@@ -245,4 +272,37 @@ package require Itcl 3.4
 
 	}
 
+	method is_local_receiver {} {
+		return [expr {$adsbLocalPort ne 0}]
+	}
+
+	#
+	# is_adsb_program_running - return 1 if the adsb program
+	# is running, else 0
+	#
+	method is_adsb_program_running {} {
+		if {![is_local_receiver]} {
+			# not local, assume yes
+			return 1
+		}
+
+		return [info exists ::netstatus($adsbLocalPort)]
+	}
+
+	method adsb_local_program_name {} {
+		if {![is_local_receiver]} {
+			return ""
+		}
+
+		if {![info exists ::netstatus($adsbLocalPort)]} {
+			return ""
+		}
+
+		lassign $::netstatus($adsbLocalPort) prog pid
+		if {$prog eq "unknown"} {
+			return ""
+		}
+
+		return $prog
+	}
 }
