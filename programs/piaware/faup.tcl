@@ -31,8 +31,8 @@ package require Itcl 3.4
 	private variable lastAdsbConnectedClock [clock seconds]
 	# timer for traffic report
 	private variable faupMessagesPeriodStartClock
-	# last banner tsv_version we saw - REVISIT!
-	#private variable tsvVersion ""
+	# last banner tsv_version we saw
+	private variable tsvVersion ""
 	# timer to start faup program connection
 	private variable adsbPortConnectTimer
 
@@ -58,10 +58,10 @@ package require Itcl 3.4
 
 		set lastConnectAttemptClock [clock seconds]
 
-		if {[is_local_receiver]} {
+		if {[is_local_receiver $adsbLocalPort]} {
 			inspect_sockets_with_netstat
 
-			if {$::netstatus_reliable && ![is_adsb_program_running]} {
+			if {$::netstatus_reliable && ![is_adsb_program_running $adsbLocalPort]} {
 				# still no listener, consider restarting
 				set secondsSinceListenerSeen [expr {[clock seconds] - $lastAdsbConnectedClock}]
 				if {$secondsSinceListenerSeen >= $::adsbNoProducerStartDelaySeconds && $adsbDataService ne ""} {
@@ -78,7 +78,7 @@ package require Itcl 3.4
 				return
 			}
 
-			set prog [adsb_local_program_name]
+			set prog [adsb_local_program_name $adsbLocalPort]
 			if {$prog ne ""} {
 				set adsbDataProgram $prog
 			}
@@ -149,7 +149,7 @@ package require Itcl 3.4
 	}
 
 	#
-	#
+	# restart faup connection at scheduled time
 	#
 	method faup_restart {{delay 30}} {
 		faup_disconnect
@@ -229,16 +229,16 @@ package require Itcl 3.4
 
 		# remember tsv_version when seen
 		if {[info exists row(tsv_version)]} {
-			set ::tsvVersion $row(tsv_version)
+			set tsvVersion $row(tsv_version)
 		}
 
-		#puts "faup1090 data: $line"
+		#puts "faup data: $line"
 
 		# if logged into flightaware adept, send the data
 		send_if_logged_in row
 
 		# also forward to pirehose, if running
-		#forward_to_pirehose $line
+		forward_to_pirehose $line
 
 		set lastFaupMessageClock [clock seconds]
 	}
@@ -288,40 +288,6 @@ package require Itcl 3.4
 
 	}
 
-	method is_local_receiver {} {
-		return [expr {$adsbLocalPort ne 0}]
-	}
-
-	#
-	# is_adsb_program_running - return 1 if the adsb program
-	# is running, else 0
-	#
-	method is_adsb_program_running {} {
-		if {![is_local_receiver]} {
-			# not local, assume yes
-			return 1
-		}
-
-		return [info exists ::netstatus($adsbLocalPort)]
-	}
-
-	method adsb_local_program_name {} {
-		if {![is_local_receiver]} {
-			return ""
-		}
-
-		if {![info exists ::netstatus($adsbLocalPort)]} {
-			return ""
-		}
-
-		lassign $::netstatus($adsbLocalPort) prog pid
-		if {$prog eq "unknown"} {
-			return ""
-		}
-
-		return $prog
-	}
-
 	#
 	# send_if_logged_in - send an adept message but only if logged in
 	#
@@ -369,4 +335,103 @@ package require Itcl 3.4
 		}
 	}
 
+	# when adept tells us the receiver location,
+	# record it and maybe restart adsb data service program and faup program
+	method update_location {lat lon} {
+		if {$lat eq $receiverLat && $lon eq $receiverLon} {
+			# unchanged
+			return
+		}
+
+		# only update the on-disk location & restart things
+		# if the location moves by more than about 250m since
+		# the last time we updated
+
+		if {$receiverLat ne "" && $receiverLon ne ""} {
+			# approx distances in km along lat/lon axes, don't bother with the full GC distance
+			set dLat [expr {111 * ($receiverLat - $lat)}]
+			set dLon [expr {111 * ($receiverLon - $lon) * cos($lat * 3.1415927 / 180.0)}]
+			if {abs($dLat) < 0.250 && abs($dLon) < 0.250} {
+				# Didn't change enough to care about restarting
+				return
+			}
+		}
+
+		# changed nontrivially; restart adsbDataServiceProgram and faup program to use the new values
+		set receiverLat $lat
+		set receiverLon $lon
+
+		# speculatively restart adsbDataService program even if we are not using it as a receiver;
+		# it may be used for display.
+		if {[save_location_info $lat $lon]} {
+			logger "Receiver location changed, restarting $adsbDataService"
+			::fa_services::attempt_service_restart $adsbDataService restart
+		}
+
+		if {[info exists faupPipe]} {
+			logger "Receiver location changed, restarting faup program"
+			faup_restart 5
+		}
+	}
+
+	#
+	# return 1 if connected to receiver, otherwise 0
+	#
+	method is_connected {} {
+		return [info exists faupPid]
+	}
+
+	#
+	# return time of last message received from faup
+	#
+	method last_message_received_time {} {
+		return $lastFaupMessageClock
+	}
+
+	#
+	# get current tsv_version
+	#
+	method get_tsv_version {} {
+		return $tsvVersion
+	}
+}
+
+
+#
+# Returns whether given port number is local receiver
+#
+proc is_local_receiver {adsbLocalPort} {
+	return [expr {$adsbLocalPort ne 0}]
+}
+
+#
+# Return 1 if the adsb program is running on specified port, else 0
+#
+proc is_adsb_program_running {adsbLocalPort} {
+	if {![is_local_receiver $adsbLocalPort]} {
+		# not local, assume yes
+		return 1
+	}
+
+	return [info exists ::netstatus($adsbLocalPort)]
+}
+
+#
+# Return adsb program name running on specified port
+#
+proc adsb_local_program_name {adsbLocalPort} {
+	if {![is_local_receiver $adsbLocalPort]} {
+		return ""
+	}
+
+	if {![info exists ::netstatus($adsbLocalPort)]} {
+		return ""
+	}
+
+	lassign $::netstatus($adsbLocalPort) prog pid
+	if {$prog eq "unknown"} {
+		return ""
+	}
+
+	return $prog
 }
