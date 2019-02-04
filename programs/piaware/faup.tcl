@@ -58,32 +58,9 @@ package require Itcl 3.4
 
 		set lastConnectAttemptClock [clock seconds]
 
-		if {[is_local_receiver $adsbLocalPort]} {
-			inspect_sockets_with_netstat
-
-			if {$::netstatus_reliable && ![is_adsb_program_running $adsbLocalPort]} {
-				# still no listener, consider restarting
-				set secondsSinceListenerSeen [expr {[clock seconds] - $lastAdsbConnectedClock}]
-				if {$secondsSinceListenerSeen >= $::adsbNoProducerStartDelaySeconds && $adsbDataService ne ""} {
-					logger "no ADS-B data program seen listening on port $adsbLocalPort for $secondsSinceListenerSeen seconds, trying to start it..."
-					::fa_services::attempt_service_restart $adsbDataService start
-					# pretend we saw it to reduce restarts if it's failing
-					set lastAdsbConnectedClock [clock seconds]
-					schedule_adsb_connect_attempt 10
-				} else {
-					logger "no ADS-B data program seen listening on port $adsbLocalPort for $secondsSinceListenerSeen seconds, next check in 60s"
-					schedule_adsb_connect_attempt 60
-				}
-
-				return
-			}
-
-			set prog [adsb_local_program_name $adsbLocalPort]
-			if {$prog ne ""} {
-				set adsbDataProgram $prog
-			}
-			set lastAdsbConnectedClock [clock seconds]
-			logger "ADS-B data program '$adsbDataProgram' is listening on port $adsbLocalPort, so far so good"
+		# Make sure ads-b program (i.e. dump1090, dump978, etc.) is alive and listening. Will attempt a restart if seen dead for a while
+		if {[is_local_receiver $adsbLocalPort] && ![adsb_program_alive]} {
+			return
 		}
 
 		set args $faupProgramPath
@@ -375,6 +352,39 @@ package require Itcl 3.4
 	}
 
 	#
+	# Check whether adsb data program is alive and listening. Attempt to restart if seen dead for a while
+	#
+	method adsb_program_alive {} {
+	       inspect_sockets_with_netstat
+
+               if {$::netstatus_reliable && ![is_adsb_program_running $adsbLocalPort]} {
+                        # still no listener, consider restarting
+			set secondsSinceListenerSeen [expr {[clock seconds] - $lastAdsbConnectedClock}]
+			if {$secondsSinceListenerSeen >= $::adsbNoProducerStartDelaySeconds && $adsbDataService ne ""} {
+			logger "no ADS-B data program seen listening on port $adsbLocalPort for $secondsSinceListenerSeen seconds, trying to start it..."
+                                ::fa_services::attempt_service_restart $adsbDataService start
+                                # pretend we saw it to reduce restarts if it's failing
+                                set lastAdsbConnectedClock [clock seconds]
+				schedule_adsb_connect_attempt 10
+                        } else {
+                                logger "no ADS-B data program seen listening on port $adsbLocalPort for $secondsSinceListenerSeen seconds, next check in 60s"
+				schedule_adsb_connect_attempt 60
+			}
+
+			return 0
+                }
+
+		set prog [adsb_local_program_name $adsbLocalPort]
+		if {$prog ne ""} {
+			set adsbDataProgram $prog
+		}
+		set lastAdsbConnectedClock [clock seconds]
+		logger "ADS-B data program '$adsbDataProgram' is listening on port $adsbLocalPort, so far so good"
+
+		return 1
+	}
+
+	#
 	# return 1 if connected to receiver, otherwise 0
 	#
 	method is_connected {} {
@@ -384,7 +394,7 @@ package require Itcl 3.4
 	#
 	# return time of last message received from faup
 	#
-	method last_message_received_time {} {
+	method last_message_received {} {
 		return $lastFaupMessageClock
 	}
 
