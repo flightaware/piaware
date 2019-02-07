@@ -12,13 +12,14 @@ package require fa_services
 # setup_faup1090_vars - setup vars but don't start faup1090
 #
 proc setup_faup1090_vars {} {
-	# receiver config
+	# receiver config (for 1090ES)
+	set message_type ES
 	set ::receiverType [piawareConfig get receiver-type]
-	lassign [receiver_host_and_port piawareConfig] ::receiverHost ::receiverPort
-	set ::receiverDataFormat [receiver_data_format piawareConfig]
-	set ::adsbLocalPort [receiver_local_port piawareConfig]
-	set ::adsbDataService [receiver_local_service piawareConfig]
-	set ::adsbDataProgram [receiver_description piawareConfig]
+	lassign [receiver_host_and_port piawareConfig $message_type] ::receiverHost ::receiverPort
+	set ::receiverDataFormat [receiver_data_format piawareConfig $message_type]
+	set ::adsbLocalPort [receiver_local_port piawareConfig $message_type]
+	set ::adsbDataService [receiver_local_service piawareConfig $message_type]
+	set ::adsbDataProgram [receiver_description piawareConfig $message_type]
 
 	# path to faup1090
 	set path "/usr/lib/piaware/helpers/faup1090"
