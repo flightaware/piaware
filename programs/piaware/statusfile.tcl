@@ -84,8 +84,8 @@ proc build_status {} {
 	}
 
 	# radio: status of the connection to the receiver process
-	if {[info exists ::faupPid]} {
-		if {([clock seconds] - $::lastFaupMessageClock) < 60} {
+	if {[info exists ::faup1090] && [$::faup1090 is_connected]} {
+		if {([clock seconds] - [$::faup1090 last_message_received]) < 60} {
 			set data(radio) [status_entry "green" "Received Mode S data recently"]
 		} else {
 			set data(radio) [status_entry "amber" "Connected to receiver, but no recent data seen"]

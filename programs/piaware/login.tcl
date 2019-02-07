@@ -122,9 +122,9 @@ proc handle_login_result {data} {
 		# (we do this here, not in the login message, to avoid a race
 		# between faup1090 producing tsv_version for the first time
 		# and the login response arriving)
-		if {$::tsvVersion ne ""} {
+		if {[info exists ::faup1090] && [set tsvVersion [$::faup1090 get_tsv_version]] ne ""} {
 			set header(clock) [clock seconds]
-			set header(tsv_version) $::tsvVersion
+			set header(tsv_version) $tsvVersion
 			adept send_array header
 		}
 	} else {

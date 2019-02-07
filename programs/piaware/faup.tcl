@@ -45,6 +45,7 @@ package require Itcl 3.4
 
 	destructor {
 		faup_disconnect
+		::itcl::delete object $this
 	}
 
 	#

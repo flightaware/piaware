@@ -28,6 +28,7 @@ source $::launchdir/pirehose.tcl
 source $::launchdir/update.tcl
 source $::launchdir/login.tcl
 source $::launchdir/statusfile.tcl
+source $::launchdir/faup.tcl
 
 #
 # main - the main program
