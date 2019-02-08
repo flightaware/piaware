@@ -46,7 +46,7 @@ proc subst_is_or_is_not {string value} {
 proc netstat_report {} {
     inspect_sockets_with_netstat
 
-	set localPort [receiver_local_port $::config ES]
+	set localPort [receiver_local_port $::config $::message_type_ES]
 	if {$localPort eq 0} {
 		puts "the ADS-B listener is on another host, I can't check on its status."
 	} else {
@@ -106,7 +106,7 @@ proc report_on_whats_running {} {
 	process_running_report "PiAware ADS-B client" faup1090 {^faup1090$}
 	process_running_report "PiAware mlat client" fa-mlat-client {^fa-mlat-client$}
 
-	set service [receiver_local_service $::config ES]
+	set service [receiver_local_service $::config $::message_type_ES]
 	if {$service ne ""} {
 		process_running_report "Local ADS-B receiver" $service "^$service"
 	}
@@ -118,13 +118,13 @@ proc report_on_whats_running {} {
 proc check_ports_for_data {} {
 	set ::nRunning 0
 
-	lassign [receiver_underlying_host_and_port $::config ES] rhost rport
+	lassign [receiver_underlying_host_and_port $::config $::message_type_ES] rhost rport
 	if {$rhost ne ""} {
 		incr ::nRunning
-		test_port_for_traffic $rhost $rport [list adsb_data_callback [receiver_description $::config ES] $rhost $rport]
+		test_port_for_traffic $rhost $rport [list adsb_data_callback [receiver_description $::config $::message_type_ES] $rhost $rport]
 	}
 
-	lassign [receiver_host_and_port $::config ES] lhost lport
+	lassign [receiver_host_and_port $::config $::message_type_ES] lhost lport
 	if {$lhost ne "" && ($rhost ne $lhost || $rport ne $lport)} {
 		incr ::nRunning
 		test_port_for_traffic $lhost $lport [list adsb_data_callback "Local ADS-B relay" $lhost $lport]

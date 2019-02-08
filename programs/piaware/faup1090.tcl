@@ -1,4 +1,4 @@
-# -*- mode: tcl; tab-width: 4; indent-tabs-mode: t -*-
+## -*- mode: tcl; tab-width: 4; indent-tabs-mode: t -*-
 #
 # piaware - aviation data exchange protocol ADS-B client
 #
@@ -13,13 +13,13 @@ package require fa_services
 #
 proc setup_faup1090_vars {} {
 	# receiver config (for 1090ES)
-	set message_type ES
+	set ::message_type_ES ES
 	set ::receiverType [piawareConfig get receiver-type]
-	lassign [receiver_host_and_port piawareConfig $message_type] ::receiverHost ::receiverPort
-	set ::receiverDataFormat [receiver_data_format piawareConfig $message_type]
-	set ::adsbLocalPort [receiver_local_port piawareConfig $message_type]
-	set ::adsbDataService [receiver_local_service piawareConfig $message_type]
-	set ::adsbDataProgram [receiver_description piawareConfig $message_type]
+	lassign [receiver_host_and_port piawareConfig $::message_type_ES] ::receiverHost ::receiverPort
+	set ::receiverDataFormat [receiver_data_format piawareConfig $::message_type_ES]
+	set ::adsbLocalPort [receiver_local_port piawareConfig $::message_type_ES]
+	set ::adsbDataService [receiver_local_service piawareConfig $::message_type_ES]
+	set ::adsbDataProgram [receiver_description piawareConfig $::message_type_ES]
 
 	# path to faup1090
 	set path "/usr/lib/piaware/helpers/faup1090"
