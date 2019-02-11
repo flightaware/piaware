@@ -1006,7 +1006,7 @@ namespace eval ::fa_piaware_config {
 			{"enable-uat"		 -type boolean -default no}
 			{"uat-receiver-type"	 -default rtlsdr}
 			{"uat-receiver-host"}
-			{"uat-receiver-port"	 -type integer -default 30005}
+			{"uat-receiver-port"	 -type integer -default 30978}
 		}
 
 		return [uplevel 1 ::fa_piaware_config::new ::fa_piaware_config::ConfigMetadata [list $name] [list $settings]]
