@@ -9,6 +9,43 @@ package require fa_sudo
 package require fa_services
 
 #
+# Subclass for 1090ES specific handling
+#
+::itcl::class FaupConnection_1090 {
+        inherit FaupConnection
+
+        method constructor {args} {
+                configure {*}$args
+        }
+
+        method custom_handler {_row} {
+		upvar $_row row
+                # remember tsv_version when seen
+                if {[info exists row(tsv_version)]} {
+                        set tsvVersion $row(tsv_version)
+		}
+
+		# extra filtering to avoid looping mlat results back
+                if {[info exists row(hexid)]} {
+		        set hexid $row(hexid)
+                        if {[info exists ::mlatSawResult($hexid)]} {
+                                if {($row(clock) - $::mlatSawResult($row(hexid))) < 45.0} {
+                                        foreach field {alt alt_gnss vrate vrate_geom position track speed} {
+                                                if {[info exists row($field)]} {
+                                                        lassign $row($field) value age src
+                                                        if {$src eq "A"} {
+                                                                # This is suspect, claims to be ADS-B while we're doing mlat, clear it.
+                                                                unset -nocomplain row($field)
+                                                        }
+                                                }
+                                        }
+                                }
+                        }
+                }
+        }
+}
+
+#
 # setup_faup1090_vars - setup vars but don't start faup1090
 #
 proc setup_faup1090_vars {} {
@@ -40,7 +77,7 @@ proc connect_adsb_via_faup1090 {} {
 	}
 
 	# Create faup connection object with receiver config
-	set ::faup1090 [FaupConnection faup1090 \
+	set ::faup1090 [FaupConnection_1090 faup1090 \
 		-adsbDataProgram $::adsbDataProgram \
 		-receiverType $::receiverType \
 		-receiverHost $::receiverHost \

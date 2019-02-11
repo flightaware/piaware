@@ -21,6 +21,7 @@ if {![info exists ::launchdir]} {
 
 source $::launchdir/config.tcl
 source $::launchdir/helpers.tcl
+source $::launchdir/faup.tcl
 source $::launchdir/faup1090.tcl
 source $::launchdir/health.tcl
 source $::launchdir/mlat.tcl
@@ -28,7 +29,6 @@ source $::launchdir/pirehose.tcl
 source $::launchdir/update.tcl
 source $::launchdir/login.tcl
 source $::launchdir/statusfile.tcl
-source $::launchdir/faup.tcl
 
 #
 # main - the main program

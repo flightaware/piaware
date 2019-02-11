@@ -18,26 +18,26 @@ package require Itcl 3.4
 	public variable faupProgramPath
 
 	# total message from faup program
-	private variable nfaupMessagesReceived 0
+	protected variable nfaupMessagesReceived 0
 	# number of message from faup program since we last logged about is
-	private variable nfaupMessagesThisPeriod 0
+	protected variable nfaupMessagesThisPeriod 0
 	# total messages sent to adept
-	private variable nMessagesSent 0
+	protected variable nMessagesSent 0
 	# last time we considered (re)starting faup program
-	private variable lastConnectAttemptClock 0
+	protected variable lastConnectAttemptClock 0
 	# time of the last message from faup program
-	private variable lastFaupMessageClock [clock seconds]
+	protected variable lastFaupMessageClock [clock seconds]
 	# time we were last connected to data port
-	private variable lastAdsbConnectedClock [clock seconds]
+	protected variable lastAdsbConnectedClock [clock seconds]
 	# timer for traffic report
-	private variable faupMessagesPeriodStartClock
+	protected variable faupMessagesPeriodStartClock
 	# last banner tsv_version we saw
-	private variable tsvVersion ""
+	protected variable tsvVersion ""
 	# timer to start faup program connection
-	private variable adsbPortConnectTimer
+	protected variable adsbPortConnectTimer
 
-	private variable faupPipe
-	private variable faupPid
+	protected variable faupPipe
+	protected variable faupPid
 
 	constructor {args} {
 		configure {*}$args
@@ -205,10 +205,8 @@ package require Itcl 3.4
 			return
 		}
 
-		# remember tsv_version when seen
-		if {[info exists row(tsv_version)]} {
-			set tsvVersion $row(tsv_version)
-		}
+		# do any custom message handling
+		custom_handler row
 
 		#puts "faup data: $line"
 
@@ -286,24 +284,6 @@ package require Itcl 3.4
 	#
 	method send_adsb_line {_row} {
 		upvar $_row row
-
-		# extra filtering to avoid looping mlat results back
-		if {[info exists row(hexid)]} {
-			set hexid $row(hexid)
-			if {[info exists ::mlatSawResult($hexid)]} {
-				if {($row(clock) - $::mlatSawResult($row(hexid))) < 45.0} {
-					foreach field {alt alt_gnss vrate vrate_geom position track speed} {
-						if {[info exists row($field)]} {
-							lassign $row($field) value age src
-							if {$src eq "A"} {
-								# This is suspect, claims to be ADS-B while we're doing mlat, clear it.
-								unset -nocomplain row($field)
-							}
-						}
-					}
-				}
-			}
-		}
 
 		adept send_array row
 
@@ -386,6 +366,13 @@ package require Itcl 3.4
 	}
 
 	#
+	# custom_handler - overriden by derived classes to do any message-specific handling
+	#
+	method custom_handler {_row} {
+		return
+	}
+
+	#
 	# return 1 if connected to receiver, otherwise 0
 	#
 	method is_connected {} {
@@ -406,7 +393,6 @@ package require Itcl 3.4
 		return $tsvVersion
 	}
 }
-
 
 #
 # Returns whether given port number is local receiver
