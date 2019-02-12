@@ -71,6 +71,12 @@ proc setup_faup1090_vars {} {
 # if it fails, schedule another attempt later
 #
 proc connect_adsb_via_faup1090 {} {
+	# is 1090 enabled?
+	if {$::receiverType eq "disabled"} {
+		logger "1090 support disabled by local configuration setting: receiver-type"
+		return
+	}
+
 	# stop faup1090 connection just in case...
 	if {[info exists ::faup1090]} {
 		$::faup1090 faup_disconnect

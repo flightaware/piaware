@@ -1003,7 +1003,6 @@ namespace eval ::fa_piaware_config {
 			{"mlat-results-format"   -default "beast,connect,localhost:30104 beast,listen,30105 ext_basestation,listen,30106"}
 
 			{"enable-firehose"       -type boolean -default no}
-			{"enable-uat"		 -type boolean -default no}
 			{"uat-receiver-type"	 -default rtlsdr}
 			{"uat-receiver-host"}
 			{"uat-receiver-port"	 -type integer -default 30978}

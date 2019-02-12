@@ -49,7 +49,12 @@ proc setup_faup978_vars {} {
 # if it fails, schedule another attempt later
 #
 proc connect_UAT_via_faup978 {} {
-	set uatConnection [FaupConnection_978 faup978 \
+	if {$::receiverTypeUAT eq "disabled"} {
+		logger "UAT support disabled by local configuration setting: uat-receiver-type"
+		return
+	}
+
+	set ::faup978 [FaupConnection_978 faup978 \
 		-adsbDataProgram $::adsbDataProgramUAT \
 		-receiverType $::receiverTypeUAT \
 		-receiverHost $::receiverHostUAT \
@@ -61,5 +66,5 @@ proc connect_UAT_via_faup978 {} {
 		-adsbDataService $::adsbDataServiceUAT \
 		-faupProgramPath $::faup978Path]
 
-	$uatConnection faup_connect
+	$::faup978 faup_connect
 }
