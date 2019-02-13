@@ -244,7 +244,7 @@ proc receiver_local_service {config message_type} {
 				radarcape  { return "beast-splitter" }
 				radarcape-local  { return "" }
 				other      { return "" }
-				disabled   { return "" }
+				none   	   { return "" }
 				default    { error "unknown receiver type configured: [$config get receiver-type]" }
 			}
 		}
@@ -253,7 +253,7 @@ proc receiver_local_service {config message_type} {
 		UAT {
 			switch -- [$config get uat-receiver-type] {
 				rtlsdr	   { return "dump978" }
-				disabled   { return "" }
+				none   	   { return "" }
 				default	   { error "unknown UAT receiver type configured: [$config get uat-receiver-type]" }
 			}
 		}
@@ -285,7 +285,7 @@ proc receiver_description {config message_type} {
 				radarcape-local {
 					return "the local Radarcape"
 				}
-				disabled {
+				none {
 					return ""
 				}
 				default {
@@ -300,7 +300,7 @@ proc receiver_description {config message_type} {
 				rtlsdr {
 					return "dump978"
 				}
-				disabled {
+				none {
 					return ""
 				}
 				default {
@@ -330,7 +330,7 @@ proc receiver_host_and_port {config message_type} {
 				radarcape  { return [list localhost 30005] }
 				radarcape-local  { return [list localhost 10006] }
 				other      { return [list [$config get receiver-host] [$config get receiver-port]] }
-				disabled   { return [list localhost 30005] }
+				none       { return [list localhost 30005] }
 				default    { error "unknown receiver type configured: [$config get receiver-type]" }
 			}
 		}
@@ -339,7 +339,7 @@ proc receiver_host_and_port {config message_type} {
 		UAT {
 			switch -- [$config get uat-receiver-type] {
 				rtlsdr	   { return [list localhost 30978] }
-				disabled   { return [list localhost 30978] }
+				none       { return [list localhost 30978] }
 				default    { error "unknown UAT receiver type configured" [$config get uat-receiver-type]" }
 			}
 		}
@@ -365,7 +365,7 @@ proc receiver_underlying_host_and_port {config message_type} {
 				radarcape  { return [list [$config get radarcape-host] 10003] }
 				radarcape-local  { return [list localhost 10006] }
 				other      { return [list [$config get receiver-host] [$config get receiver-port]] }
-				disabled   { return [list localhost 30005] }
+				none       { return [list localhost 30005] }
 				default    { error "unknown receiver type configured: [$config get receiver-type]" }
 			}
 		}
@@ -374,7 +374,7 @@ proc receiver_underlying_host_and_port {config message_type} {
 		UAT {
 			switch -- [$config get uat-receiver-type] {
 				rtlsdr	   { return [list localhost 30978] }
-				disabled   { return [list localhost 30978] }
+				none       { return [list localhost 30978] }
 				default	   { error "unknown UAT receiver type configured: [$config get uat-receiver-type]" }
 			}
 		}
@@ -399,7 +399,7 @@ proc receiver_data_format {config message_type} {
 				radarcape  { return "radarcape" }
 				radarcape-local  { return "radarcape" }
 				other      { return "auto" }
-				disabled   { return "auto" }
+				none       { return "auto" }
 				default    { error "unknown receiver type configured: [$config get receiver-type]" }
 			}
 		}
@@ -407,7 +407,7 @@ proc receiver_data_format {config message_type} {
 		UAT {
 			switch -- [$config get uat-receiver-type] {
 				rtlsdr	   { return "dump978" }
-				disabled   { return "auto" }
+				none       { return "auto" }
 				default    { error "Unknown UAT receiver type configured: [$config get uat-receiver-type]" }
 			}
 		}
