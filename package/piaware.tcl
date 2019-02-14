@@ -167,6 +167,12 @@ proc process_netstat_socket_line {line} {
 			}
 		}
 
+		"faup978" {
+			if {$state == "ESTABLISHED"} {
+				set ::netstatus_faup978 1
+			}
+		}
+
 		"piaware" {
 			if {[string match "*:1200" $foreignAddress] && $state == "ESTABLISHED"} {
 				set ::netstatus_piaware 1
@@ -181,6 +187,7 @@ proc process_netstat_socket_line {line} {
 proc inspect_sockets_with_netstat {} {
 	array unset ::netstatus
 	set ::netstatus_faup1090 0
+	set ::netstatus_faup978 0
 	set ::netstatus_piaware 0
 	set ::netstatus_reliable 0
 
