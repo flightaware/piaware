@@ -1006,6 +1006,9 @@ namespace eval ::fa_piaware_config {
 			{"uat-receiver-type"	 -default none}
 			{"uat-receiver-host"}
 			{"uat-receiver-port"	 -type integer -default 30978}
+			{"uat-rtlsdr-gain"	 -type double -default -10}
+			{"uat-rtlsdr-ppm"	 -type integer -default 0}
+			{"uat-rtlsdr-device-index" -default 0}
 		}
 
 		return [uplevel 1 ::fa_piaware_config::new ::fa_piaware_config::ConfigMetadata [list $name] [list $settings]]
