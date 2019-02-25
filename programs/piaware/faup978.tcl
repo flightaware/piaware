@@ -45,10 +45,10 @@ proc setup_faup978_vars {} {
 }
 
 #
-# connect_UAT_via_faup978 - if UAT enabled, connect to the receiver using faup978 as an intermediary;
+# connect_uat_via_faup978 - if UAT enabled, connect to the receiver using faup978 as an intermediary;
 # if it fails, schedule another attempt later
 #
-proc connect_UAT_via_faup978 {} {
+proc connect_uat_via_faup978 {} {
 	if {$::receiverTypeUAT eq "disabled"} {
 		logger "UAT support disabled by local configuration setting: uat-receiver-type"
 		return
@@ -67,4 +67,47 @@ proc connect_UAT_via_faup978 {} {
 		-faupProgramPath $::faup978Path]
 
 	$::faup978 faup_connect
+}
+
+#
+# stop_faup978 - clean up faup978 pipe, don't schedule a reconnect
+#
+proc stop_faup978 {} {
+        if {![info exists ::faup978]} {
+                # Nothing to do
+                return
+        }
+
+        $::faup978 faup_disconnect
+}
+
+
+#
+# restart_faup978 - pretty self-explanatory
+#
+proc restart_faup978 {{delay 30}} {
+        if {![info exists ::faup978]} {
+                # Nothing to do
+                return
+        }
+
+        $::faup978 faup_restart $delay
+}
+
+#
+# periodically_check_adsb_traffic - periodically perform checks to see if
+# we are receiving data and possibly start/restart faup1090
+#
+# also issue a traffic report
+#
+proc periodically_check_uat_traffic {} {
+	if {![info exists ::faup978]} {
+		return
+	}
+
+	after [expr {$::adsbTrafficCheckIntervalSeconds * 1000}] periodically_check_uat_traffic
+
+	$::faup978 check_traffic
+
+	after 30000 $::faup978 traffic_report
 }
