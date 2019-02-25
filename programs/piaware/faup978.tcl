@@ -49,7 +49,7 @@ proc setup_faup978_vars {} {
 # if it fails, schedule another attempt later
 #
 proc connect_uat_via_faup978 {} {
-	if {$::receiverTypeUAT eq "disabled"} {
+	if {$::receiverTypeUAT eq "none"} {
 		logger "UAT support disabled by local configuration setting: uat-receiver-type"
 		return
 	}
