@@ -18,7 +18,9 @@
         method custom_handler {_row} {
 		upvar $_row row
                 # Append some field to designate 978
-		set row(_v) $tsvVersion
+		if {$tsvVersion ne ""} {
+			set row(_v) $tsvVersion
+		}
 	}
 
 }
