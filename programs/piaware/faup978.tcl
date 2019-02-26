@@ -12,13 +12,13 @@
         inherit FaupConnection
 
         method constructor {args} {
-                puts "Creating FaupConnection_978 Object"
                 configure {*}$args
         }
 
         method custom_handler {_row} {
 		upvar $_row row
                 # Append some field to designate 978
+		set row(_v) $tsvVersion
 	}
 
 }
