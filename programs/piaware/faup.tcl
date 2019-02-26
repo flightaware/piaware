@@ -65,9 +65,16 @@ package require Itcl 3.4
 		}
 
 		set args $faupProgramPath
-		lappend args "--net-bo-ipaddr" $receiverHost "--net-bo-port" $receiverPort "--stdout"
-		if {$receiverLat ne "" && $receiverLon ne ""} {
-			lappend args "--lat" [format "%.3f" $receiverLat] "--lon" [format "%.3f" $receiverLon]
+
+		# temporary hack to work with faup978 WIP
+		if {$receiverPort eq "30978"} {
+			set connectHost $receiverHost:$receiverPort
+			lappend args "--connect" $connectHost
+		} else {
+			lappend args "--net-bo-ipaddr" $receiverHost "--net-bo-port" $receiverPort "--stdout"
+			if {$receiverLat ne "" && $receiverLon ne ""} {
+				lappend args "--lat" [format "%.3f" $receiverLat] "--lon" [format "%.3f" $receiverLon]
+			}
 		}
 
 		logger "Starting $this: $args"
@@ -203,6 +210,11 @@ package require Itcl 3.4
 			# we handle this directly
 			handle_location_update "receiver" $row(lat) $row(lon) $row(alt) $row(altref)
 			return
+		}
+
+		# remember tsv_version when seen
+		if {[info exists row(tsv_version)]} {
+			set tsvVersion $row(tsv_version)
 		}
 
 		# do any custom message handling

@@ -20,10 +20,6 @@ package require fa_services
 
         method custom_handler {_row} {
 		upvar $_row row
-                # remember tsv_version when seen
-                if {[info exists row(tsv_version)]} {
-                        set tsvVersion $row(tsv_version)
-		}
 
 		# extra filtering to avoid looping mlat results back
                 if {[info exists row(hexid)]} {
