@@ -502,6 +502,7 @@ proc reload_config {} {
 	disable_mlat
 	adept reconnect
 	restart_faup1090 now
+	restart_faup978 now
 	stop_pirehose
 	start_pirehose
 }
