@@ -311,7 +311,7 @@ proc receiver_description {config message_type} {
 					return ""
 				}
 				default {
-					error "unknown UAT receiver type configured: [$config get uat-receiver-type]
+					error "unknown UAT receiver type configured: [$config get uat-receiver-type]"
 				}
 			}
 		}
@@ -347,7 +347,7 @@ proc receiver_host_and_port {config message_type} {
 			switch -- [$config get uat-receiver-type] {
 				rtlsdr	   { return [list localhost 30978] }
 				none       { return [list localhost 30978] }
-				default    { error "unknown UAT receiver type configured" [$config get uat-receiver-type]" }
+				default    { error "unknown UAT receiver type configured [$config get uat-receiver-type]" }
 			}
 		}
 
