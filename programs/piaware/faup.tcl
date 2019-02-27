@@ -31,7 +31,7 @@ package require Itcl 3.4
 	protected variable lastAdsbConnectedClock [clock seconds]
 	# timer for traffic report
 	protected variable faupMessagesPeriodStartClock
-	# last banner tsv_version we saw
+	# tsv_version sent from faup program
 	protected variable tsvVersion ""
 	# timer to start faup program connection
 	protected variable adsbPortConnectTimer
@@ -212,7 +212,7 @@ package require Itcl 3.4
 			return
 		}
 
-		# remember tsv_version when seen
+		# remember tsv_version when faup program sends it to us
 		if {[info exists row(tsv_version)]} {
 			set tsvVersion $row(tsv_version)
 		}
