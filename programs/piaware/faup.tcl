@@ -212,9 +212,12 @@ package require Itcl 3.4
 			return
 		}
 
-		# remember tsv_version when faup program sends it to us
+		# remember tsv_version when we receive it from faup program.
+		# For backwards compatability, we need to unset it here otherwise adept may override _v field if it
+		# it receiving multiple tsv_version types
 		if {[info exists row(tsv_version)]} {
 			set tsvVersion $row(tsv_version)
+			unset row(tsv_version)
 		}
 
 		# do any custom message handling
