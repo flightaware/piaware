@@ -308,45 +308,6 @@ package require Itcl 3.4
 		}
 	}
 
-	# when adept tells us the receiver location,
-	# record it and maybe restart adsb data service program and faup program
-	method update_location {lat lon} {
-		if {$lat eq $receiverLat && $lon eq $receiverLon} {
-			# unchanged
-			return
-		}
-
-		# only update the on-disk location & restart things
-		# if the location moves by more than about 250m since
-		# the last time we updated
-
-		if {$receiverLat ne "" && $receiverLon ne ""} {
-			# approx distances in km along lat/lon axes, don't bother with the full GC distance
-			set dLat [expr {111 * ($receiverLat - $lat)}]
-			set dLon [expr {111 * ($receiverLon - $lon) * cos($lat * 3.1415927 / 180.0)}]
-			if {abs($dLat) < 0.250 && abs($dLon) < 0.250} {
-				# Didn't change enough to care about restarting
-				return
-			}
-		}
-
-		# changed nontrivially; restart adsbDataServiceProgram and faup program to use the new values
-		set receiverLat $lat
-		set receiverLon $lon
-
-		# speculatively restart adsbDataService program even if we are not using it as a receiver;
-		# it may be used for display.
-		if {[save_location_info $lat $lon]} {
-			logger "Receiver location changed, restarting $adsbDataService"
-			::fa_services::attempt_service_restart $adsbDataService restart
-		}
-
-		if {[info exists faupPipe]} {
-			logger "Receiver location changed, restarting faup program"
-			faup_restart 5
-		}
-	}
-
 	#
 	# Check whether adsb data program is alive and listening. Attempt to restart if seen dead for a while
 	#
@@ -446,4 +407,48 @@ proc adsb_local_program_name {adsbLocalPort} {
 	}
 
 	return $prog
+}
+
+# Proc to record new receiver location and restart necessary programs
+proc update_location {lat lon} {
+	if {$lat eq $::receiverLat && $lon eq $::receiverLon} {
+		# unchanged
+		return
+	}
+
+	# only update the on-disk location & restart things
+	# if the location moves by more than about 250m since
+	# the last time we updated
+
+	if {$::receiverLat ne "" && $::receiverLon ne ""} {
+		# approx distances in km along lat/lon axes, don't bother with the full GC distance
+		set dLat [expr {111 * ($::receiverLat - $lat)}]
+		set dLon [expr {111 * ($::receiverLon - $lon) * cos($lat * 3.1415927 / 180.0)}]
+		if {abs($dLat) < 0.250 && abs($dLon) < 0.250} {
+			# Didn't change enough to care about restarting
+			return
+		}
+	}
+
+	# changed nontrivially; restart dump1090 / faup1090 to use the new values
+	set ::receiverLat $lat
+	set ::receiverLon $lon
+
+	# speculatively restart dump1090 even if we are not using it as a receiver;
+	# it may be used for display.
+	if {[save_location_info $lat $lon]} {
+		logger "Receiver location changed, restarting dump1090 and skyview978"
+		::fa_services::attempt_service_restart dump1090 restart
+		::fa_services::attempt_service_restart skyview978 restart
+	}
+
+	if {[info exists ::faup1090] && [$::faup1090 is_connected]} {
+		logger "Restarting faup1090"
+		restart_faup1090 5
+	}
+
+	if {[info exists ::faup978] && [$::faup978 is_connected]} {
+		logger "Restarting faup978"
+		restart_faup978 5
+	}
 }

@@ -115,7 +115,7 @@ proc location_data_changed {} {
 		return
 	}
 
-	# record the location and maybe restart faup1090 with the new value
+	# record the location and maybe restart necessary programs with the new location
 	lassign $newloc lat lon alt altref
 	update_location $lat $lon
 

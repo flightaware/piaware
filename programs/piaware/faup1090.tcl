@@ -140,14 +140,4 @@ proc periodically_check_adsb_traffic {} {
 	after 30000 $::faup1090 traffic_report
 }
 
-# when adept tells us the receiver location,
-# record it and maybe restart dump1090 / faup1090
-proc update_location {lat lon} {
-	if {![info exists ::faup1090]} {
-		return
-	}
-
-	$::faup1090 update_location $lat $lon
-}
-
 # vim: set ts=4 sw=4 sts=4 noet :
