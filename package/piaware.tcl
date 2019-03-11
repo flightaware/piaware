@@ -244,7 +244,7 @@ proc receiver_local_service {config message_type} {
 		# 1090
 		ES {
 			switch -- [$config get receiver-type] {
-				rtlsdr     { return "dump1090" }
+				sdr - rtlsdr { return "dump1090" }
 				bladerf    { return "dump1090" }
 				beast      { return "beast-splitter" }
 				relay      { return "beast-splitter" }
@@ -259,7 +259,7 @@ proc receiver_local_service {config message_type} {
 		# 978
 		UAT {
 			switch -- [$config get uat-receiver-type] {
-				rtlsdr	   { return "dump978" }
+				sdr - rtlsdr { return "dump978" }
 				none   	   { return "" }
 				default	   { error "unknown UAT receiver type configured: [$config get uat-receiver-type]" }
 			}
@@ -277,7 +277,7 @@ proc receiver_description {config message_type} {
 		# 1090
 		ES {
 			switch -- [$config get receiver-type] {
-				rtlsdr - bladerf {
+				sdr - rtlsdr - bladerf {
 					return "dump1090"
 				}
 				beast {
@@ -304,7 +304,7 @@ proc receiver_description {config message_type} {
 		# 978
 		UAT {
 			switch -- [$config get uat-receiver-type] {
-				rtlsdr {
+				sdr {
 					return "dump978"
 				}
 				none {
@@ -330,7 +330,7 @@ proc receiver_host_and_port {config message_type} {
 		# 1090
 		ES {
 			switch -- [$config get receiver-type] {
-				rtlsdr     { return [list localhost 30005] }
+				sdr - rtlsdr { return [list localhost 30005] }
 				bladerf    { return [list localhost 30005] }
 				beast      { return [list localhost 30005] }
 				relay      { return [list localhost 30005] }
@@ -345,7 +345,7 @@ proc receiver_host_and_port {config message_type} {
 		# 978
 		UAT {
 			switch -- [$config get uat-receiver-type] {
-				rtlsdr	   { return [list localhost 30978] }
+				sdr    	   { return [list localhost 30978] }
 				none       { return [list localhost 30978] }
 				default    { error "unknown UAT receiver type configured [$config get uat-receiver-type]" }
 			}
@@ -365,7 +365,7 @@ proc receiver_underlying_host_and_port {config message_type} {
 		# 1090
 		ES {
 			switch -- [$config get receiver-type] {
-				rtlsdr     { return [list localhost 30005] }
+				sdr - rtlsdr { return [list localhost 30005] }
 				bladerf    { return [list localhost 30005] }
 				beast      { return [list localhost 30005] }
 				relay      { return [list [$config get receiver-host] [$config get receiver-port]] }
@@ -380,7 +380,7 @@ proc receiver_underlying_host_and_port {config message_type} {
 		# 978
 		UAT {
 			switch -- [$config get uat-receiver-type] {
-				rtlsdr	   { return [list localhost 30978] }
+				sdr	       { return [list localhost 30978] }
 				none       { return [list localhost 30978] }
 				default	   { error "unknown UAT receiver type configured: [$config get uat-receiver-type]" }
 			}
@@ -399,7 +399,7 @@ proc receiver_data_format {config message_type} {
 		# 1090
 		ES {
 			switch -- [$config get receiver-type] {
-				rtlsdr     { return "dump1090" }
+				sdr - rtlsdr { return "dump1090" }
 				bladerf    { return "dump1090" }
 				beast      { return "beast" }
 				relay      { return "auto" }
@@ -413,7 +413,7 @@ proc receiver_data_format {config message_type} {
 
 		UAT {
 			switch -- [$config get uat-receiver-type] {
-				rtlsdr	   { return "dump978" }
+				sdr	       { return "dump978" }
 				none       { return "auto" }
 				default    { error "Unknown UAT receiver type configured: [$config get uat-receiver-type]" }
 			}
