@@ -64,7 +64,7 @@ namespace eval ::fa_piaware_config {
 	}
 
 	proc valid_gain {value} {
-		return [string is double -strict $value || $value eq "auto"]
+		return [expr {[string is double -strict $value] || $value eq "auto"}]
 	}
 
 	# check a value of the given type, return 1 if it looks OK
