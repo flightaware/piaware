@@ -12,57 +12,40 @@ package require fa_services
 # Subclass for 1090ES specific handling
 #
 ::itcl::class FaupConnection_1090 {
-        inherit FaupConnection
+	inherit FaupConnection
 
-        method constructor {args} {
-                configure {*}$args
-        }
+	method constructor {args} {
+		configure {*}$args
+	}
 
-        method custom_handler {_row} {
+	protected method program_args {} {
+		set args [list "--net-bo-ipaddr" $receiverHost "--net-bo-port" $receiverPort "--stdout"
+		if {$receiverLat ne "" && $receiverLon ne ""} {
+			lappend args "--lat" [format "%.3f" $receiverLat] "--lon" [format "%.3f" $receiverLon]
+		}
+		return $args
+	}
+
+	method custom_handler {_row} {
 		upvar $_row row
 
-		if {$tsvVersion ne ""} {
-			set row(_v) $tsvVersion
-		}
-
 		# extra filtering to avoid looping mlat results back
-                if {[info exists row(hexid)]} {
-		        set hexid $row(hexid)
-                        if {[info exists ::mlatSawResult($hexid)]} {
-                                if {($row(clock) - $::mlatSawResult($row(hexid))) < 45.0} {
-                                        foreach field {alt alt_gnss vrate vrate_geom position track speed} {
-                                                if {[info exists row($field)]} {
-                                                        lassign $row($field) value age src
-                                                        if {$src eq "A"} {
-                                                                # This is suspect, claims to be ADS-B while we're doing mlat, clear it.
-                                                                unset -nocomplain row($field)
-                                                        }
-                                                }
-                                        }
-                                }
-                        }
-                }
-        }
-}
-
-#
-# setup_faup1090_vars - setup vars but don't start faup1090
-#
-proc setup_faup1090_vars {} {
-	# receiver config (for 1090ES)
-	set ::message_type_ES ES
-	set ::receiverType [piawareConfig get receiver-type]
-	lassign [receiver_host_and_port piawareConfig $::message_type_ES] ::receiverHost ::receiverPort
-	set ::receiverDataFormat [receiver_data_format piawareConfig $::message_type_ES]
-	set ::adsbLocalPort [receiver_local_port piawareConfig $::message_type_ES]
-	set ::adsbDataService [receiver_local_service piawareConfig $::message_type_ES]
-	set ::adsbDataProgram [receiver_description piawareConfig $::message_type_ES]
-
-	# path to faup1090
-	set path "/usr/lib/piaware/helpers/faup1090"
-	if {[set ::faup1090Path [auto_execok $path]] eq ""} {
-		logger "No faup1090 found at $path, cannot continue"
-		exit 1
+		if {[info exists row(hexid)]} {
+			set hexid $row(hexid)
+			if {[info exists ::mlatSawResult($hexid)]} {
+				if {($row(clock) - $::mlatSawResult($row(hexid))) < 45.0} {
+					foreach field {alt alt_gnss vrate vrate_geom position track speed} {
+						if {[info exists row($field)]} {
+							lassign $row($field) value age src
+							if {$src eq "A"} {
+								# This is suspect, claims to be ADS-B while we're doing mlat, clear it.
+								unset -nocomplain row($field)
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -71,29 +54,37 @@ proc setup_faup1090_vars {} {
 # if it fails, schedule another attempt later
 #
 proc connect_adsb_via_faup1090 {} {
+	set receiverType [piawareConfig get receiver-type]
+
 	# is 1090 enabled?
-	if {$::receiverType eq "none"} {
-		logger "1090 support disabled by local configuration setting: receiver-type"
+	if {$receiverType eq "none"} {
+		logger "1090ES support disabled by local configuration setting: receiver-type"
+		return
+	}
+
+	# path to faup1090
+	set path [auto_execok "/usr/lib/piaware/helpers/faup1090"]
+	if {$path eq ""} {
+		logger "No faup1090 found at $path, 1090ES support disabled"
 		return
 	}
 
 	# stop faup1090 connection just in case...
-	if {[info exists ::faup1090]} {
-		$::faup1090 faup_disconnect
-	}
+	stop_faup1090
 
 	# Create faup connection object with receiver config
+	lassign [receiver_host_and_port piawareConfig ES] host port
 	set ::faup1090 [FaupConnection_1090 faup1090 \
-		-adsbDataProgram $::adsbDataProgram \
-		-receiverType $::receiverType \
-		-receiverHost $::receiverHost \
-		-receiverPort $::receiverPort \
-		-receiverLat $::receiverLat \
-		-receiverLon $::receiverLon \
-		-receiverDataFormat $::receiverDataFormat \
-		-adsbLocalPort $::adsbLocalPort \
-		-adsbDataService $::adsbDataService \
-		-faupProgramPath $::faup1090Path]
+						-adsbDataProgram [receiver_description piawareConfig ES] \
+						-receiverType $receiverType \
+						-receiverHost $host \
+						-receiverPort $port \
+						-receiverLat $::receiverLat \
+						-receiverLon $::receiverLon \
+						-receiverDataFormat [receiver_data_format piawareConfig ES] \
+						-adsbLocalPort [receiver_local_port piawareConfig ES] \
+						-adsbDataService [receiver_local_service piawareConfig ES] \
+						-faupProgramPath $path]
 
 	$::faup1090 faup_connect
 }
@@ -107,7 +98,8 @@ proc stop_faup1090 {} {
 		return
 	}
 
-	$::faup1090 faup_disconnect
+	itcl::delete object $::faup1090
+	unset ::faup1090
 }
 
 #

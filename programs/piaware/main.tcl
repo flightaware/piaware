@@ -69,8 +69,6 @@ proc main {{argv ""}} {
 	interp bgerror {} log_bgerror
 
 	setup_config
-	setup_faup1090_vars
-	setup_faup978_vars
 
 	# setup adept client early so logger command won't trace back
 	# (this does not initiate a connection, it just creates the object)

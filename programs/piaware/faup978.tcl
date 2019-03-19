@@ -9,40 +9,14 @@
 # Subclass for UAT specific handling
 #
 ::itcl::class FaupConnection_978 {
-        inherit FaupConnection
+	inherit FaupConnection
 
-        method constructor {args} {
-                configure {*}$args
-        }
-
-        method custom_handler {_row} {
-		upvar $_row row
-                # Append some field to designate 978
-		if {$tsvVersion ne ""} {
-			set row(_v) $tsvVersion
-		}
+	method constructor {args} {
+		configure {*}$args
 	}
 
-}
-
-#
-# setup_faup978_vars - setup faup978 configuration variables
-#
-proc setup_faup978_vars {} {
-	# receiver config for UAT
-	set ::message_type_UAT UAT
-	set ::receiverTypeUAT [piawareConfig get uat-receiver-type]
-	lassign [receiver_host_and_port piawareConfig $::message_type_UAT] ::receiverHostUAT ::receiverPortUAT
-	set ::receiverDataFormatUAT [receiver_data_format piawareConfig $::message_type_UAT]
-	set ::adsbLocalPortUAT [receiver_local_port piawareConfig $::message_type_UAT]
-	set ::adsbDataServiceUAT [receiver_local_service piawareConfig $::message_type_UAT]
-	set ::adsbDataProgramUAT [receiver_description piawareConfig $::message_type_UAT]
-
-	# path to faup978
-	set path "/usr/lib/piaware/helpers/faup978"
-	if {[set ::faup978Path [auto_execok $path]] eq""} {
-		logger "No faup978 found at $path, cannot continue"
-		exit 1
+	protected method program_args {host port} {
+		return [list "--connect" $receiverHost:$receiverPort]
 	}
 }
 
@@ -51,22 +25,34 @@ proc setup_faup978_vars {} {
 # if it fails, schedule another attempt later
 #
 proc connect_uat_via_faup978 {} {
-	if {$::receiverTypeUAT eq "none"} {
+	# is 1090 enabled?
+	if {$receiverType eq "none"} {
 		logger "UAT support disabled by local configuration setting: uat-receiver-type"
 		return
 	}
 
+	# path to faup978
+	set path [auto_execok "/usr/lib/piaware/helpers/faup978"]
+	if {$path eq ""} {
+		logger "No faup978 found at $path, UAT support disabled"
+		return
+	}
+
+	# stop faup978 connection just in case...
+	stop_faup978
+
+	lassign [receiver_host_and_port piawareConfig UAT] host port
 	set ::faup978 [FaupConnection_978 faup978 \
-		-adsbDataProgram $::adsbDataProgramUAT \
-		-receiverType $::receiverTypeUAT \
-		-receiverHost $::receiverHostUAT \
-		-receiverPort $::receiverPortUAT \
-		-receiverLat $::receiverLat \
-		-receiverLon $::receiverLon \
-		-receiverDataFormat $::receiverDataFormatUAT \
-		-adsbLocalPort $::adsbLocalPortUAT \
-		-adsbDataService $::adsbDataServiceUAT \
-		-faupProgramPath $::faup978Path]
+					   -adsbDataProgram [receiver_description piawareConfig UAT] \
+					   -receiverType $receiverType \
+					   -receiverHost $host \
+					   -receiverPort $port \
+					   -receiverLat $::receiverLat \
+					   -receiverLon $::receiverLon \
+					   -receiverDataFormat [receiver_data_format piawareConfig UAT] \
+					   -adsbLocalPort [receiver_local_port piawareConfig UAT] \
+					   -adsbDataService [receiver_local_service piawareConfig UAT] \
+					   -faupProgramPath $path]
 
 	$::faup978 faup_connect
 }
@@ -75,25 +61,25 @@ proc connect_uat_via_faup978 {} {
 # stop_faup978 - clean up faup978 pipe, don't schedule a reconnect
 #
 proc stop_faup978 {} {
-        if {![info exists ::faup978]} {
-                # Nothing to do
-                return
-        }
+	if {![info exists ::faup978]} {
+		# Nothing to do
+		return
+	}
 
-        $::faup978 faup_disconnect
+	itcl::delete object $::faup978
+	unset ::faup978
 }
-
 
 #
 # restart_faup978 - pretty self-explanatory
 #
 proc restart_faup978 {{delay 30}} {
-        if {![info exists ::faup978]} {
-                # Nothing to do
-                return
-        }
+	if {![info exists ::faup978]} {
+		# Nothing to do
+		return
+	}
 
-        $::faup978 faup_restart $delay
+	$::faup978 faup_restart $delay
 }
 
 #
