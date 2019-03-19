@@ -25,7 +25,9 @@
 # if it fails, schedule another attempt later
 #
 proc connect_uat_via_faup978 {} {
-	# is 1090 enabled?
+	set receiverType [piawareConfig get uat-receiver-type]
+
+	# is 978 enabled?
 	if {$receiverType eq "none"} {
 		logger "UAT support disabled by local configuration setting: uat-receiver-type"
 		return
