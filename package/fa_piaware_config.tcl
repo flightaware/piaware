@@ -1027,12 +1027,15 @@ namespace eval ::fa_piaware_config {
 			{"mlat-results-format"   -default "beast,connect,localhost:30104 beast,listen,30105 ext_basestation,listen,30106"}
 
 			{"enable-firehose"       -type boolean -default no}
+
 			{"uat-receiver-type"	 -default none}
 			{"uat-receiver-host"}
 			{"uat-receiver-port"	 -type integer -default 30978}
 			{"uat-sdr-gain"	         -type gain -default 50}
 			{"uat-sdr-ppm"	         -type double -default 0}
 			{"uat-sdr-device"        -default "driver=rtlsdr"}
+
+			{"use-gpsd"              -type boolean -default yes}
 		}
 
 		return [uplevel 1 ::fa_piaware_config::new ::fa_piaware_config::ConfigMetadata [list $name] [list $settings]]

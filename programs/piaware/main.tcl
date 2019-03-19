@@ -91,7 +91,9 @@ proc main {{argv ""}} {
 
 	greetings
 
-	connect_to_gpsd
+	if {[piawareConfig get use-gpsd]} {
+		connect_to_gpsd
+	}
 
 	# we stagger this a little to let
 	#  1) gpsd give us a location if it's going to (typically takes up to 1 second to do this)
