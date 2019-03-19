@@ -7,6 +7,7 @@ source "fa_adept_schema.tcl"
 source "none.codec"
 source "adept_1.x.codec"
 source "adept_2.1.codec"
+source "adept_2.2.codec"
 
 ::tcltest::configure {*}$argv
 
@@ -39,7 +40,7 @@ namespace eval ::fa_adept_codec::tests {
 	} -result 2.1
 
 	variable testnum 0
-	proc round_trip {field inval {outval ""} {version 2.1} {skipcompress 0}} {
+	proc round_trip {version field inval {outval ""} {skipcompress 0}} {
 		variable testnum
 
 		if {$outval eq ""} {
@@ -58,43 +59,54 @@ namespace eval ::fa_adept_codec::tests {
 		}] -result [list $skipcompress "$outval"]
 	}
 
-	proc round_trip_raw {field inval {outval ""} {version 2.1}} {
-		round_trip $field $inval $outval $version 1
+	proc round_trip_raw {version field inval {outval ""}} {
+		round_trip $version $field $inval $outval 1
 	}
 
-	round_trip clock 1234567890
-	round_trip_raw clock -123456
+	foreach version {2.1 2.2} {
+		round_trip $version clock 1234567890
+		round_trip_raw $version clock -123456
 
-	round_trip sent_at 1234567890
+		round_trip $version sent_at 1234567890
 
-	round_trip hexid 012345
-	round_trip hexid ABCDEF
-	round_trip hexid abcdef ABCDEF
+		round_trip $version hexid 012345
+		round_trip $version hexid ABCDEF
+		round_trip $version hexid abcdef ABCDEF
 
-	round_trip otherid ABCDEF
+		round_trip $version otherid ABCDEF
 
-	round_trip addrtype adsb_icao
-	round_trip_raw addrtype some_other_thing
+		round_trip $version addrtype adsb_icao
+		round_trip_raw $version addrtype some_other_thing
 
-	round_trip adsb_version 0
-	round_trip adsb_version 1
-	round_trip adsb_version 2
-	round_trip_raw adsb_version 99
+		round_trip $version adsb_version 0
+		round_trip $version adsb_version 1
+		round_trip $version adsb_version 2
+		round_trip_raw $version adsb_version 99
 
-	round_trip category 00
-	round_trip category A0
-	round_trip category A2
+		round_trip $version category 00
+		round_trip $version category A0
+		round_trip $version category A2
 
-	round_trip nac_p {0 0 A}
-	round_trip nac_p {10 0 A}
-	round_trip_raw nac_p {-10 0 A}
-	round_trip_raw nac_p {10 0 Z}
+		round_trip $version nac_p {0 0 A}
+		round_trip $version nac_p {10 0 A}
+		round_trip_raw $version nac_p {-10 0 A}
+		round_trip_raw $version nac_p {10 0 Z}
 
-	round_trip position {{1.0 2.0 5 100} 0 A} {{1.00000 2.00000 5 100} 0 A}
-	round_trip position {{-89.123 179.234567 10 10000} 0 A} {{-89.12300 179.23457 10 10000} 0 A}
-	round_trip_raw position {{-92 179 10 10000} 0 A}
-	round_trip_raw position {{92 179 10 10000} 0 A}
-	round_trip_raw position {{92 179 10 10000} 0 A}
+		round_trip $version position {{1.0 2.0 5 100} 0 A} {{1.00000 2.00000 5 100} 0 A}
+		round_trip $version position {{-89.123 179.234567 10 10000} 0 A} {{-89.12300 179.23457 10 10000} 0 A}
+		round_trip_raw $version position {{-92 179 10 10000} 0 A}
+		round_trip_raw $version position {{92 179 10 10000} 0 A}
+		round_trip_raw $version position {{92 179 10 10000} 0 A}
+	}
+
+	round_trip 2.2 _v 4U
+	round_trip 2.2 _v 4E
+	round_trip_raw 2.2 _v 454
+
+	round_trip 2.2 uat_version 0
+	round_trip 2.2 uat_version 1
+	round_trip 2.2 uat_version 2
+	round_trip_raw 2.2 uat_version 99
 
 	test validate-stream-2.0 "verify we can process a canned stream of data" -body {
 		set codec [::fa_adept_codec::new_codec adept 2.1]

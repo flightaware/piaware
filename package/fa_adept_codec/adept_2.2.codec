@@ -2,9 +2,10 @@
 
 package require fa_adept_schema
 
-::fa_adept_schema::define adept 2.1 {
+::fa_adept_schema::define adept 2.2 {
 	meta_source_enum {U S A T}	;# (U)nchecked-modes, mode(S), (A)dsb, (T)isb
 
+	enum { 4E 4U }			 _v -nometa
 	epoch					 clock -nometa
 	epoch					 sent_at -nometa
 	hexdigits 6				 hexid -nometa
@@ -12,8 +13,10 @@ package require fa_adept_schema
 	enum {
 		adsb_icao adsb_icao_nt adsr_icao tisb_icao
 		adsb_other adsr_other tisb_other tisb_trackfile
+		vehicle fixed_beacon
 	} addrtype -nometa
-	signed    1/0			 adsb_version -nometa
+	signed	  1/0			 adsb_version -nometa
+	unsigned  1/0			 uat_version -nometa
 	hexdigits 2				 category -nometa
 
 	unsigned  2/0			 nac_p
@@ -41,14 +44,15 @@ package require fa_adept_schema
 	signed	  2/1			 roll
 	unsigned  3/1			 heading_magnetic
 	unsigned  3/1			 heading_true
-	signed	  6/0			 nav_alt
+	signed	  6/0			 nav_alt_mcp
+	signed	  6/0			 nav_alt_fms
 	unsigned  3/1			 nav_heading
 	flags {
 		autopilot vnav althold approach lnav tcas
 	} nav_modes
 	unsigned  4/1			 nav_qnh
 	enum {
-		none general lifeguard minfuel nordo unlawful downed reserved
+		none general lifeguard minfuel nordo unlawful downed reserved unknown
 	} emergency
 
 	hexdigits 14			 datalink_caps -nometa
