@@ -15,7 +15,7 @@
 		configure {*}$args
 	}
 
-	protected method program_args {host port} {
+	protected method program_args {} {
 		return [list "--connect" $receiverHost:$receiverPort]
 	}
 }
