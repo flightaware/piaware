@@ -84,14 +84,32 @@ proc build_status {} {
 	}
 
 	# radio: status of the connection to the receiver process
-	if {[info exists ::faup1090] && [$::faup1090 is_connected]} {
-		if {([clock seconds] - [$::faup1090 last_message_received]) < 60} {
-			set data(radio) [status_entry "green" "Received Mode S data recently"]
-		} else {
-			set data(radio) [status_entry "amber" "Connected to receiver, but no recent data seen"]
+	array set reasons {}
+	foreach {faupvar name} {::faup1090 "Mode S" ::faup978 "UAT"} {
+		if {![info exists $faupvar]} {
+			continue
 		}
-	} else {
-		set data(radio) [status_entry "red" "Not connected to receiver"]
+
+		set faup [set $faupvar]
+		if {[$faup is_connected]} {
+			if {([clock seconds] - [$::faup1090 last_message_received]) < 60} {
+				lappend reasons(green) "Received $name data recently"
+			} else {
+				lappend reasons(amber) "Connected to $name receiver, but no recent data seen"
+			}
+		} else {
+			lappend reasons(red) "Not connected to $name receiver"
+		}
+	}
+
+	foreach status {red amber green} {
+		if {[info exists reasons($status)]} {
+			set data(radio) [status_entry $status [join $reasons($status) "; "]]
+			break
+		}
+	}
+	if {![info exists data(radio)]} {
+		set data(radio) [status_entry "red" "No receivers configured"]
 	}
 
 	# mlat: status of mlat
