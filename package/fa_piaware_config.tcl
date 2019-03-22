@@ -64,7 +64,7 @@ namespace eval ::fa_piaware_config {
 	}
 
 	proc valid_gain {value} {
-		return [expr {[string is double -strict $value] || $value eq "auto"}]
+		return [expr {[string is double -strict $value] || $value eq "max"}]
 	}
 
 	# check a value of the given type, return 1 if it looks OK
@@ -133,8 +133,8 @@ namespace eval ::fa_piaware_config {
 
 			"gain" {
 				set t [string tolower [string trim $value]]
-				if {$t eq "auto" || $t == -10} {
-					return "auto"
+				if {$t eq "max" || $t == -10} {
+					return "max"
 				} else {
 					return [expr {$value}]
 				}
@@ -1015,7 +1015,7 @@ namespace eval ::fa_piaware_config {
 			{"receiver-type"         -default rtlsdr}
 			{"rtlsdr-device-index"   -default 0}
 			{"rtlsdr-ppm"            -type integer -default 0}
-			{"rtlsdr-gain"           -type gain -default auto}
+			{"rtlsdr-gain"           -type gain -default max}
 			{"beast-baudrate"        -type integer}
 			"radarcape-host"
 			"receiver-host"
@@ -1031,7 +1031,7 @@ namespace eval ::fa_piaware_config {
 			{"uat-receiver-type"	 -default none}
 			{"uat-receiver-host"}
 			{"uat-receiver-port"	 -type integer -default 30978}
-			{"uat-sdr-gain"	         -type gain -default 50}
+			{"uat-sdr-gain"	         -type gain -default max}
 			{"uat-sdr-ppm"	         -type double -default 0}
 			{"uat-sdr-device"        -default "driver=rtlsdr"}
 
