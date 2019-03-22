@@ -348,9 +348,12 @@ package require Itcl 3.4
 	# return time of last message received from faup
 	#
 	method last_message_received {} {
-		return $lastFaupMessageClock
+		if {$nfaupMessagesReceived == 0} {
+			return 0
+		} else {
+			return $lastFaupMessageClock
+		}
 	}
-
 }
 
 #
