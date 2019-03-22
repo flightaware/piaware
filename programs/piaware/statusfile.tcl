@@ -92,7 +92,7 @@ proc build_status {} {
 
 		set faup [set $faupvar]
 		if {[$faup is_connected]} {
-			if {([clock seconds] - [$::faup1090 last_message_received]) < 60} {
+			if {([clock seconds] - [$faup last_message_received]) < 60} {
 				lappend reasons(green) "Received $name data recently"
 			} else {
 				lappend reasons(amber) "Connected to $name receiver, but no recent data seen"
