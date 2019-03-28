@@ -114,19 +114,22 @@ proc start_mlat_client {} {
 		return
 	}
 
-	if {[is_local_receiver $::adsbLocalPort]} {
+	set adsbLocalPort [receiver_local_port piawareConfig ES]
+	if {[is_local_receiver $adsbLocalPort]} {
 		inspect_sockets_with_netstat
 
-		if {![is_adsb_program_running $::adsbLocalPort]} {
-			logger "no ADS-B data program is serving on port $::adsbLocalPort, not starting multilateration client yet"
+		if {![is_adsb_program_running $adsbLocalPort]} {
+			logger "no ADS-B data program is serving on port $adsbLocalPort, not starting multilateration client yet"
 			schedule_mlat_client_restart
 			return
 		}
 	}
 
 	set command $::mlatClientPath
-	lappend command "--input-connect" "${::receiverHost}:${::receiverPort}"
-	lappend command "--input-type" $::receiverDataFormat
+	lassign [receiver_host_and_port piawareConfig ES] receiverHost receiverPort
+
+	lappend command "--input-connect" "$receiverHost:$receiverPort"
+	lappend command "--input-type" [receiver_data_format piawareConfig ES]
 
 	if {[piawareConfig get mlat-results]} {
 		foreach r [piawareConfig get mlat-results-format] {

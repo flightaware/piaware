@@ -14,7 +14,7 @@ proc construct_health_array {_row} {
 			set row(disk-$mountpoint) $usage
 		}
 	}
-	catch {set row(adsbprogram_running) [is_adsb_program_running]}
+    catch {set row(adsbprogram_running) [is_adsb_program_running [receiver_local_port piawareConfig ES]]}
     catch {set row(cputemp) [::fa_sysinfo::cpu_temperature]}
     catch {set row(cpuload) [::fa_sysinfo::cpu_load]}
     catch {set row(uptime) [::fa_sysinfo::uptime]}
