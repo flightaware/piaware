@@ -29,6 +29,12 @@ proc mlat_is_configured {} {
 		return 0
 	}
 
+        # don't repeatedly attempt to start mlat if receiver-type not set
+        if {[piawareConfig get receiver-type] eq "none"} {
+                logger "multilateration support disabled by local configuration (ADS-B receiver-type not configured)"
+                return 0
+        }
+
 	# check for existence of fa-mlat-client
 	if {$::mlatClientPath eq ""} {
 		logger "multilateration support disabled (no fa-mlat-client found)"
