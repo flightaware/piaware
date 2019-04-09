@@ -112,6 +112,16 @@ proc build_status {} {
 		set data(radio) [status_entry "red" "No receivers configured"]
 	}
 
+	# adsb program enabled status
+	foreach {program name} {::faup1090 "MODES_enabled" ::faup978 "UAT_enabled"} {
+		# set enabled to true if connected to receiver
+		if {[info exists $program] && [$program is_connected]} {
+			set data($name) true
+		} else {
+			set data($name) false
+		}
+	}
+
 	# mlat: status of mlat
 	switch $::mlatStatus {
 		not_enabled {
