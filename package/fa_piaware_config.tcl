@@ -67,6 +67,15 @@ namespace eval ::fa_piaware_config {
 		return [expr {[string is double -strict $value] || $value eq "max"}]
 	}
 
+	proc valid_receiver_type {value} {
+		set supportedReceiverTypes {rtlsdr sdr bladerf beast relay radarcape radarcape-local other none}
+
+		if {$value ni $supportedReceiverTypes } {
+			return 0
+		}
+
+		return 1
+	}
 	# check a value of the given type, return 1 if it looks OK
 	proc validate_typed_value {type value} {
 		switch $type {
@@ -102,6 +111,10 @@ namespace eval ::fa_piaware_config {
 				return [valid_gain [string tolower [string trim $value]]]
 			}
 
+			"receiver" {
+				return [valid_receiver_type [string tolower [string trim $value]]]
+			}
+
 			default {
 				error "unrecognized type: $type"
 			}
@@ -123,7 +136,7 @@ namespace eval ::fa_piaware_config {
 				return [string is true -strict $value]
 			}
 
-			"mac" - "uuid" {
+			"mac" - "uuid" - "receiver" {
 				return [string tolower [string trim $value]]
 			}
 
@@ -205,6 +218,13 @@ namespace eval ::fa_piaware_config {
 				return [string tolower $value]
 			}
 
+			"receiver" {
+				if {![valid_receiver_type $value]} {
+					error "bad receiver type: $value"
+				}
+				return [string tolower $value]
+			}
+
 			default {
 				error "unrecognized type: $type"
 			}
@@ -259,8 +279,8 @@ namespace eval ::fa_piaware_config {
 				error "wrong args: should be \"add_setting key ?-type type? ?-default value? ?-protect 0|1?\""
 			}
 
-			if {$typeName ni {boolean string integer double mac uuid country gain}} {
-				error "wrong args: -type understands \"boolean\", \"string\", \"double\", \"integer\", \"mac\", \"uuid\", \"country\", \"gain\""
+			if {$typeName ni {boolean string integer double mac uuid country gain receiver}} {
+				error "wrong args: -type understands \"boolean\", \"string\", \"double\", \"integer\", \"mac\", \"uuid\", \"country\", \"gain\", \"receiver\""
 			}
 
 			if {[info exists defaultValue]} {
@@ -1012,7 +1032,7 @@ namespace eval ::fa_piaware_config {
 			{"adept-serverport"      -type integer -default 1200}
 
 			{"rfkill"                -type boolean -default no}
-			{"receiver-type"         -default rtlsdr}
+			{"receiver-type"         -type receiver -default rtlsdr}
 			{"rtlsdr-device-index"   -default 0}
 			{"rtlsdr-ppm"            -type integer -default 0}
 			{"rtlsdr-gain"           -type gain -default max}
@@ -1028,7 +1048,7 @@ namespace eval ::fa_piaware_config {
 
 			{"enable-firehose"       -type boolean -default no}
 
-			{"uat-receiver-type"	 -default none}
+			{"uat-receiver-type"	 -type receiver -default none}
 			{"uat-receiver-host"}
 			{"uat-receiver-port"	 -type integer -default 30978}
 			{"uat-sdr-gain"	         -type gain -default max}
