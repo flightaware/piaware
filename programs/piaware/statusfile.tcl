@@ -156,7 +156,7 @@ proc build_status {} {
 	# gps: GPS fix status
 	# only report this if we actually got a gpsd connection at least,
 	# as most installs won't have GPS.
-	if {[gpsd is_connected]} {
+	if {[info exists gpsd] && [gpsd is_connected]} {
 		if {[info exists ::locationData(gpsd)]} {
 			lassign $::locationData(gpsd) lat lon alt altref
 			set data(gps) [status_entry "green" [format "GPS 3D fix at %.3f,%.3f" $lat $lon]]
