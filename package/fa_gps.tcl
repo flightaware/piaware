@@ -7,7 +7,7 @@
 # open source in accordance with the Berkeley license
 #
 
-package require Itcl
+package require Itcl 3.4
 package require json
 
 namespace eval ::fa_gps {

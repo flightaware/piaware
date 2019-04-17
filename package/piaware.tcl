@@ -7,7 +7,7 @@
 
 package require http
 package require tls
-package require Itcl
+package require Itcl 3.4
 package require tryfinallyshim
 package require fa_sudo
 

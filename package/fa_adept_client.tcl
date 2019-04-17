@@ -9,7 +9,7 @@
 #
 
 package require tls
-package require Itcl
+package require Itcl 3.4
 package require fa_adept_codecs 2.1
 
 namespace eval ::fa_adept {
