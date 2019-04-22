@@ -146,8 +146,8 @@ proc adept_location_changed {lat lon alt altref} {
 }
 
 proc connect_to_gpsd {} {
-	::fa_gps::GpsdClient gpsd -callback gps_location_update
-	gpsd connect
+	set ::gpsd [::fa_gps::GpsdClient #auto -callback gps_location_update]
+	$::gpsd connect
 }
 
 # vim: set ts=4 sw=4 sts=4 noet :
