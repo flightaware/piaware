@@ -83,37 +83,31 @@ proc build_status {} {
 		set data(adept) [status_entry "red" "Not connected to FlightAware"]
 	}
 
-	# radio: status of the connection to the receiver process
-	array set reasons {}
-	foreach {faupvar name} {::faup1090 "Mode S" ::faup978 "UAT"} {
-		if {![info exists $faupvar]} {
-			continue
-		}
-
-		set faup [set $faupvar]
-		if {[$faup is_connected]} {
-			if {([clock seconds] - [$faup last_message_received]) < 60} {
-				lappend reasons(green) "Received $name data recently"
-			} else {
-				lappend reasons(amber) "Connected to $name receiver, but no recent data seen"
-			}
+	# radio: status of the connection to the Mode S receiver process
+	if {[info exists ::faup1090] && [$::faup1090 is_connected]} {
+		if {([clock seconds] - [$::faup1090 last_message_received]) < 60} {
+			set data(radio) [status_entry "green" "Received Mode S data recently"]
 		} else {
-			lappend reasons(red) "Not connected to $name receiver"
+			set data(radio) [status_entry "amber" "Connected to Mode S receiver, but no recent data seen"]
 		}
 	}
 
-	foreach status {red amber green} {
-		if {[info exists reasons($status)]} {
-			set data(radio) [status_entry $status [join $reasons($status) "; "]]
-			break
-		}
-	}
-	if {![info exists data(radio)]} {
+	# uat_radio: status of the connection to the UAT receiver process
+        if {[info exists ::faup978] && [$::faup978 is_connected]} {
+                if {([clock seconds] - [$::faup978 last_message_received]) < 60} {
+                        set data(uat_radio) [status_entry "green" "Received UAT data recently"]
+                } else {
+                        set data(uat_radio) [status_entry "amber" "Connected to UAT receiver, but no recent data seen"]
+                }
+        }
+
+	# No radios configured
+	if {![info exists data(radio)] && ![info exists data(uat_radio)]} {
 		set data(radio) [status_entry "red" "No receivers configured"]
 	}
 
 	# adsb program enabled status
-	foreach {program name} {::faup1090 "MODES_enabled" ::faup978 "UAT_enabled"} {
+	foreach {program name} {::faup1090 "modes_enabled" ::faup978 "uat_enabled"} {
 		# set enabled to true if connected to receiver
 		if {[info exists $program] && [$program is_connected]} {
 			set data($name) true
@@ -122,34 +116,36 @@ proc build_status {} {
 		}
 	}
 
-	# mlat: status of mlat
-	switch $::mlatStatus {
-		not_enabled {
-			set data(mlat) [status_entry "red" "Multilateration is not enabled"]
-		}
+	# mlat: status of mlat; only show if 1090 mode is enabled
+	if {[info exists data(modes_enabled)] && $data(modes_enabled) == true} {
+		switch $::mlatStatus {
+			not_enabled {
+				set data(mlat) [status_entry "red" "Multilateration is not enabled"]
+			}
 
-		not_running {
-			set data(mlat) [status_entry "red" "Multilateration enabled, but client is not running"]
-		}
+			not_running {
+				set data(mlat) [status_entry "red" "Multilateration enabled, but client is not running"]
+			}
 
-		initializing {
-			set data(mlat) [status_entry "amber" "Multilateration initializing"]
-		}
+			initializing {
+				set data(mlat) [status_entry "amber" "Multilateration initializing"]
+			}
 
-		no_sync {
-			set data(mlat) [status_entry "amber" "No clock synchronization with nearby receivers"]
-		}
+			no_sync {
+				set data(mlat) [status_entry "amber" "No clock synchronization with nearby receivers"]
+			}
 
-		unstable {
-			set data(mlat) [status_entry "amber" "Local clock source is unstable"]
-		}
+			unstable {
+				set data(mlat) [status_entry "amber" "Local clock source is unstable"]
+			}
 
-		ok {
-			set data(mlat) [status_entry "green" "Multilateration synchronized"]
-		}
+			ok {
+				set data(mlat) [status_entry "green" "Multilateration synchronized"]
+			}
 
-		default {
-			set data(mlat) [status_entry "amber" "Unexpected multilateration status $::mlatStatus, please report this"]
+			default {
+				set data(mlat) [status_entry "amber" "Unexpected multilateration status $::mlatStatus, please report this"]
+			}
 		}
 	}
 
