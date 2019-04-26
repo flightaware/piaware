@@ -103,7 +103,7 @@ proc build_status {} {
 
 	# No radios configured
 	if {![info exists data(radio)] && ![info exists data(uat_radio)]} {
-		set data(radio) [status_entry "red" "No receivers configured"]
+		set data(no_radio) [status_entry "red" "No receivers configured"]
 	}
 
 	# adsb program enabled status
