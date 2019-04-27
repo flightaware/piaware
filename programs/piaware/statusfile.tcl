@@ -106,18 +106,14 @@ proc build_status {} {
 		set data(no_radio) [status_entry "red" "No receivers configured"]
 	}
 
-	# adsb program enabled status
-	foreach {program name} {::faup1090 "modes_enabled" ::faup978 "uat_enabled"} {
-		# set enabled to true if connected to receiver
-		if {[info exists $program] && [$program is_connected]} {
-			set data($name) true
-		} else {
-			set data($name) false
-		}
-	}
+	set mode_s_receiver [piawareConfig get receiver-type]
+	set data(modes_enabled) [expr {$mode_s_receiver ne "none"} ? true : false]
+
+	set uat_receiver [piawareConfig get uat-receiver-type]
+	set data(uat_enabled) [expr {$uat_receiver ne "none"} ? true : false]
 
 	# mlat: status of mlat; only show if 1090 mode is enabled
-	if {[info exists data(modes_enabled)] && $data(modes_enabled) == true} {
+	if {$data(modes_enabled) == true} {
 		switch $::mlatStatus {
 			not_enabled {
 				set data(mlat) [status_entry "red" "Multilateration is not enabled"]
