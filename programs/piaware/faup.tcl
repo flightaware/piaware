@@ -1,6 +1,6 @@
 # -*- mode: tcl; tab-width: 4; indent-tabs-mode: t -*-
 
-package require Itcl 3.4
+package require Itcl
 
 #
 # Class that handles connection between faup programs and adept
