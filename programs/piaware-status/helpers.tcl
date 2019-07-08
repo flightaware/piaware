@@ -134,14 +134,18 @@ proc check_ports_for_data {} {
 	foreach message_type $::message_types {
 		lassign [receiver_underlying_host_and_port $::config $message_type] rhost rport
 		if {$rhost ne ""} {
-			incr ::nRunning
-			test_port_for_traffic $rhost $rport [list adsb_data_callback [receiver_description $::config $message_type] $rhost $rport]
+			if {[info exists ::netstatus($rport)]} {
+				incr ::nRunning
+				test_port_for_traffic $rhost $rport [list adsb_data_callback [receiver_description $::config $message_type] $rhost $rport]
+			}
 		}
 
 		lassign [receiver_host_and_port $::config $message_type] lhost lport
 		if {$lhost ne "" && ($rhost ne $lhost || $rport ne $lport)} {
-			incr ::nRunning
-			test_port_for_traffic $lhost $lport [list adsb_data_callback "Local ADS-B relay" $lhost $lport]
+			if {[info exists ::netstatus($lport)]} {
+				incr ::nRunning
+				test_port_for_traffic $lhost $lport [list adsb_data_callback "Local ADS-B relay" $lhost $lport]
+			}
 		}
 	}
 
