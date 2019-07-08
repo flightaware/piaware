@@ -77,10 +77,6 @@ proc gather_login_info {_message} {
 		set message(feeder_id) $feederId
 	}
 
-	set message(local_auto_update_enable) [piawareConfig get allow-auto-updates]
-	set message(local_manual_update_enable) [piawareConfig get allow-manual-updates]
-	set message(local_mlat_enable) [piawareConfig get allow-mlat]
-
 	foreach {msgVar configKey} {
 		user flightaware-user
 		password flightaware-password
