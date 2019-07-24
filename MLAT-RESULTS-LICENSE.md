@@ -9,9 +9,9 @@ licenses the use of the MLAT results data to you for your personal and
 non-commercial use as long as you are a data feeder to FlightAware. You may use
 the MLAT results in several ways:
 
- * Via the Skyview web site running on your PiAware or FlightFeeder device in
+ * Via the SkyAware web site running on your PiAware or FlightFeeder device in
    the web browser of your choice.
- * Via the JSON file output used by the Skyview web site. (For use by advanced
+ * Via the JSON file output used by the SkyAware web site. (For use by advanced
    users; this is not formally supported by FlightAware.)
  * Via direct network connection to TCP port 30105 or 30106 within your local
    area network. (For use by advanced users; this is not formally supported by
@@ -19,7 +19,7 @@ the MLAT results in several ways:
 
 FlightAware does not allow redistribution of MLAT results data to third parties
 via any means for commercial use or consumption by the general public with the
-exception that you may share the Skyview user interface with other users if you
+exception that you may share the SkyAware user interface with other users if you
 choose. Sharing of the MLAT results data for commercial use or public
 consumption in formats such as JSON, Beast, Basestation or any other format is
 not permitted. Furthermore, any aggregation of FlightAware MLAT results with
