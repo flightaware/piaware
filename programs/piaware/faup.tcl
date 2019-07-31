@@ -416,16 +416,16 @@ proc update_location {lat lon} {
 		}
 	}
 
-	# changed nontrivially; restart dump1090 / faup1090 / skyview978 to use the new values
+	# changed nontrivially; restart dump1090 / faup1090 / skyaware978 to use the new values
 	set ::receiverLat $lat
 	set ::receiverLon $lon
 
-	# speculatively restart dump1090/skyview978 even if we are not using it as a receiver;
+	# speculatively restart dump1090/skyaware978 even if we are not using it as a receiver;
 	# it may be used for display.
 	if {[save_location_info $lat $lon]} {
-		logger "Receiver location changed, restarting dump1090 and skyview978"
+		logger "Receiver location changed, restarting dump1090 and skyaware978"
 		::fa_services::attempt_service_restart dump1090 restart
-		::fa_services::attempt_service_restart skyview978 restart
+		::fa_services::attempt_service_restart skyaware978 restart
 	}
 
 	if {[info exists ::faup1090] && [$::faup1090 is_connected]} {
