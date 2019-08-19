@@ -63,7 +63,7 @@ proc query_dpkg_names_and_versions {pattern} {
 # is_pid_running - return 1 if the specified process ID is running, else 0
 #
 proc is_pid_running {pid} {
-    if {[catch {kill -0 $pid} catchResult] == 1} {
+	if {[catch {kill -0 $pid} catchResult] == 1} {
 		switch [lindex $::errorCode 1] {
 			"EPERM" {
 				# we didn't have permission to kill it but that we got this
@@ -80,10 +80,10 @@ proc is_pid_running {pid} {
 				error "is_pid_running unexpectedly got '$catchResult' $::errorCode"
 			}
 		}
-    }
+	}
 	# no error from kill, that means the process exists and we had permissions
 	# to kill it.  whatever, the main point is the process exists
-    return 1
+	return 1
 }
 
 #
@@ -91,18 +91,18 @@ proc is_pid_running {pid} {
 #  file
 #
 proc is_piaware_running {} {
-    if {[catch {set fp [open $::piawarePidFile]}] == 1} {
+	if {[catch {set fp [open $::piawarePidFile]}] == 1} {
 		return 0
-    }
+	}
 
-    gets $fp pid
-    close $fp
+	gets $fp pid
+	close $fp
 
-    if {![string is integer -strict $pid]} {
+	if {![string is integer -strict $pid]} {
 		return 0
-    }
+	}
 
-    return [is_pid_running $pid]
+	return [is_pid_running $pid]
 }
 
 #
@@ -112,18 +112,18 @@ proc is_piaware_running {} {
 # invokes the callback with a 0 for no data received or a 1 for data recv'd
 #
 proc test_port_for_traffic {host port callback {waitSeconds 60}} {
-    if {[catch {set sock [socket $host $port]} catchResult] == 1} {
+	if {[catch {set sock [socket $host $port]} catchResult] == 1} {
 		puts "got '$catchResult'"
 		{*}$callback 0
 		return
-    }
+	}
 
-    fconfigure $sock -buffering none \
+	fconfigure $sock -buffering none \
 		-translation binary \
 		-encoding binary
 
-    set timer [after [expr {$waitSeconds * 1000}] [list test_port_callback "" $sock 0 $callback]]
-    fileevent $sock readable [list test_port_callback $timer $sock 1 $callback]
+	set timer [after [expr {$waitSeconds * 1000}] [list test_port_callback "" $sock 0 $callback]]
+	fileevent $sock readable [list test_port_callback $timer $sock 1 $callback]
 }
 
 #
@@ -131,11 +131,11 @@ proc test_port_for_traffic {host port callback {waitSeconds 60}} {
 #  the timer and close the socket and invoke the callback
 #
 proc test_port_callback {timer sock status callback} {
-    if {$timer != ""} {
+	if {$timer != ""} {
 		catch {after cancel $timer}
-    }
-    catch {close $sock}
-    {*}$callback $status
+	}
+	catch {close $sock}
+	{*}$callback $status
 }
 
 #
@@ -143,7 +143,7 @@ proc test_port_callback {timer sock status callback} {
 #   command
 #
 proc process_netstat_socket_line {line} {
-    lassign $line proto recvq sendq localAddress foreignAddress state pidProg
+	lassign $line proto recvq sendq localAddress foreignAddress state pidProg
 
 	if {$proto ne "tcp" && $proto ne "tcp6"} {
 		return
@@ -158,9 +158,9 @@ proc process_netstat_socket_line {line} {
 
 	if {$state == "LISTEN" && [regexp {(.*):(\d+)} $localAddress -> addr port]} {
 		set ::netstatus($port) [list $prog $pid]
-    }
+	}
 
-    switch $prog {
+	switch $prog {
 		"faup1090" {
 			if {$state == "ESTABLISHED"} {
 				set ::netstatus_faup1090 1
@@ -178,7 +178,7 @@ proc process_netstat_socket_line {line} {
 				set ::netstatus_piaware 1
 			}
 		}
-    }
+	}
 }
 
 #
@@ -219,12 +219,12 @@ proc inspect_sockets_with_netstat {} {
 # warn_once - issue a warning message but only once
 #
 proc warn_once {message args} {
-    if {[info exists ::warnOnceWarnings($message)]} {
+	if {[info exists ::warnOnceWarnings($message)]} {
 		return
-    }
-    set ::warnOnceWarnings($message) ""
+	}
+	set ::warnOnceWarnings($message) ""
 
-    logger "WARNING $message"
+	logger "WARNING $message"
 }
 
 
