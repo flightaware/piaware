@@ -47,25 +47,33 @@ proc subst_is_or_is_not {string value} {
 # netstat_report - parse netstat output and report
 #
 proc netstat_report {} {
-    inspect_sockets_with_netstat
+	inspect_sockets_with_netstat
 
 	foreach message_type $::message_types {
+		if {![receiver_enabled $::config $message_type]} {
+			continue
+		}
+
 		set localPort [receiver_local_port $::config $message_type]
 		if {$localPort eq 0} {
-			puts "the ADS-B listener is on another host, I can't check on its status."
+			puts "the $message_type listener is on another host, I can't check on its status."
 		} else {
 			if {![info exists ::netstatus($localPort)]} {
-				puts "no program appears to be listening for connections on port $localPort."
+				puts "no program appears to be listening for $message_type connections on port $localPort."
 			} else {
 				lassign $::netstatus($localPort) prog pid
-				puts "$prog (pid $pid) is listening for connections on port $localPort."
+				puts "$prog (pid $pid) is listening for $message_type connections on port $localPort."
 			}
 		}
 	}
 
 	if {$::netstatus_reliable} {
-		puts [subst_is_or_is_not "faup1090 %s connected to the ADS-B receiver." $::netstatus_faup1090]
-		puts [subst_is_or_is_not "faup978 %s connected to the ADS-B UAT receiver." $::netstatus_faup978]
+		if {[receiver_enabled $::config ES]} {
+			puts [subst_is_or_is_not "faup1090 %s connected to the ADS-B receiver." $::netstatus_faup1090]
+		}
+		if {[receiver_enabled $::config UAT]} {
+			puts [subst_is_or_is_not "faup978 %s connected to the ADS-B UAT receiver." $::netstatus_faup978]
+		}
 		puts [subst_is_or_is_not "piaware %s connected to FlightAware." $::netstatus_piaware]
 	}
 }
@@ -109,8 +117,16 @@ proc process_running_report {description expected pattern} {
 #
 proc report_on_whats_running {} {
 	process_running_report "PiAware master process" piaware {^piaware$}
-	process_running_report "PiAware ADS-B client" faup1090 {^faup1090$}
-	process_running_report "PiAware ADS-B UAT client" faup978 {^faup978$}
+	if {[receiver_enabled $::config ES]} {
+		process_running_report "PiAware ADS-B client" faup1090 {^faup1090$}
+	} else {
+		puts "PiAware ADS-B client (faup1090) is not running (disabled by configuration settings)"
+	}
+	if {[receiver_enabled $::config UAT]} {
+		process_running_report "PiAware ADS-B UAT client" faup978 {^faup978$}
+	} else {
+		puts "PiAware ADS-B UAT client (faup978) is not running (disabled by configuration settings)"
+	}
 	process_running_report "PiAware mlat client" fa-mlat-client {^fa-mlat-client$}
 
 	set service [receiver_local_service $::config "ES"]
@@ -132,20 +148,19 @@ proc check_ports_for_data {} {
 
 	# Check ports of each message type
 	foreach message_type $::message_types {
+		if {![receiver_enabled $::config $message_type]} {
+			continue
+		}
 		lassign [receiver_underlying_host_and_port $::config $message_type] rhost rport
 		if {$rhost ne ""} {
-			if {[info exists ::netstatus($rport)]} {
-				incr ::nRunning
-				test_port_for_traffic $rhost $rport [list adsb_data_callback [receiver_description $::config $message_type] $rhost $rport]
-			}
+			incr ::nRunning
+			test_port_for_traffic $rhost $rport [list adsb_data_callback [receiver_description $::config $message_type] $rhost $rport] 10
 		}
 
 		lassign [receiver_host_and_port $::config $message_type] lhost lport
 		if {$lhost ne "" && ($rhost ne $lhost || $rport ne $lport)} {
-			if {[info exists ::netstatus($lport)]} {
-				incr ::nRunning
-				test_port_for_traffic $lhost $lport [list adsb_data_callback "Local ADS-B relay" $lhost $lport]
-			}
+			incr ::nRunning
+			test_port_for_traffic $lhost $lport [list adsb_data_callback "Local ADS-B relay" $lhost $lport]
 		}
 	}
 
