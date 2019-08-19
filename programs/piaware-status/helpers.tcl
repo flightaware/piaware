@@ -34,13 +34,13 @@ proc report_status {} {
 #  based on if value is true or false
 #
 proc subst_is_or_is_not {string value} {
-    if {$value} {
+	if {$value} {
 		set value "is"
-    } else {
+	} else {
 		set value "is NOT"
-    }
+	}
 
-    return [format $string $value]
+	return [format $string $value]
 }
 
 #
@@ -194,9 +194,9 @@ proc report_feeder_id {} {
 	catch {
 		set f [open $path "r"]
 		try {
-		    gets $f id
+			gets $f id
 		} finally {
-		    close $f
+			close $f
 		}
 	}
 
