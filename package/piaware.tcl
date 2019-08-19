@@ -277,8 +277,10 @@ proc receiver_local_service {config message_type} {
 		# 978
 		UAT {
 			switch -- [$config get uat-receiver-type] {
-				sdr - rtlsdr { return "dump978" }
-				none   	   { return "" }
+				sdr        { return "dump978" }
+				stratuxv3  { return "dump978" }
+				other	   { return "" }
+				none	   { return "" }
 				default	   { error "unknown UAT receiver type configured: [$config get uat-receiver-type]" }
 			}
 		}
@@ -322,15 +324,11 @@ proc receiver_description {config message_type} {
 		# 978
 		UAT {
 			switch -- [$config get uat-receiver-type] {
-				sdr {
-					return "dump978"
-				}
-				none {
-					return ""
-				}
-				default {
-					error "unknown UAT receiver type configured: [$config get uat-receiver-type]"
-				}
+				sdr        { return "dump978" }
+				stratuxv3  { return "dump978" }
+				other	   { return "the ADS-B data program at [$config get uat-receiver-host]/[$config get uat-receiver-port]" }
+				none	   { return "" }
+				default	   { error "unknown UAT receiver type configured: [$config get uat-receiver-type]" }
 			}
 		}
 
@@ -355,7 +353,7 @@ proc receiver_host_and_port {config message_type} {
 				radarcape  { return [list localhost 30005] }
 				radarcape-local  { return [list localhost 10006] }
 				other      { return [list [$config get receiver-host] [$config get receiver-port]] }
-				none       { return [list localhost 30005] }
+				none	   { return [list "" ""] }
 				default    { error "unknown receiver type configured: [$config get receiver-type]" }
 			}
 		}
@@ -363,9 +361,11 @@ proc receiver_host_and_port {config message_type} {
 		# 978
 		UAT {
 			switch -- [$config get uat-receiver-type] {
-				sdr    	   { return [list localhost 30978] }
-				none       { return [list localhost 30978] }
-				default    { error "unknown UAT receiver type configured [$config get uat-receiver-type]" }
+				sdr        { return [list localhost 30978] }
+				stratuxv3  { return [list localhost 30978] }
+				other	   { return [list [$config get uat-receiver-host] [$config get uat-receiver-port]] }
+				none	   { return [list "" ""] }
+				default	   { error "unknown UAT receiver type configured [$config get uat-receiver-type]" }
 			}
 		}
 
@@ -390,7 +390,7 @@ proc receiver_underlying_host_and_port {config message_type} {
 				radarcape  { return [list [$config get radarcape-host] 10003] }
 				radarcape-local  { return [list localhost 10006] }
 				other      { return [list [$config get receiver-host] [$config get receiver-port]] }
-				none       { return [list localhost 30005] }
+				none       { return [list "" ""] }
 				default    { error "unknown receiver type configured: [$config get receiver-type]" }
 			}
 		}
@@ -398,8 +398,10 @@ proc receiver_underlying_host_and_port {config message_type} {
 		# 978
 		UAT {
 			switch -- [$config get uat-receiver-type] {
-				sdr	       { return [list localhost 30978] }
-				none       { return [list localhost 30978] }
+				sdr        { return [list localhost 30978] }
+				stratuxv3  { return [list localhost 30978] }
+				other      { return [list [$config get uat-receiver-host] [$config get uat-receiver-port]] }
+				none       { return [list "" ""] }
 				default	   { error "unknown UAT receiver type configured: [$config get uat-receiver-type]" }
 			}
 		}
@@ -424,15 +426,17 @@ proc receiver_data_format {config message_type} {
 				radarcape  { return "radarcape" }
 				radarcape-local  { return "radarcape" }
 				other      { return "auto" }
-				none       { return "auto" }
+				none	   { return "" }
 				default    { error "unknown receiver type configured: [$config get receiver-type]" }
 			}
 		}
 
 		UAT {
 			switch -- [$config get uat-receiver-type] {
-				sdr	       { return "dump978" }
-				none       { return "auto" }
+				sdr        { return "dump978" }
+				stratuxv3  { return "dump978" }
+				other      { return "dump978" }
+				none       { return "" }
 				default    { error "Unknown UAT receiver type configured: [$config get uat-receiver-type]" }
 			}
 		}
