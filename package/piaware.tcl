@@ -228,6 +228,24 @@ proc warn_once {message args} {
 }
 
 
+# return 1 if the given receiver type is enabled
+proc receiver_enabled {config message_type} {
+	switch -- $message_type {
+		# 1090
+		ES {
+			return [expr {[$config get receiver-type] ne "none"}]
+		}
+
+		UAT {
+			return [expr {[$config get uat-receiver-type] ne "none"}]
+		}
+
+		default {
+			error "invalid message_type supplied"
+		}
+	}
+}
+
 # return the local receiver port for message type (ES or UAT), or 0 if it is remote
 proc receiver_local_port {config message_type} {
 	lassign [receiver_host_and_port $config $message_type] host port
