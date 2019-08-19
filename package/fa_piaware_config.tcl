@@ -68,14 +68,13 @@ namespace eval ::fa_piaware_config {
 	}
 
 	proc valid_receiver_type {value} {
-		set supportedReceiverTypes {rtlsdr sdr bladerf beast relay radarcape radarcape-local other none}
-
-		if {$value ni $supportedReceiverTypes } {
-			return 0
-		}
-
-		return 1
+		return [expr {$value in {rtlsdr sdr bladerf beast relay radarcape radarcape-local other none}}]
 	}
+
+	proc valid_uat_receiver_type {value} {
+		return [expr {$value in {sdr stratuxv3 other none}}]
+	}
+
 	# check a value of the given type, return 1 if it looks OK
 	proc validate_typed_value {type value} {
 		switch $type {
@@ -115,6 +114,10 @@ namespace eval ::fa_piaware_config {
 				return [valid_receiver_type [string tolower [string trim $value]]]
 			}
 
+			"uat_receiver" {
+				return [valid_uat_receiver_type [string tolower [string trim $value]]]
+			}
+
 			default {
 				error "unrecognized type: $type"
 			}
@@ -136,7 +139,7 @@ namespace eval ::fa_piaware_config {
 				return [string is true -strict $value]
 			}
 
-			"mac" - "uuid" - "receiver" {
+			"mac" - "uuid" - "receiver" - "uat_receiver" {
 				return [string tolower [string trim $value]]
 			}
 
@@ -225,6 +228,13 @@ namespace eval ::fa_piaware_config {
 				return [string tolower $value]
 			}
 
+			"uat_receiver" {
+				if {![valid_uat_receiver_type $value]} {
+					error "bad uat_receiver type: $value"
+				}
+				return [string tolower $value]
+			}
+
 			default {
 				error "unrecognized type: $type"
 			}
@@ -279,8 +289,8 @@ namespace eval ::fa_piaware_config {
 				error "wrong args: should be \"add_setting key ?-type type? ?-default value? ?-protect 0|1?\""
 			}
 
-			if {$typeName ni {boolean string integer double mac uuid country gain receiver}} {
-				error "wrong args: -type understands \"boolean\", \"string\", \"double\", \"integer\", \"mac\", \"uuid\", \"country\", \"gain\", \"receiver\""
+			if {$typeName ni {boolean string integer double mac uuid country gain receiver uat_receiver}} {
+				error "wrong args: -type understands \"boolean\", \"string\", \"double\", \"integer\", \"mac\", \"uuid\", \"country\", \"gain\", \"receiver\", \"uat_receiver\""
 			}
 
 			if {[info exists defaultValue]} {
@@ -1048,7 +1058,7 @@ namespace eval ::fa_piaware_config {
 
 			{"enable-firehose"       -type boolean -default no}
 
-			{"uat-receiver-type"	 -type receiver -default none}
+			{"uat-receiver-type"	 -type uat_receiver -default none}
 			{"uat-receiver-host"}
 			{"uat-receiver-port"	 -type integer -default 30978}
 			{"uat-sdr-gain"	         -type gain -default max}
