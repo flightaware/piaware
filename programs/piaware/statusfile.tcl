@@ -83,37 +83,22 @@ proc build_status {} {
 		set data(adept) [status_entry "red" "Not connected to FlightAware"]
 	}
 
-	# radio: status of the connection to the Mode S receiver process
-	if {[info exists ::faup1090] && [$::faup1090 is_connected]} {
-		if {([clock seconds] - [$::faup1090 last_message_received]) < 60} {
-			set data(radio) [status_entry "green" "Received Mode S data recently"]
+	# 1090 status
+	if {[receiver_enabled piawareConfig ES]} {
+		set data(modes_enabled) true
+
+		# radio: status of the connection to the Mode S receiver process
+		if {[info exists ::faup1090] && [$::faup1090 is_connected]} {
+			if {([clock seconds] - [$::faup1090 last_message_received]) < 60} {
+				set data(radio) [status_entry "green" "Received Mode S data recently"]
+			} else {
+				set data(radio) [status_entry "amber" "Connected to Mode S receiver, but no recent data seen"]
+			}
 		} else {
-			set data(radio) [status_entry "amber" "Connected to Mode S receiver, but no recent data seen"]
+			set data(radio) [status_entry "red" "Not connected to Mode S receiver"]
 		}
-	}
 
-	# uat_radio: status of the connection to the UAT receiver process
-        if {[info exists ::faup978] && [$::faup978 is_connected]} {
-                if {([clock seconds] - [$::faup978 last_message_received]) < 60} {
-                        set data(uat_radio) [status_entry "green" "Received UAT data recently"]
-                } else {
-                        set data(uat_radio) [status_entry "amber" "Connected to UAT receiver, but no recent data seen"]
-                }
-        }
-
-	# No radios configured
-	if {![info exists data(radio)] && ![info exists data(uat_radio)]} {
-		set data(no_radio) [status_entry "red" "No receivers configured"]
-	}
-
-	set mode_s_receiver [piawareConfig get receiver-type]
-	set data(modes_enabled) [expr {$mode_s_receiver ne "none"} ? true : false]
-
-	set uat_receiver [piawareConfig get uat-receiver-type]
-	set data(uat_enabled) [expr {$uat_receiver ne "none"} ? true : false]
-
-	# mlat: status of mlat; only show if 1090 mode is enabled
-	if {$data(modes_enabled) == true} {
+		# mlat: status of mlat; only show if 1090 mode is enabled
 		switch $::mlatStatus {
 			not_enabled {
 				set data(mlat) [status_entry "red" "Multilateration is not enabled"]
@@ -143,6 +128,33 @@ proc build_status {} {
 				set data(mlat) [status_entry "amber" "Unexpected multilateration status $::mlatStatus, please report this"]
 			}
 		}
+	} else {
+		# No Mode S configured
+		set data(modes_enabled) false
+	}
+
+	# 978 status
+	if {[receiver_enabled piawareConfig UAT]} {
+		set data(uat_enabled) true
+
+		# uat_radio: status of the connection to the UAT receiver process
+		if {[info exists ::faup978] && [$::faup978 is_connected]} {
+			if {([clock seconds] - [$::faup978 last_message_received]) < 60} {
+				set data(uat_radio) [status_entry "green" "Received UAT data recently"]
+			} else {
+				set data(uat_radio) [status_entry "amber" "Connected to UAT receiver, but no recent data seen"]
+			}
+		} else {
+			set data(uat_radio) [status_entry "red" "Not connected to UAT receiver"]
+		}
+	} else {
+		# No UAT configured
+		set data(uat_enabled) false
+	}
+
+	# Complain if neither radio is enabled
+	if {![receiver_enabled piawareConfig ES] && ![receiver_enabled piawareConfig UAT]} {
+		set data(no_radio) [status_entry "red" "No receivers configured"]
 	}
 
 	# gps: GPS fix status
