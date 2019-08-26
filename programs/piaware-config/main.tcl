@@ -29,13 +29,12 @@ proc main {{argv ""}} {
 		{start "attempt to start the ADS-B client"}
 		{stop "attempt to stop the ADS-B client"}
 		{restart "attempt to restart the ADS-B client"}
-		{status "get the status of the ADS-B client"}
 		{show "show current config settings (or just the specified keys)"}
 		{showall "show all config settings including passwords, unset values, and defaults"}
 		{configfile.arg "" "specify an additional configuration file to read"}
 	}
 
-	set usage ": $::argv0 ?-configfile <file>? -help|-start|-stop|-restart|-status|-showall|-show ?key?|?key value?\n"
+	set usage ": $::argv0 ?-configfile <file>? -help|-start|-stop|-restart|-showall|-show ?key?|?key value?\n"
 
 	if {[catch {array set ::params [::cmdline::getoptions argv $options $usage]} catchResult] == 1} {
 		puts stderr $catchResult
@@ -54,15 +53,11 @@ proc main {{argv ""}} {
 		restart_piaware
     }
 
-    if {$::params(status)} {
-		piaware_status
-    }
-
-	if {$::params(show) || $::params(showall) || $argv == ""} {
+    if {$::params(show) || $::params(showall) || $argv == ""} {
 		show_piaware_config $::params(showall) $argv
-	} else {
+    } else {
 		update_config_values $argv
-	}
+    }
 }
 
 if {!$tcl_interactive} {

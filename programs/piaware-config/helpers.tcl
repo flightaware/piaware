@@ -166,17 +166,6 @@ proc restart_piaware {} {
        invoke "/etc/init.d/piaware restart"
 }
 
-#
-# piaware_status
-#
-proc piaware_status {} {
-	if {[is_piaware_running]} {
-		puts "piaware is running"
-	} else {
-		puts "piaware is not running"
-	}
-}
-
 proc show_piaware_config {showAll keys} {
 	global config
 	load_config
