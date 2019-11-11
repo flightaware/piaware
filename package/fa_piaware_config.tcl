@@ -59,7 +59,7 @@ namespace eval ::fa_piaware_config {
 	}
 	set enum_values(receiver) {rtlsdr sdr bladerf beast relay radarcape radarcape-local other none}
 	set enum_values(uat_receiver) {sdr stratuxv3 other none}
-	set enum_values(network_config_style) {jessie stretch buster}
+	set enum_values(network_config_style) {jessie stretch buster manual}
 	set enum_values(network_type) {static dhcp}
 
 	proc is_enum_type {type} {
