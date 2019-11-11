@@ -135,7 +135,9 @@ namespace eval ::fa_sysinfo {
 		# well, that didn't work, look at the entire output of "ip link"
 		# for a MAC address and use one that looks sensible.
 		#
-		# look at broadcom interfaces, non-broadcom UP interfaces,
+		# look at Raspberry Pi OUI (Pi4) interfaces,
+		# broadcom OUI (Pi 1-3) interfaces,
+		# other UP interfaces,
 		# and everything else, in that order. If there's still a tie,
 		# use the interface name as a tiebreaker.
 
@@ -149,6 +151,11 @@ namespace eval ::fa_sysinfo {
 			while {[gets $fp line] >= 0} {
 				if {[regexp -nocase {^\d+: ([^:]+):.*state (\S+).*link/ether ((?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2})} $line -> dev state mac]} {
 					switch -glob -nocase -- "$state|$mac" {
+						"*|dc:a6:32:*" {
+							# RPi OUI, any state
+							set prio 0
+						}
+
 						"*|b8:27:eb:*" {
 							# Broadcom OUI, any state
 							set prio 1
