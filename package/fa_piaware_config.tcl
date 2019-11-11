@@ -40,43 +40,40 @@ namespace eval ::fa_piaware_config {
 		return [regexp -nocase {^[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}$} $uuid]
 	}
 
-	proc valid_country_code {code} {
-
-		# Find better way to do this?
-		set supportedCountryCodes {
-			AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL
-			BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV
-			CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD
-			GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HT HU ID IE IL IM IN
-			IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR
-			LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX
-			MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS
-			PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST
-			SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ
-			VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW 00
-		}
-
-		if {$code ni $supportedCountryCodes} {
-			return 0
-		}
-
-		return 1
-	}
-
 	proc valid_gain {value} {
 		return [expr {[string is double -strict $value] || $value eq "max"}]
 	}
 
-	proc valid_receiver_type {value} {
-		return [expr {$value in {rtlsdr sdr bladerf beast relay radarcape radarcape-local other none}}]
+	variable enum_values
+	set enum_values(country) {
+		AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL
+		BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV
+		CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD
+		GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HT HU ID IE IL IM IN
+		IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR
+		LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX
+		MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS
+		PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST
+		SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ
+		VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW 00
 	}
+	set enum_values(receiver) {rtlsdr sdr bladerf beast relay radarcape radarcape-local other none}
+	set enum_values(uat_receiver) {sdr stratuxv3 other none}
+	set enum_values(network_config_style) {stretch buster}
+	set enum_values(network_type) {static dhcp}
 
-	proc valid_uat_receiver_type {value} {
-		return [expr {$value in {sdr stratuxv3 other none}}]
+	proc is_enum_type {type} {
+		variable enum_values
+		return [info exists enum_values($type)]
 	}
 
 	# check a value of the given type, return 1 if it looks OK
 	proc validate_typed_value {type value} {
+		variable enum_values
+		if {[is_enum_type $type]} {
+			return [expr {[lsearch -nocase $enum_values($type) $value] >= 0}]
+		}
+
 		switch $type {
 			"string" {
 				return 1
@@ -102,20 +99,8 @@ namespace eval ::fa_piaware_config {
 				return [valid_uuid [string trim $value]]
 			}
 
-			"country" {
-				return [valid_country_code [string toupper [string trim $value]]]
-			}
-
 			"gain" {
 				return [valid_gain [string tolower [string trim $value]]]
-			}
-
-			"receiver" {
-				return [valid_receiver_type [string tolower [string trim $value]]]
-			}
-
-			"uat_receiver" {
-				return [valid_uat_receiver_type [string tolower [string trim $value]]]
 			}
 
 			default {
@@ -126,6 +111,11 @@ namespace eval ::fa_piaware_config {
 
 	# given a user-provided value of a given type, return the normalized form
 	proc normalize_typed_value {type value} {
+		variable enum_values
+		if {[is_enum_type $type]} {
+			return [lindex $enum_values($type) [lsearch -nocase $enum_values($type) $value]]
+		}
+
 		switch $type {
 			"string" {
 				return $value
@@ -139,12 +129,8 @@ namespace eval ::fa_piaware_config {
 				return [string is true -strict $value]
 			}
 
-			"mac" - "uuid" - "receiver" - "uat_receiver" {
+			"mac" - "uuid" {
 				return [string tolower [string trim $value]]
-			}
-
-			"country" {
-				return [string toupper [string trim $value]]
 			}
 
 			"gain" {
@@ -164,6 +150,15 @@ namespace eval ::fa_piaware_config {
 
 	# given a normalized value of the given type, return a formatted version suitable for writing to a config file
 	proc format_typed_value {type value} {
+		variable enum_values
+		if {[is_enum_type $type]} {
+			set i [lsearch -nocase $enum_values($type) $value]
+			if {$i < 0} {
+				error "bad $type value: $value"
+			}
+			return [lindex $enum_values($type) $i]
+		}
+
 		switch $type {
 			"string" {
 				return $value
@@ -207,30 +202,9 @@ namespace eval ::fa_piaware_config {
 				return [string tolower [string trim $value]]
 			}
 
-			"country" {
-				if {![valid_country_code $value]} {
-					error "bad Country code: $value"
-				}
-				return [string toupper [string trim $value]]
-			}
-
 			"gain" {
 				if {![valid_gain $value]} {
 					error "bad gain: $value"
-				}
-				return [string tolower $value]
-			}
-
-			"receiver" {
-				if {![valid_receiver_type $value]} {
-					error "bad receiver type: $value"
-				}
-				return [string tolower $value]
-			}
-
-			"uat_receiver" {
-				if {![valid_uat_receiver_type $value]} {
-					error "bad uat_receiver type: $value"
 				}
 				return [string tolower $value]
 			}
@@ -289,8 +263,8 @@ namespace eval ::fa_piaware_config {
 				error "wrong args: should be \"add_setting key ?-type type? ?-default value? ?-protect 0|1?\""
 			}
 
-			if {$typeName ni {boolean string integer double mac uuid country gain receiver uat_receiver}} {
-				error "wrong args: -type understands \"boolean\", \"string\", \"double\", \"integer\", \"mac\", \"uuid\", \"country\", \"gain\", \"receiver\", \"uat_receiver\""
+			if {![::fa_piaware_config::is_enum_type $typeName] && $typeName ni {boolean string integer double mac uuid gain}} {
+				error "unrecognized -type typename: $typeName"
 			}
 
 			if {[info exists defaultValue]} {
@@ -1012,8 +986,9 @@ namespace eval ::fa_piaware_config {
 			{"allow-auto-updates"    -type boolean -default no}
 			{"allow-manual-updates"  -type boolean -default no}
 
+			{"network-config-style"   -type network_config_style -default "buster"}
 			{"wired-network"         -type boolean -default yes}
-			{"wired-type"            -default "dhcp"}
+			{"wired-type"            -type network_type -default "dhcp"}
 			"wired-address"
 			"wired-netmask"
 			"wired-broadcast"
@@ -1023,7 +998,7 @@ namespace eval ::fa_piaware_config {
 			{"wireless-network"      -type boolean -default no}
 			"wireless-ssid"
 			{"wireless-password"     -protect 1}
-			{"wireless-type"         -default "dhcp"}
+			{"wireless-type"         -type network_type -default "dhcp"}
 			"wireless-address"
 			"wireless-netmask"
 			"wireless-broadcast"
@@ -1058,11 +1033,11 @@ namespace eval ::fa_piaware_config {
 
 			{"enable-firehose"       -type boolean -default no}
 
-			{"uat-receiver-type"	 -type uat_receiver -default none}
+			{"uat-receiver-type"     -type uat_receiver -default none}
 			{"uat-receiver-host"}
-			{"uat-receiver-port"	 -type integer -default 30978}
-			{"uat-sdr-gain"	         -type gain -default max}
-			{"uat-sdr-ppm"	         -type double -default 0}
+			{"uat-receiver-port"     -type integer -default 30978}
+			{"uat-sdr-gain"          -type gain -default max}
+			{"uat-sdr-ppm"           -type double -default 0}
 			{"uat-sdr-device"        -default "driver=rtlsdr"}
 
 			{"use-gpsd"              -type boolean -default yes}
