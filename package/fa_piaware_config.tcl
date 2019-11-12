@@ -980,8 +980,6 @@ namespace eval ::fa_piaware_config {
 			{"image-type"            -type string}
 			{"manage-config"         -type boolean -default no}
 			{"feeder-id"             -type uuid}
-			{"flightaware-user"      -protect 1}
-			{"flightaware-password"  -protect 1}
 			{"force-macaddress"      -type mac}
 			{"allow-auto-updates"    -type boolean -default no}
 			{"allow-manual-updates"  -type boolean -default no}

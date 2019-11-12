@@ -78,8 +78,6 @@ proc gather_login_info {_message} {
 	}
 
 	foreach {msgVar configKey} {
-		user flightaware-user
-		password flightaware-password
 		image_type image-type
 		local_auto_update_enable allow-auto-updates
 		local_manual_update_enable allow-manual-updates
