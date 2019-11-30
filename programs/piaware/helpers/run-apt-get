@@ -43,6 +43,13 @@ case "$ID:$VERSION_ID" in
         packagedsourceslist=/etc/apt/sources.list.d/piaware-stretch.list
         ;;
 
+    raspbian:10)
+        url=http://flightaware.com/adsb/piaware/files/packages
+        suite=buster
+        components=piaware
+        packagedsourceslist=/etc/apt/sources.list.d/piaware-buster.list
+        ;;
+
     *)
         echo "Automatic updates not available for OS $ID:$VERSION_ID ($PRETTY_NAME)" >&2
         exit 1
