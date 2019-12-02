@@ -22,6 +22,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 	public variable port 1200
 	public variable loginTimeoutSeconds 15
 	public variable connectRetryIntervalSeconds 60
+	public variable fastRetryIntervalSeconds 5
 	public variable showTraffic 0
 	public variable mac
 
@@ -35,6 +36,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 
 	protected variable shuffledHosts
 	protected variable host
+	protected variable retryInterval 5
 	protected variable connected 0
 	protected variable loggedIn 0
 	protected variable writabilityTimerID
@@ -89,6 +91,11 @@ set caDir [file join [file dirname [info script]] "ca"]
 		if {$nextHostIndex >= [llength $shuffledHosts]} {
 			set nextHostIndex 0
 			shuffle_hosts
+			# reached the end of the list; if this last connection fails
+			# then pause for longer before cycling through the list again
+			set retryInterval $connectRetryIntervalSeconds
+		} else {
+			set retryInterval $fastRetryIntervalSeconds
 		}
 		return $host
 	}
@@ -484,8 +491,10 @@ set caDir [file join [file dirname [info script]] "ca"]
 			set loggedIn 1
 
 			# we got far enough to call this a successful connection, so
-			# start again from the start of the host list next time.
+			# start again from the start of the host list next time,
+			# and do a fast retry on connection loss
 			set nextHostIndex 0
+			set retryInterval $fastRetryIntervalSeconds
 
 			# if we received lat/lon data, handle it
 			handle_update_location row
@@ -644,7 +653,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 		close_socket
 		cancel_timers
 
-		set interval [expr {round(($connectRetryIntervalSeconds * (0.8 + rand() * 0.4)))}]
+		set interval [expr {round(($retryInterval * (0.8 + rand() * 0.4)))}]
 		logger "reconnecting in $interval seconds..."
 
 		set reconnectTimerID [after [expr {$interval * 1000}] [list $this connect]]
