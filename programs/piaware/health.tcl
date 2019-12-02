@@ -68,7 +68,7 @@ proc gps_location_update {lat lon alt} {
 	handle_location_update gpsd $lat $lon $alt wgs84_meters
 }
 
-proc handle_location_update {src lat lon alt altref} {
+proc handle_location_update {src lat lon alt altref {override ""}} {
 	if {$lat eq "" || $lon eq ""} {
 		unset -nocomplain ::locationData($src)
 	} else {
@@ -93,7 +93,7 @@ proc handle_location_update {src lat lon alt altref} {
 			}
 		}
 
-		set ::locationData($src) [list $lat $lon $alt $altref]
+		set ::locationData($src) [list $lat $lon $alt $altref $override]
 	}
 
 	location_data_changed
@@ -101,11 +101,28 @@ proc handle_location_update {src lat lon alt altref} {
 
 proc location_data_changed {} {
 	# find best location, prefer receiver data over gpsd over adept
+	array set typePriority {
+		adept 1
+		gpsd 2
+		receiver 3
+		mlat 4
+	}
+
 	set newloc ""
-	foreach src {mlat receiver gpsd adept} {
-		if {[info exists ::locationData($src)]} {
-			set newloc $::locationData($src)
-			break
+	set newprio -99
+	foreach {src srcData} [array get ::locationData] {
+		lassign $srcData lat lon alt altref override
+		if {$override ne ""} {
+			set priority $override
+		} elseif {[info exists typePriority($src)]} {
+			set priority $typePriority($src)
+		} else {
+			set priority 0
+		}
+
+		if {$priority > $newprio} {
+			set newloc $srcData
+			set newprio $priority
 		}
 	}
 
@@ -141,8 +158,8 @@ proc location_data_changed {} {
 	}
 }
 
-proc adept_location_changed {lat lon alt altref} {
-	handle_location_update "adept" $lat $lon $alt $altref
+proc adept_location_changed {lat lon alt altref override} {
+	handle_location_update "adept" $lat $lon $alt $altref $override
 }
 
 proc connect_to_gpsd {} {
