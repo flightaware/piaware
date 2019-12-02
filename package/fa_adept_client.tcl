@@ -671,6 +671,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 		set message(type) login
 		set message(mac) $mac
 		set message(compression_version) [$newcodec version]
+		set message(connected_host) $host
 
 		if {$deviceLocation ne ""} {
 			lassign $deviceLocation message(receiverlat) message(receiverlon) message(receiveralt) message(receiveraltref)
