@@ -20,7 +20,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 	public variable sock
 	public variable hosts [list piaware.flightaware.com piaware.flightaware.com [list 70.42.6.197 70.42.6.198 70.42.6.191 70.42.6.225 70.42.6.224 70.42.6.156]]
 	public variable port 1200
-	public variable loginTimeoutSeconds 30
+	public variable loginTimeoutSeconds 15
 	public variable connectRetryIntervalSeconds 60
 	public variable showTraffic 0
 	public variable mac
