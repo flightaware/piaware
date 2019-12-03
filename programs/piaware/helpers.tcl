@@ -74,19 +74,9 @@ proc setup_adept_client {} {
 		-loginResultCommand ::handle_login_result \
 		-updateLocationCommand ::adept_location_changed \
 		-mlatCommand ::forward_to_mlat_client \
-		-updateCommand ::handle_update_request
-
-	if {$::params(serverhosts) ne ""} {
-		adept configure -hosts $::params(serverhosts)
-	} else {
-		adept configure -hosts [piawareConfig get adept-serverhosts]
-	}
-
-	if {$::params(serverport) ne ""} {
-		adept configure -port $::params(serverport)
-	} else {
-		adept configure -port [piawareConfig get adept-serverport]
-	}
+		-updateCommand ::handle_update_request \
+		-hosts [expr { $::params(serverhosts) ne "" ? $::params(serverhosts) : [piawareConfig get adept-serverhosts] } ] \
+		-port [expr { $::params(serverport) ne "" ? $::params(serverport) : [piawareConfig get adept-serverport] } ]
 }
 
 #
