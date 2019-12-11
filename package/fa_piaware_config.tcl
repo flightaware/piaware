@@ -1066,14 +1066,8 @@ namespace eval ::fa_piaware_config {
 
 		$combined add [new ConfigFile #auto -filename "/boot/piaware-config.txt" -metadata $metadata -priority 50 -writeHelper $::fa_piaware_config::helperPath -eol crlf]
 
-		set prio 100
-		foreach f [lsort [glob -nocomplain -types f "/media/usb/*/piaware-config.txt"]] {
-			$combined add [new ConfigFile #auto -filename $f -metadata $metadata -priority $prio -readonly 1]
-			incr prio
-		}
-
 		if {$extraConfigFile ne ""} {
-			$combined add [new ConfigFile #auto -filename $extraConfigFile -metadata $metadata -priority $prio -readonly 1]
+			$combined add [new ConfigFile #auto -filename $extraConfigFile -metadata $metadata -priority 100 -readonly 1]
 		}
 
 		return $combined
