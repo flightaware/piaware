@@ -20,8 +20,8 @@ package require fa_services
 
 	protected method program_args {} {
 		set args [list "--net-bo-ipaddr" $receiverHost "--net-bo-port" $receiverPort "--stdout"]
-		if {$receiverLat ne "" && $receiverLon ne ""} {
-			lappend args "--lat" [format "%.3f" $receiverLat] "--lon" [format "%.3f" $receiverLon]
+		if {$::receiverLat ne "" && $::receiverLon ne ""} {
+			lappend args "--lat" [format "%.3f" $::receiverLat] "--lon" [format "%.3f" $::receiverLon]
 		}
 		return $args
 	}
