@@ -79,8 +79,6 @@ proc connect_adsb_via_faup1090 {} {
 						-receiverType $receiverType \
 						-receiverHost $host \
 						-receiverPort $port \
-						-receiverLat $::receiverLat \
-						-receiverLon $::receiverLon \
 						-receiverDataFormat [receiver_data_format piawareConfig ES] \
 						-adsbLocalPort [receiver_local_port piawareConfig ES] \
 						-adsbDataService [receiver_local_service piawareConfig ES] \
