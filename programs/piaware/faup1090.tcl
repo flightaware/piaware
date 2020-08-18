@@ -20,8 +20,8 @@ package require fa_services
 
 	protected method program_args {} {
 		set args [list "--net-bo-ipaddr" $receiverHost "--net-bo-port" $receiverPort "--stdout"]
-		if {$receiverLat ne "" && $receiverLon ne ""} {
-			lappend args "--lat" [format "%.3f" $receiverLat] "--lon" [format "%.3f" $receiverLon]
+		if {$::receiverLat ne "" && $::receiverLon ne ""} {
+			lappend args "--lat" [format "%.3f" $::receiverLat] "--lon" [format "%.3f" $::receiverLon]
 		}
 		return $args
 	}
@@ -79,8 +79,6 @@ proc connect_adsb_via_faup1090 {} {
 						-receiverType $receiverType \
 						-receiverHost $host \
 						-receiverPort $port \
-						-receiverLat $::receiverLat \
-						-receiverLon $::receiverLon \
 						-receiverDataFormat [receiver_data_format piawareConfig ES] \
 						-adsbLocalPort [receiver_local_port piawareConfig ES] \
 						-adsbDataService [receiver_local_service piawareConfig ES] \

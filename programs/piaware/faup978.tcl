@@ -49,8 +49,6 @@ proc connect_uat_via_faup978 {} {
 					   -receiverType $receiverType \
 					   -receiverHost $host \
 					   -receiverPort $port \
-					   -receiverLat $::receiverLat \
-					   -receiverLon $::receiverLon \
 					   -receiverDataFormat [receiver_data_format piawareConfig UAT] \
 					   -adsbLocalPort [receiver_local_port piawareConfig UAT] \
 					   -adsbDataService [receiver_local_service piawareConfig UAT] \

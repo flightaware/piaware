@@ -10,8 +10,6 @@ package require Itcl
 	public variable receiverType
 	public variable receiverHost
 	public variable receiverPort
-	public variable receiverLat
-	public variable receiverLon
 	public variable receiverDataFormat
 	public variable adsbLocalPort
 	public variable adsbDataService
