@@ -67,6 +67,36 @@ namespace eval ::fa_piaware_config {
 		return [info exists enum_values($type)]
 	}
 
+	# Returns whether a given key is a network config setting that may require reboot
+	proc is_network_setting {key} {
+		set network_settings {
+			wired-network
+			wired-type
+			wired-address
+			wired-netmask
+			wired-broadcast
+			wired-gateway
+			wired-nameservers
+			wireless-network
+			wireless-ssid
+			wireless-password
+			wireless-type
+			wireless-address
+			wireless-netmask
+			wireless-broadcast
+			wireless-gateway
+			wireless-nameservers
+			wireless-country
+			allow-dhcp-duid
+			http-proxy-host
+			http-proxy-port
+			http-proxy-user
+			http-proxy-password
+		 }
+
+		return [expr {$key in $network_settings}]
+	}
+
 	# check a value of the given type, return 1 if it looks OK
 	proc validate_typed_value {type value} {
 		variable enum_values
