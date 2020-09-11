@@ -43,14 +43,17 @@ proc main {{argv ""}} {
 
     if {$::params(start)} {
 		start_piaware
+		exit 0
     }
 
     if {$::params(stop)} {
 		stop_piaware
+		exit 0
     }
 
     if {$::params(restart)} {
 		restart_piaware
+		exit 0
     }
 
     if {$::params(show) || $::params(showall) || $argv == ""} {
