@@ -66,7 +66,7 @@ proc update_config_values {argv} {
 				puts stderr "Cleared setting for $key in [$result origin $key]"
 			} else {
 				puts stderr "Set $key to $displayVal in [$result origin $key]"
-				if {[::fa_piaware_config::is_network_setting $key]} {
+				if {[::fa_piaware_config::is_network_setting $key] && [$config get image-type] eq "piaware"} {
 					puts stderr "Network configuration changes will take effect on reboot. Run \"piaware-restart-network\" to apply them immediately."
 				}
 			}
