@@ -169,5 +169,11 @@ proc build_status {} {
 		}
 	}
 
+	# System information
+	catch {set data(cpu_temp_celcius) [::fa_sysinfo::cpu_temperature]}
+	catch {set data(cpu_load_percent) [::fa_sysinfo::cpu_load]}
+	catch {set data(system_uptime) [::fa_sysinfo::uptime]}
+	catch {set data(mac_address) [::json::write string [::fa_sysinfo::mac_address]]}
+
 	return [::json::write object {*}[array get data]]
 }
