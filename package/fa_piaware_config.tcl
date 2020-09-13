@@ -67,36 +67,6 @@ namespace eval ::fa_piaware_config {
 		return [info exists enum_values($type)]
 	}
 
-	# Returns whether a given key is a network config setting that may require reboot
-	proc is_network_setting {key} {
-		set network_settings {
-			wired-network
-			wired-type
-			wired-address
-			wired-netmask
-			wired-broadcast
-			wired-gateway
-			wired-nameservers
-			wireless-network
-			wireless-ssid
-			wireless-password
-			wireless-type
-			wireless-address
-			wireless-netmask
-			wireless-broadcast
-			wireless-gateway
-			wireless-nameservers
-			wireless-country
-			allow-dhcp-duid
-			http-proxy-host
-			http-proxy-port
-			http-proxy-user
-			http-proxy-password
-		 }
-
-		return [expr {$key in $network_settings}]
-	}
-
 	# check a value of the given type, return 1 if it looks OK
 	proc validate_typed_value {type value} {
 		variable enum_values
@@ -265,6 +235,7 @@ namespace eval ::fa_piaware_config {
 			set typeName "string"
 			set protect 0
 			set sdonly 0
+			set network 0
 			while {$i < [llength $args]} {
 				switch [lindex $args $i] {
 					"-default" {
@@ -291,13 +262,19 @@ namespace eval ::fa_piaware_config {
                                                 incr i
                                         }
 
+					"-network" {
+						incr i
+						set network [lindex $args $i]
+						incr i
+					}
+
 					default {
 						break
 					}
 				}
 			}
 			if {$i < [llength $args]} {
-				error "wrong args: should be \"add_setting key ?-type type? ?-default value? ?-protect 0|1? ?-sdonly 0|1\""
+				error "wrong args: should be \"add_setting key ?-type type? ?-default value? ?-protect 0|1? ?-sdonly 0|1 ?-network 0|1\""
 			}
 
 			if {![::fa_piaware_config::is_enum_type $typeName] && $typeName ni {boolean string integer double mac uuid gain}} {
@@ -314,7 +291,7 @@ namespace eval ::fa_piaware_config {
 				set defaultValue ""
 			}
 
-			set descriptors($configKey) [list $typeName $defaultValue $protect $sdonly]
+			set descriptors($configKey) [list $typeName $defaultValue $protect $sdonly $network]
 		}
 
 		# return the keys of all known config settings
@@ -357,6 +334,11 @@ namespace eval ::fa_piaware_config {
                 method sdonly {configKey} {
                         return [lindex $descriptors([key $configKey]) 3]
                 }
+
+		# return whether the given key is a network configuration option
+		method network {configKey} {
+			return [lindex $descriptors([key $configKey]) 4]
+		}
 
 		# test if the given value is valid for a given config key, return 1 if OK
 		method validate {configKey value} {
@@ -1027,31 +1009,31 @@ namespace eval ::fa_piaware_config {
 			{"allow-manual-updates"  -type boolean -default no}
 
 			{"network-config-style"   -type network_config_style -default "buster"}
-			{"wired-network"         -type boolean -default yes -sdonly 1}
-			{"wired-type"            -type network_type -default "dhcp" -sdonly 1}
-			{"wired-address"         -sdonly 1}
-			{"wired-netmask"         -sdonly 1}
-			{"wired-broadcast"       -sdonly 1}
-			{"wired-gateway"         -sdonly 1}
-			{"wired-nameservers"     -default {8.8.8.8 8.8.4.4} -sdonly 1}
+			{"wired-network"         -type boolean -default yes -sdonly 1 -network 1}
+			{"wired-type"            -type network_type -default "dhcp" -sdonly 1 -network 1}
+			{"wired-address"         -sdonly 1 -network 1}
+			{"wired-netmask"         -sdonly 1 -network 1}
+			{"wired-broadcast"       -sdonly 1 -network 1}
+			{"wired-gateway"         -sdonly 1 -network 1}
+			{"wired-nameservers"     -default {8.8.8.8 8.8.4.4} -sdonly 1 -network 1}
 
-			{"wireless-network"      -type boolean -default no -sdonly 1}
-			{"wireless-ssid"         -sdonly 1}
-			{"wireless-password"     -protect 1 -sdonly 1}
-			{"wireless-type"         -type network_type -default "dhcp" -sdonly 1}
-			{"wireless-address"      -sdonly 1}
-			{"wireless-netmask"      -sdonly 1}
-			{"wireless-broadcast"    -sdonly 1}
-			{"wireless-gateway"      -sdonly 1}
-			{"wireless-nameservers"  -default {8.8.8.8 8.8.4.4} -sdonly 1}
-			{"wireless-country"      -type country -default "00" -sdonly 1}
+			{"wireless-network"      -type boolean -default no -sdonly 1 -network 1}
+			{"wireless-ssid"         -sdonly 1 -network 1}
+			{"wireless-password"     -protect 1 -sdonly 1 -network 1}
+			{"wireless-type"         -type network_type -default "dhcp" -sdonly 1 -network 1}
+			{"wireless-address"      -sdonly 1 -network 1}
+			{"wireless-netmask"      -sdonly 1 -network 1}
+			{"wireless-broadcast"    -sdonly 1 -network 1}
+			{"wireless-gateway"      -sdonly 1 -network 1}
+			{"wireless-nameservers"  -default {8.8.8.8 8.8.4.4} -sdonly 1 -network 1}
+			{"wireless-country"      -type country -default "00" -sdonly 1 -network 1}
 
-			{"allow-dhcp-duid"       -type boolean -default yes -sdonly 1}
+			{"allow-dhcp-duid"       -type boolean -default yes -sdonly 1 -network 1}
 
-			"http-proxy-host"
-			"http-proxy-port"
-			"http-proxy-user"
-			{"http-proxy-password"   -protect 1}
+			{"http-proxy-host"       -network 1}
+			{"http-proxy-port"	 -network 1}
+			{"http-proxy-user"       -network 1}
+			{"http-proxy-password"   -protect 1 -network 1}
 
 			{"adept-serverhosts"     -default {piaware.flightaware.com piaware.flightaware.com {70.42.6.197 70.42.6.198 70.42.6.191 70.42.6.225 70.42.6.224 70.42.6.156}}}
 			{"adept-serverport"      -type integer -default 1200}
