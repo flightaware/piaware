@@ -1027,26 +1027,26 @@ namespace eval ::fa_piaware_config {
 			{"allow-manual-updates"  -type boolean -default no}
 
 			{"network-config-style"   -type network_config_style -default "buster"}
-			{"wired-network"         -type boolean -default yes}
-			{"wired-type"            -type network_type -default "dhcp"}
-			"wired-address"
-			"wired-netmask"
-			"wired-broadcast"
-			"wired-gateway"
-			{"wired-nameservers"     -default {8.8.8.8 8.8.4.4}}
+			{"wired-network"         -type boolean -default yes -sdonly 1}
+			{"wired-type"            -type network_type -default "dhcp" -sdonly 1}
+			{"wired-address"         -sdonly 1}
+			{"wired-netmask"         -sdonly 1}
+			{"wired-broadcast"       -sdonly 1}
+			{"wired-gateway"         -sdonly 1}
+			{"wired-nameservers"     -default {8.8.8.8 8.8.4.4} -sdonly 1}
 
-			{"wireless-network"      -type boolean -default no}
-			"wireless-ssid"
-			{"wireless-password"     -protect 1}
-			{"wireless-type"         -type network_type -default "dhcp"}
-			"wireless-address"
-			"wireless-netmask"
-			"wireless-broadcast"
-			"wireless-gateway"
-			{"wireless-nameservers"  -default {8.8.8.8 8.8.4.4}}
-			{"wireless-country"      -type country -default "00"}
+			{"wireless-network"      -type boolean -default no -sdonly 1}
+			{"wireless-ssid"         -sdonly 1}
+			{"wireless-password"     -protect 1 -sdonly 1}
+			{"wireless-type"         -type network_type -default "dhcp" -sdonly 1}
+			{"wireless-address"      -sdonly 1}
+			{"wireless-netmask"      -sdonly 1}
+			{"wireless-broadcast"    -sdonly 1}
+			{"wireless-gateway"      -sdonly 1}
+			{"wireless-nameservers"  -default {8.8.8.8 8.8.4.4} -sdonly 1}
+			{"wireless-country"      -type country -default "00" -sdonly 1}
 
-			{"allow-dhcp-duid"       -type boolean -default yes}
+			{"allow-dhcp-duid"       -type boolean -default yes -sdonly 1}
 
 			"http-proxy-host"
 			"http-proxy-port"
@@ -1056,16 +1056,16 @@ namespace eval ::fa_piaware_config {
 			{"adept-serverhosts"     -default {piaware.flightaware.com piaware.flightaware.com {70.42.6.197 70.42.6.198 70.42.6.191 70.42.6.225 70.42.6.224 70.42.6.156}}}
 			{"adept-serverport"      -type integer -default 1200}
 
-			{"rfkill"                -type boolean -default no}
+			{"rfkill"                -type boolean -default no -sdonly 1}
 			{"receiver-type"         -type receiver -default rtlsdr}
-			{"rtlsdr-device-index"   -default 0}
-			{"rtlsdr-ppm"            -type integer -default 0}
-			{"rtlsdr-gain"           -type gain -default max}
+			{"rtlsdr-device-index"   -default 0 -sdonly 1}
+			{"rtlsdr-ppm"            -type integer -default 0 -sdonly 1}
+			{"rtlsdr-gain"           -type gain -default max -sdonly 1}
 			{"beast-baudrate"        -type integer}
-			"radarcape-host"
+			{"radarcape-host"        -sdonly 1}
 			"receiver-host"
 			{"receiver-port"         -type integer -default 30005}
-			{"allow-modeac"          -type boolean -default yes}
+			{"allow-modeac"          -type boolean -default yes -sdonly 1}
 			{"allow-mlat"            -type boolean -default yes}
 			{"mlat-results"          -type boolean -default yes}
 			{"mlat-results-anon"     -type boolean -default yes}
