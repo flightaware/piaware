@@ -264,6 +264,7 @@ namespace eval ::fa_piaware_config {
 			set configKey [string tolower $fileKey]
 			set typeName "string"
 			set protect 0
+			set sdonly 0
 			while {$i < [llength $args]} {
 				switch [lindex $args $i] {
 					"-default" {
@@ -284,13 +285,19 @@ namespace eval ::fa_piaware_config {
 						incr i
 					}
 
+                                        "-sdonly" {
+                                                incr i
+                                                set sdonly [lindex $args $i]
+                                                incr i
+                                        }
+
 					default {
 						break
 					}
 				}
 			}
 			if {$i < [llength $args]} {
-				error "wrong args: should be \"add_setting key ?-type type? ?-default value? ?-protect 0|1?\""
+				error "wrong args: should be \"add_setting key ?-type type? ?-default value? ?-protect 0|1? ?-sdonly 0|1\""
 			}
 
 			if {![::fa_piaware_config::is_enum_type $typeName] && $typeName ni {boolean string integer double mac uuid gain}} {
@@ -307,7 +314,7 @@ namespace eval ::fa_piaware_config {
 				set defaultValue ""
 			}
 
-			set descriptors($configKey) [list $typeName $defaultValue $protect]
+			set descriptors($configKey) [list $typeName $defaultValue $protect $sdonly]
 		}
 
 		# return the keys of all known config settings
@@ -345,6 +352,11 @@ namespace eval ::fa_piaware_config {
 		method protect {configKey} {
 			return [lindex $descriptors([key $configKey]) 2]
 		}
+
+                # return the option type of the given key (1 if SD card only setting, 0 if not)
+                method sdonly {configKey} {
+                        return [lindex $descriptors([key $configKey]) 3]
+                }
 
 		# test if the given value is valid for a given config key, return 1 if OK
 		method validate {configKey value} {

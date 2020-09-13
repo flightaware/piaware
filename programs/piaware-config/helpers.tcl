@@ -39,6 +39,11 @@ proc update_config_values {argv} {
 			continue
 		}
 
+		if {[$config metadata sdonly $key] && !([$config get image-type] eq "piaware")} {
+			puts stderr "warning: cannot set option '$key', option only supported on PiAware SD card images"
+			continue
+		}
+
 		if {[$config metadata protect $key]} {
 			if {$val eq $sentinel} {
 				set val [get_password "Enter a value for $key: "]
