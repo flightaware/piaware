@@ -1008,7 +1008,7 @@ namespace eval ::fa_piaware_config {
 			{"allow-auto-updates"    -type boolean -default no}
 			{"allow-manual-updates"  -type boolean -default no}
 
-			{"network-config-style"   -type network_config_style -default "buster"}
+			{"network-config-style"   -type network_config_style -default "buster" -sdonly 1 -network 1}
 			{"wired-network"         -type boolean -default yes -sdonly 1 -network 1}
 			{"wired-type"            -type network_type -default "dhcp" -sdonly 1 -network 1}
 			{"wired-address"         -sdonly 1 -network 1}
@@ -1043,7 +1043,7 @@ namespace eval ::fa_piaware_config {
 			{"rtlsdr-device-index"   -default 0 -sdonly 1}
 			{"rtlsdr-ppm"            -type integer -default 0 -sdonly 1}
 			{"rtlsdr-gain"           -type gain -default max -sdonly 1}
-			{"beast-baudrate"        -type integer}
+			{"beast-baudrate"        -type integer -sdonly 1}
 			{"radarcape-host"        -sdonly 1}
 			"receiver-host"
 			{"receiver-port"         -type integer -default 30005}
@@ -1055,12 +1055,12 @@ namespace eval ::fa_piaware_config {
 
 			{"enable-firehose"       -type boolean -default no}
 
-			{"uat-receiver-type"     -type uat_receiver -default none}
-			{"uat-receiver-host"}
-			{"uat-receiver-port"     -type integer -default 30978}
-			{"uat-sdr-gain"          -type gain -default max}
-			{"uat-sdr-ppm"           -type double -default 0}
-			{"uat-sdr-device"        -default "driver=rtlsdr"}
+			{"uat-receiver-type"     -type uat_receiver -default none -sdonly 1}
+			{"uat-receiver-host"     -sdonly 1}
+			{"uat-receiver-port"     -type integer -default 30978 -sdonly 1}
+			{"uat-sdr-gain"          -type gain -default max -sdonly 1}
+			{"uat-sdr-ppm"           -type double -default 0 -sdonly 1}
+			{"uat-sdr-device"        -default "driver=rtlsdr" -sdonly 1}
 
 			{"use-gpsd"              -type boolean -default yes}
 		}
