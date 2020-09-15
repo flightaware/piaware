@@ -256,7 +256,7 @@ namespace eval ::fa_piaware_config {
 						incr i
 					}
 
-                                        "-sdonly" {
+					"-sdonly" {
                                                 incr i
                                                 set sdonly [lindex $args $i]
                                                 incr i
@@ -330,10 +330,10 @@ namespace eval ::fa_piaware_config {
 			return [lindex $descriptors([key $configKey]) 2]
 		}
 
-                # return the option type of the given key (1 if SD card only setting, 0 if not)
-                method sdonly {configKey} {
-                        return [lindex $descriptors([key $configKey]) 3]
-                }
+		# return the option type of the given key (1 if SD card only setting, 0 if not)
+		method sdonly {configKey} {
+			return [lindex $descriptors([key $configKey]) 3]
+		}
 
 		# return whether the given key is a network configuration option
 		method network {configKey} {
