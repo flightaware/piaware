@@ -234,6 +234,8 @@ namespace eval ::fa_piaware_config {
 			set configKey [string tolower $fileKey]
 			set typeName "string"
 			set protect 0
+			set sdonly 0
+			set network 0
 			while {$i < [llength $args]} {
 				switch [lindex $args $i] {
 					"-default" {
@@ -254,13 +256,25 @@ namespace eval ::fa_piaware_config {
 						incr i
 					}
 
+					"-sdonly" {
+                                                incr i
+                                                set sdonly [lindex $args $i]
+                                                incr i
+                                        }
+
+					"-network" {
+						incr i
+						set network [lindex $args $i]
+						incr i
+					}
+
 					default {
 						break
 					}
 				}
 			}
 			if {$i < [llength $args]} {
-				error "wrong args: should be \"add_setting key ?-type type? ?-default value? ?-protect 0|1?\""
+				error "wrong args: should be \"add_setting key ?-type type? ?-default value? ?-protect 0|1? ?-sdonly 0|1 ?-network 0|1\""
 			}
 
 			if {![::fa_piaware_config::is_enum_type $typeName] && $typeName ni {boolean string integer double mac uuid gain}} {
@@ -277,7 +291,7 @@ namespace eval ::fa_piaware_config {
 				set defaultValue ""
 			}
 
-			set descriptors($configKey) [list $typeName $defaultValue $protect]
+			set descriptors($configKey) [list $typeName $defaultValue $protect $sdonly $network]
 		}
 
 		# return the keys of all known config settings
@@ -314,6 +328,16 @@ namespace eval ::fa_piaware_config {
 		# (protected settings contain sensitive settings like passwords)
 		method protect {configKey} {
 			return [lindex $descriptors([key $configKey]) 2]
+		}
+
+		# return the option type of the given key (1 if SD card only setting, 0 if not)
+		method sdonly {configKey} {
+			return [lindex $descriptors([key $configKey]) 3]
+		}
+
+		# return whether the given key is a network configuration option
+		method network {configKey} {
+			return [lindex $descriptors([key $configKey]) 4]
 		}
 
 		# test if the given value is valid for a given config key, return 1 if OK
@@ -984,46 +1008,46 @@ namespace eval ::fa_piaware_config {
 			{"allow-auto-updates"    -type boolean -default no}
 			{"allow-manual-updates"  -type boolean -default no}
 
-			{"network-config-style"   -type network_config_style -default "buster"}
-			{"wired-network"         -type boolean -default yes}
-			{"wired-type"            -type network_type -default "dhcp"}
-			"wired-address"
-			"wired-netmask"
-			"wired-broadcast"
-			"wired-gateway"
-			{"wired-nameservers"     -default {8.8.8.8 8.8.4.4}}
+			{"network-config-style"   -type network_config_style -default "buster" -sdonly 1 -network 1}
+			{"wired-network"         -type boolean -default yes -sdonly 1 -network 1}
+			{"wired-type"            -type network_type -default "dhcp" -sdonly 1 -network 1}
+			{"wired-address"         -sdonly 1 -network 1}
+			{"wired-netmask"         -sdonly 1 -network 1}
+			{"wired-broadcast"       -sdonly 1 -network 1}
+			{"wired-gateway"         -sdonly 1 -network 1}
+			{"wired-nameservers"     -default {8.8.8.8 8.8.4.4} -sdonly 1 -network 1}
 
-			{"wireless-network"      -type boolean -default no}
-			"wireless-ssid"
-			{"wireless-password"     -protect 1}
-			{"wireless-type"         -type network_type -default "dhcp"}
-			"wireless-address"
-			"wireless-netmask"
-			"wireless-broadcast"
-			"wireless-gateway"
-			{"wireless-nameservers"  -default {8.8.8.8 8.8.4.4}}
-			{"wireless-country"      -type country -default "00"}
+			{"wireless-network"      -type boolean -default no -sdonly 1 -network 1}
+			{"wireless-ssid"         -sdonly 1 -network 1}
+			{"wireless-password"     -protect 1 -sdonly 1 -network 1}
+			{"wireless-type"         -type network_type -default "dhcp" -sdonly 1 -network 1}
+			{"wireless-address"      -sdonly 1 -network 1}
+			{"wireless-netmask"      -sdonly 1 -network 1}
+			{"wireless-broadcast"    -sdonly 1 -network 1}
+			{"wireless-gateway"      -sdonly 1 -network 1}
+			{"wireless-nameservers"  -default {8.8.8.8 8.8.4.4} -sdonly 1 -network 1}
+			{"wireless-country"      -type country -default "00" -sdonly 1 -network 1}
 
-			{"allow-dhcp-duid"       -type boolean -default yes}
+			{"allow-dhcp-duid"       -type boolean -default yes -sdonly 1 -network 1}
 
-			"http-proxy-host"
-			"http-proxy-port"
-			"http-proxy-user"
-			{"http-proxy-password"   -protect 1}
+			{"http-proxy-host"       -network 1}
+			{"http-proxy-port"	 -network 1}
+			{"http-proxy-user"       -network 1}
+			{"http-proxy-password"   -protect 1 -network 1}
 
 			{"adept-serverhosts"     -default {piaware.flightaware.com piaware.flightaware.com {70.42.6.197 70.42.6.198 70.42.6.191 70.42.6.225 70.42.6.224 70.42.6.156}}}
 			{"adept-serverport"      -type integer -default 1200}
 
-			{"rfkill"                -type boolean -default no}
+			{"rfkill"                -type boolean -default no -sdonly 1}
 			{"receiver-type"         -type receiver -default rtlsdr}
-			{"rtlsdr-device-index"   -default 0}
-			{"rtlsdr-ppm"            -type integer -default 0}
-			{"rtlsdr-gain"           -type gain -default max}
-			{"beast-baudrate"        -type integer}
-			"radarcape-host"
+			{"rtlsdr-device-index"   -default 0 -sdonly 1}
+			{"rtlsdr-ppm"            -type integer -default 0 -sdonly 1}
+			{"rtlsdr-gain"           -type gain -default max -sdonly 1}
+			{"beast-baudrate"        -type integer -sdonly 1}
+			{"radarcape-host"        -sdonly 1}
 			"receiver-host"
 			{"receiver-port"         -type integer -default 30005}
-			{"allow-modeac"          -type boolean -default yes}
+			{"allow-modeac"          -type boolean -default yes -sdonly 1}
 			{"allow-mlat"            -type boolean -default yes}
 			{"mlat-results"          -type boolean -default yes}
 			{"mlat-results-anon"     -type boolean -default yes}
@@ -1031,12 +1055,12 @@ namespace eval ::fa_piaware_config {
 
 			{"enable-firehose"       -type boolean -default no}
 
-			{"uat-receiver-type"     -type uat_receiver -default none}
-			{"uat-receiver-host"}
-			{"uat-receiver-port"     -type integer -default 30978}
-			{"uat-sdr-gain"          -type gain -default max}
-			{"uat-sdr-ppm"           -type double -default 0}
-			{"uat-sdr-device"        -default "driver=rtlsdr"}
+			{"uat-receiver-type"     -type uat_receiver -default none -sdonly 1}
+			{"uat-receiver-host"     -sdonly 1}
+			{"uat-receiver-port"     -type integer -default 30978 -sdonly 1}
+			{"uat-sdr-gain"          -type gain -default max -sdonly 1}
+			{"uat-sdr-ppm"           -type double -default 0 -sdonly 1}
+			{"uat-sdr-device"        -default "driver=rtlsdr" -sdonly 1}
 
 			{"use-gpsd"              -type boolean -default yes}
 		}

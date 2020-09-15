@@ -39,6 +39,11 @@ proc update_config_values {argv} {
 			continue
 		}
 
+		if {[$config metadata sdonly $key] && !([$config get image-type] eq "piaware")} {
+			puts stderr "warning: cannot set option '$key', option only supported on PiAware SD card images"
+			continue
+		}
+
 		if {[$config metadata protect $key]} {
 			if {$val eq $sentinel} {
 				set val [get_password "Enter a value for $key: "]
@@ -66,6 +71,9 @@ proc update_config_values {argv} {
 				puts stderr "Cleared setting for $key in [$result origin $key]"
 			} else {
 				puts stderr "Set $key to $displayVal in [$result origin $key]"
+				if {[$config metadata network $key]} {
+					puts stderr "Network configuration changes will take effect on reboot. Run \"piaware-restart-network\" to apply them immediately."
+				}
 			}
 		} else {
 			puts stderr "$key is unchanged"
