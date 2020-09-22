@@ -72,7 +72,7 @@ proc update_config_values {argv} {
 			} else {
 				puts stderr "Set $key to $displayVal in [$result origin $key]"
 				if {[$config metadata network $key]} {
-					puts stderr "Network configuration changes will take effect on reboot. Run \"piaware-restart-network\" to apply them immediately."
+					puts stderr "Network configuration changes will take effect on reboot. Run \"sudo piaware-restart-network\" to apply them immediately."
 				}
 			}
 		} else {
