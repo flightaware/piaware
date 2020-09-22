@@ -98,6 +98,11 @@ proc handle_update_request {type _row} {
 					if {$ok} {
 						set restartPiaware 1
 					}
+
+					set ok [upgrade_piaware_gui]
+					if {$ok} {
+						set restartPiaware 1
+					}
 				}
 
 				"restart_piaware" {
@@ -231,6 +236,17 @@ proc upgrade_piaware {} {
 	}
 }
 
+#
+# upgrade_piaware_gui - upgrade piaware-gui via apt-get if present
+#
+proc upgrade_piaware_gui {} {
+	set res [query_dpkg_names_and_versions "piaware-gui-release"]
+	if {$res ne ""} {
+		return [single_package_upgrade "piaware-gui-release"
+	}
+
+	return 0
+}
 
 #
 # upgrade_dump1090 - upgrade dump1090-fa via apt-get
