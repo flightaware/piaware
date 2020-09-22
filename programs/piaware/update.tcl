@@ -69,7 +69,7 @@ proc handle_update_request {type _row} {
 		set updatedPackageLists 0
 		set ok 1
 		foreach action [split $row(action) " "] {
-			if {$action in {full packages piaware dump1090}} {
+			if {$action in {full packages piaware dump1090 dump978}} {
 				# these actions require that the package lists
 				# are up to date, but we don't want to do it
 				# several times
@@ -113,8 +113,21 @@ proc handle_update_request {type _row} {
 					}
 				}
 
+				"dump978" {
+					# try to upgrade dump978 and if successful, restart it
+					set ok [upgrade_dump978]
+					if {$ok} {
+						::fa_services::attempt_service_restart dump978 restart
+					}
+				}
+
 				"restart_dump1090" {
 					::fa_services::attempt_service_restart dump1090 restart
+					set ok 1
+				}
+
+				"restart_dump978" {
+					::fa_services::attempt_service_restart dump978 restart
 					set ok 1
 				}
 
@@ -224,6 +237,13 @@ proc upgrade_piaware {} {
 #
 proc upgrade_dump1090 {} {
 	return [single_package_upgrade "dump1090-fa"]
+}
+
+#
+# upgrade_dump978 - upgrade dump978-fa via apt-get
+#
+proc upgrade_dump978 {} {
+	return [single_package_upgrade "dump978-fa"]
 }
 
 #
