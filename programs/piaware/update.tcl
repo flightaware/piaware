@@ -242,7 +242,7 @@ proc upgrade_piaware {} {
 proc upgrade_piaware_gui {} {
 	set res [query_dpkg_names_and_versions "piaware-gui-release"]
 	if {$res ne ""} {
-		return [single_package_upgrade "piaware-gui-release"
+		return [single_package_upgrade "piaware-gui-release"]
 	}
 
 	return 0
