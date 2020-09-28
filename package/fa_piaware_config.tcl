@@ -1055,9 +1055,9 @@ namespace eval ::fa_piaware_config {
 
 			{"enable-firehose"       -type boolean -default no}
 
-			{"uat-receiver-type"     -type uat_receiver -default none -sdonly 1}
-			{"uat-receiver-host"     -sdonly 1}
-			{"uat-receiver-port"     -type integer -default 30978 -sdonly 1}
+			{"uat-receiver-type"     -type uat_receiver -default none}
+			{"uat-receiver-host"}
+			{"uat-receiver-port"     -type integer -default 30978}
 			{"uat-sdr-gain"          -type gain -default max -sdonly 1}
 			{"uat-sdr-ppm"           -type double -default 0 -sdonly 1}
 			{"uat-sdr-device"        -default "driver=rtlsdr" -sdonly 1}
