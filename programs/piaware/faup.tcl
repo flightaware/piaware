@@ -68,7 +68,7 @@ package require Itcl
 		set args [list $faupProgramPath {*}[program_args]]
 		logger "Starting $prettyName: $args"
 
-		if {[catch {::fa_sudo::popen_as -noroot -stdout faupStdout -stderr faupStderr {*}$args} result] == 1} {
+		if {[catch {::fa_sudo::popen_as -noroot -stdin faupStdin -stdout faupStdout -stderr faupStderr {*}$args} result] == 1} {
 			logger "got '$result' starting $prettyName, will try again in 5 minutes"
 			schedule_adsb_connect_attempt 300
 			return
@@ -80,6 +80,8 @@ package require Itcl
 			return
 		}
 
+		# configure parent pipe to be non-blocking (prevents jamming if faup1090 stops reading from stdin)
+		fconfigure $faupStdin -buffering line -blocking 0 -translation lf
 
 		logger "Started $prettyName (pid $result) to connect to $adsbDataProgram"
 		fconfigure $faupStdout -buffering line -blocking 0 -translation lf
@@ -87,6 +89,7 @@ package require Itcl
 
 		log_subprocess_output "${prettyName}($result)" $faupStderr
 
+		set faupStdinPipe $faupStdin
 		set faupPipe $faupStdout
 		set faupPid $result
 
