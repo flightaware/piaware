@@ -33,6 +33,7 @@ package require Itcl
 	# timer to start faup program connection
 	protected variable adsbPortConnectTimer
 
+	protected variable faupStdinPipe
 	protected variable faupPipe
 	protected variable faupPid
 
@@ -353,6 +354,21 @@ package require Itcl
 			return 0
 		} else {
 			return $lastFaupMessageClock
+		}
+	}
+
+	#
+	# Send data down to faup via stdin
+	#
+	method send_to_faup {message} {
+		if {![info exists faupStdinPipe]} {
+			# No stdin connection to faup
+			return
+		}
+
+		if {[catch {puts $faupStdinPipe $message} catchResult] == 1} {
+			logger "got '$catchResult' writing to faup..."
+			return
 		}
 	}
 }

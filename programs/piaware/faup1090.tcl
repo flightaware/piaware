@@ -130,4 +130,23 @@ proc periodically_check_adsb_traffic {} {
 	after 30000 $::faup1090 traffic_report
 }
 
+#
+# handle_faup_command - validates/converts command array to tsv and sends to faup1090
+#
+proc handle_faup_command {_row} {
+	if {![info exists ::faup1090]} {
+		# No faup1090 connection
+		return
+	}
+
+	upvar $_row row
+
+	set message ""
+	foreach field [lsort [array names row]] {
+		append message "\t$field\t$row($field)"
+	}
+
+	$::faup1090 send_to_faup $message
+}
+
 # vim: set ts=4 sw=4 sts=4 noet :
