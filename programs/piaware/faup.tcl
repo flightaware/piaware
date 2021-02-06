@@ -450,3 +450,42 @@ proc update_location {lat lon} {
 		restart_faup1090 5
 	}
 }
+
+#
+# handle_faup_command - Handle faup commands received from adept
+#
+proc handle_faup_command {_row} {
+	if {![info exists ::faup1090]} {
+		# No faup1090 connection
+		return
+	}
+
+	upvar $_row row
+	set command_type $row(type)
+
+	# Command handlers
+	switch $command_type {
+		"adjust_upload_rate" {
+			logger "adept server faup request received: $command_type"
+			# Validate upload_rate_multiplier field
+			if {![info exists row(upload_rate_multiplier)] || ![string is double -strict $row(upload_rate_multiplier)]} {
+				logger "upload_rate_multiplier field is missing or invalid format"
+				return
+			}
+		}
+
+		default {
+			logger "unrecognized faup command: '$command'"
+			return
+		}
+	}
+
+	# Format tsv message
+	set message ""
+	foreach field [lsort [array names row]] {
+		append message "\t$field\t$row($field)"
+	}
+
+	# Send to faup1090
+	$::faup1090 send_to_faup $message
+}

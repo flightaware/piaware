@@ -130,39 +130,4 @@ proc periodically_check_adsb_traffic {} {
 	after 30000 $::faup1090 traffic_report
 }
 
-#
-# handle_faup_command - validates/converts command array to tsv and sends to faup1090
-#
-proc handle_faup_command {_row} {
-	if {![info exists ::faup1090]} {
-		# No faup1090 connection
-		return
-	}
-
-	upvar $_row row
-	set command_type $row(type)
-
-	switch $command_type {
-		"adjust_upload_rate" {
-			# Validate upload_rate_multiplier field
-			if {![info exists row(upload_rate_multiplier)] || ![string is double -strict $row(upload_rate_multiplier)]} {
-				logger "Missing or bad upload_rate_multiplier field"
-				return
-			}
-		}
-
-		default {
-			logger "unrecognized command: '$command'"
-			return
-		}
-	}
-
-	set message ""
-	foreach field [lsort [array names row]] {
-		append message "\t$field\t$row($field)"
-	}
-
-	$::faup1090 send_to_faup $message
-}
-
 # vim: set ts=4 sw=4 sts=4 noet :
