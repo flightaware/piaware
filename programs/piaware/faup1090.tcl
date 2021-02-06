@@ -140,6 +140,22 @@ proc handle_faup_command {_row} {
 	}
 
 	upvar $_row row
+	set command_type $row(type)
+
+	switch $command_type {
+		"adjust_upload_rate" {
+			# Validate upload_rate_multiplier field
+			if {![info exists row(upload_rate_multiplier)] || ![string is double -strict $row(upload_rate_multiplier)]} {
+				logger "Missing or bad upload_rate_multiplier field"
+				return
+			}
+		}
+
+		default {
+			logger "unrecognized command: '$command'"
+			return
+		}
+	}
 
 	set message ""
 	foreach field [lsort [array names row]] {
