@@ -27,7 +27,7 @@ proc gather_login_info {_message} {
 
 	foreach {packageName packageVersion} [query_dpkg_names_and_versions "*piaware*"] {
 		switch -glob -- $packageName {
-			"piaware-release" - "piaware-support" - "piaware-repository*" {
+			"piaware-release" - "piaware-support" - "piaware-repository*" - "piaware-gui-release" {
 				# ignore
 			}
 
@@ -35,7 +35,10 @@ proc gather_login_info {_message} {
 				# exact match, override any fuzzy match earlier
 				set message(piaware_package_version) $packageVersion
 				set message(image_type) "${packageName}_package"
-				break
+			}
+
+			"piaware-gui" {
+				set message(piaware_gui_package_version) $packageVersion
 			}
 
 			default {
