@@ -455,11 +455,6 @@ proc update_location {lat lon} {
 # handle_faup_command - Handle faup commands received from adept
 #
 proc handle_faup_command {_row} {
-	if {![info exists ::faup1090]} {
-		# No faup1090 connection
-		return
-	}
-
 	upvar $_row row
 	set command_type $row(type)
 
@@ -486,6 +481,10 @@ proc handle_faup_command {_row} {
 		append message "\t$field\t$row($field)"
 	}
 
-	# Send to faup1090
-	$::faup1090 send_to_faup $message
+	# Send to faup1090 if we have connection
+	if {[info exists ::faup1090]} {
+		$::faup1090 send_to_faup $message
+	}
+
+	return
 }
