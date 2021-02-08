@@ -111,6 +111,7 @@ package require Itcl
 		set lastAdsbConnectedClock [clock seconds]
 		catch {kill HUP $faupPid}
 		catch {close $faupPipe}
+		catch {close $faupStdinPipe}
 
 		catch {
 			lassign [timed_waitpid 15000 $faupPid] deadpid why code
@@ -121,6 +122,7 @@ package require Itcl
 			}
 		}
 
+		unset faupStdinPipe
 		unset faupPipe
 		unset faupPid
 	}
