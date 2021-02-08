@@ -459,7 +459,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 				}
 			}
 
-			"adjust_upload_rate" {
+			"faup_*" {
 				if {[info exists faupCommand]} {
 					{*}$faupCommand row
 				}

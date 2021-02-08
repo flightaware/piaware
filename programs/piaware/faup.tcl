@@ -458,12 +458,12 @@ proc update_location {lat lon} {
 #
 proc handle_faup_command {_row} {
 	upvar $_row row
-	set command_type $row(type)
+	set type $row(type)
 
 	# Command handlers
-	switch $command_type {
-		"adjust_upload_rate" {
-			logger "adept server faup request received: $command_type"
+	switch $type {
+		"faup_adjust_upload_rate" {
+			logger "adept server faup request received: $type"
 			# Validate upload_rate_multiplier field
 			if {![info exists row(upload_rate_multiplier)] || ![string is double -strict $row(upload_rate_multiplier)]} {
 				logger "upload_rate_multiplier field is missing or invalid format"
@@ -472,7 +472,7 @@ proc handle_faup_command {_row} {
 		}
 
 		default {
-			logger "unrecognized faup command: '$command'"
+			logger "unrecognized faup command: '$type'"
 			return
 		}
 	}
