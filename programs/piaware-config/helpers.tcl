@@ -39,8 +39,8 @@ proc update_config_values {argv} {
 			continue
 		}
 
-		if {[$config metadata sdonly $key] && !([$config get image-type] eq "piaware")} {
-			puts stderr "warning: cannot set option '$key', option only supported on PiAware SD card images"
+		if {[$config metadata sdonly $key] && !([$config get image-type] eq "piaware" || [$config get image-type] eq "flightfeeder-combined")} {
+			puts stderr "warning: cannot set option '$key', option only supported on PiAware or FlightFeeder SD card images"
 			continue
 		}
 
