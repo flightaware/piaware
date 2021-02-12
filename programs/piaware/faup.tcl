@@ -33,6 +33,7 @@ package require Itcl
 	# timer to start faup program connection
 	protected variable adsbPortConnectTimer
 
+	protected variable faupStdinPipe
 	protected variable faupPipe
 	protected variable faupPid
 
@@ -68,7 +69,7 @@ package require Itcl
 		set args [list $faupProgramPath {*}[program_args]]
 		logger "Starting $prettyName: $args"
 
-		if {[catch {::fa_sudo::popen_as -noroot -stdout faupStdout -stderr faupStderr {*}$args} result] == 1} {
+		if {[catch {::fa_sudo::popen_as -noroot -stdin faupStdin -stdout faupStdout -stderr faupStderr {*}$args} result] == 1} {
 			logger "got '$result' starting $prettyName, will try again in 5 minutes"
 			schedule_adsb_connect_attempt 300
 			return
@@ -80,6 +81,8 @@ package require Itcl
 			return
 		}
 
+		# configure parent pipe to be non-blocking (prevents jamming if faup1090 stops reading from stdin)
+		fconfigure $faupStdin -buffering line -blocking 0 -translation lf
 
 		logger "Started $prettyName (pid $result) to connect to $adsbDataProgram"
 		fconfigure $faupStdout -buffering line -blocking 0 -translation lf
@@ -87,6 +90,7 @@ package require Itcl
 
 		log_subprocess_output "${prettyName}($result)" $faupStderr
 
+		set faupStdinPipe $faupStdin
 		set faupPipe $faupStdout
 		set faupPid $result
 
@@ -107,6 +111,7 @@ package require Itcl
 		set lastAdsbConnectedClock [clock seconds]
 		catch {kill HUP $faupPid}
 		catch {close $faupPipe}
+		catch {close $faupStdinPipe}
 
 		catch {
 			lassign [timed_waitpid 15000 $faupPid] deadpid why code
@@ -117,6 +122,7 @@ package require Itcl
 			}
 		}
 
+		unset faupStdinPipe
 		unset faupPipe
 		unset faupPid
 	}
@@ -352,6 +358,21 @@ package require Itcl
 			return $lastFaupMessageClock
 		}
 	}
+
+	#
+	# Send data down to faup via stdin
+	#
+	method send_to_faup {message} {
+		if {![info exists faupStdinPipe]} {
+			# No stdin connection to faup
+			return
+		}
+
+		if {[catch {puts $faupStdinPipe $message} catchResult] == 1} {
+			logger "got '$catchResult' writing to faup..."
+			return
+		}
+	}
 }
 
 #
@@ -430,4 +451,42 @@ proc update_location {lat lon} {
 		logger "Restarting faup1090"
 		restart_faup1090 5
 	}
+}
+
+#
+# handle_faup_command - Handle faup commands received from adept
+#
+proc handle_faup_command {_row} {
+	upvar $_row row
+	set type $row(type)
+
+	# Command handlers
+	switch $type {
+		"faup_adjust_upload_rate" {
+			logger "adept server faup request received: $type"
+			# Validate upload_rate_multiplier field
+			if {![info exists row(upload_rate_multiplier)] || ![string is double -strict $row(upload_rate_multiplier)]} {
+				logger "upload_rate_multiplier field is missing or invalid format"
+				return
+			}
+		}
+
+		default {
+			logger "unrecognized faup command: '$type'"
+			return
+		}
+	}
+
+	# Format tsv message
+	set message ""
+	foreach field [lsort [array names row]] {
+		append message "\t$field\t$row($field)"
+	}
+
+	# Send to faup1090 if we have connection
+	if {[info exists ::faup1090]} {
+		$::faup1090 send_to_faup $message
+	}
+
+	return
 }

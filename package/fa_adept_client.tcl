@@ -33,6 +33,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 	public variable updateCommand
 	public variable loginCommand
 	public variable loginResultCommand
+	public variable faupCommand
 
 	protected variable shuffledHosts
 	protected variable host
@@ -455,6 +456,12 @@ set caDir [file join [file dirname [info script]] "ca"]
 			"request_manual_update" {
 				if {[info exists updateCommand]} {
 					{*}$updateCommand manual row
+				}
+			}
+
+			"faup_*" {
+				if {[info exists faupCommand]} {
+					{*}$faupCommand row
 				}
 			}
 

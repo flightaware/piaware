@@ -74,7 +74,8 @@ proc setup_adept_client {} {
 		-loginResultCommand ::handle_login_result \
 		-updateLocationCommand ::adept_location_changed \
 		-mlatCommand ::forward_to_mlat_client \
-		-updateCommand ::handle_update_request
+		-updateCommand ::handle_update_request \
+		-faupCommand ::handle_faup_command
 
 	if {$::params(serverhosts) ne ""} {
 		adept configure -hosts $::params(serverhosts)
