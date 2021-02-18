@@ -13,63 +13,20 @@ export DEBIAN_FRONTEND
 
 options="-o DPkg::Options::=--force-confdef -o DPkg::Options::=--force-confold -o DPkgPM::Progress=0"
 
-keyring=/etc/apt/trusted.gpg.d/flightaware-archive-keyring.gpg
-keyring_source=/usr/lib/piaware/helpers/flightaware-archive-keyring.gpg
-sourceslist=/etc/apt/sources.list.d/piaware.list
-packagedsourceslist=
-
 action="$1"
 shift
 
 . /etc/os-release
 case "$ID:$VERSION_ID" in
-    raspbian:7)
-        url=http://flightaware.com/adsb/piaware/files/packages
-        suite=wheezy
-        components=piaware
-        ;;
-
-    raspbian:8)
-        url=http://flightaware.com/adsb/piaware/files/packages
-        suite=jessie
-        components=piaware
-        packagedsourceslist=/etc/apt/sources.list.d/piaware-jessie.list
-        ;;
-
-    raspbian:9)
-        url=http://flightaware.com/adsb/piaware/files/packages
-        suite=stretch
-        components=piaware
-        packagedsourceslist=/etc/apt/sources.list.d/piaware-stretch.list
-        ;;
-
-    raspbian:10)
-        url=http://flightaware.com/adsb/piaware/files/packages
-        suite=buster
-        components=piaware
-        packagedsourceslist=/etc/apt/sources.list.d/piaware-buster.list
-        ;;
+    raspbian:8) ;;
+    raspbian:9) ;;
+    raspbian:10) ;;
 
     *)
-        echo "Automatic updates not available for OS $ID:$VERSION_ID ($PRETTY_NAME)" >&2
-        exit 1
+        echo "Automatic updates not officially supported for OS $ID:$VERSION_ID ($PRETTY_NAME)" >&2
+        echo " .. but I'll go ahead and try it anyway .." >&2
+        ;;
 esac
-
-# ensure the keyring and sources list are installed
-# (they may not be if this is a non-sdcard install
-# or a sdcard upgrade)
-
-if [ ! -e "$keyring" ]
-then
-    echo "$keyring does not exist; installing it"
-    ln -s "$keyring_source" "$keyring"
-fi
-
-if [ ! -e "$sourceslist" ] && [ ! -e "$packagedsourceslist" ]
-then
-    echo "$sourceslist does not exist; creating it"
-    echo "deb $url $suite $components" >$sourceslist
-fi
 
 case "$action" in
     update)
