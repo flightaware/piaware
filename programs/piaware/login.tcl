@@ -52,6 +52,7 @@ proc gather_login_info {_message} {
 	}
 
 	set message(dump1090_packages) [query_dpkg_names_and_versions "*dump1090*"]
+	set message(dump978_packages) [query_dpkg_names_and_versions "*dump978*"]
 
 	if {[info exists ::netstatus(program_30005)]} {
 		set message(adsbprogram) $::netstatus(program_30005)
