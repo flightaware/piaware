@@ -175,6 +175,8 @@ proc build_status {} {
 	catch {set data(piaware_version) [::json::write string $::piawareVersionFull]}
 	set dump1090_version [query_dpkg_names_and_versions "*dump1090-fa*"]
 	catch {set data(dump1090_version) [::json::write string $dump1090_version]}
+	set dump978_version [query_dpkg_names_and_versions "*dump978-fa*"]
+	catch {set data(dump978_version) [::json::write string $dump978_version]}
 	catch {set data(cpu_temp_celcius) [::fa_sysinfo::cpu_temperature]}
 	catch {set data(cpu_load_percent) [::fa_sysinfo::cpu_load]}
 	catch {set data(system_uptime) [::fa_sysinfo::uptime]}
