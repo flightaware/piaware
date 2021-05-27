@@ -69,6 +69,8 @@ proc build_status {} {
 	# site UUID, if unclaimed
 	if {[info exists ::feederID] && [info exists ::loggedInUser] && $::loggedInUser eq "guest"} {
 		set data(unclaimed_feeder_id) [::json::write string $::feederID]
+	} elseif {[info exists ::feederID] && [info exists ::loggedInUser]} {
+		set data(feeder_id) [::json::write string $::feederID]
 	}
 
 	# piaware: our own health
@@ -170,6 +172,9 @@ proc build_status {} {
 	}
 
 	# System information
+	catch {set data(piaware_version) [::json::write string $::piawareVersionFull]}
+	set dump1090_version [query_dpkg_names_and_versions "*dump1090-fa*"]
+	catch {set data(dump1090_version) [::json::write string $dump1090_version]}
 	catch {set data(cpu_temp_celcius) [::fa_sysinfo::cpu_temperature]}
 	catch {set data(cpu_load_percent) [::fa_sysinfo::cpu_load]}
 	catch {set data(system_uptime) [::fa_sysinfo::uptime]}
