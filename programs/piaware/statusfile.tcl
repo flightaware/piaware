@@ -69,8 +69,6 @@ proc build_status {} {
 	# site UUID, if unclaimed
 	if {[info exists ::feederID] && [info exists ::loggedInUser] && $::loggedInUser eq "guest"} {
 		set data(unclaimed_feeder_id) [::json::write string $::feederID]
-	} elseif {[info exists ::feederID] && [info exists ::loggedInUser]} {
-		set data(feeder_id) [::json::write string $::feederID]
 	}
 
 	# piaware: our own health
