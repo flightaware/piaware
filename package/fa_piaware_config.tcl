@@ -61,6 +61,7 @@ namespace eval ::fa_piaware_config {
 	set enum_values(uat_receiver) {sdr stratuxv3 other none}
 	set enum_values(network_config_style) {jessie stretch buster manual}
 	set enum_values(network_type) {static dhcp}
+	set enum_values(slow_cpu) {yes no auto}
 
 	proc is_enum_type {type} {
 		variable enum_values
@@ -1052,6 +1053,12 @@ namespace eval ::fa_piaware_config {
 			{"mlat-results"          -type boolean -default yes}
 			{"mlat-results-anon"     -type boolean -default yes}
 			{"mlat-results-format"   -default "beast,connect,localhost:30104 beast,listen,30105 ext_basestation,listen,30106"}
+			{"slow-cpu"              -default "auto" -sdonly 1}
+			{"adaptive-dynamic-range" -type boolean -default yes -sdonly 1}
+			{"adaptive-dynamic-range-target" -type double -sdonly 1}
+			{"adaptive-burst"        -type boolean -default no -sdonly 1}
+			{"adaptive-min-gain"     -type double -sdonly 1}
+			{"adaptive-max-gain"     -type double -sdonly 1}
 
 			{"enable-firehose"       -type boolean -default no}
 
