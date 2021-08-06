@@ -1,0 +1,15 @@
+
+#!/bin/sh
+
+# Tries to reconfigure and restart the receiver
+
+/bin/systemctl --quiet stop beast-splitter
+/bin/systemctl --quiet stop dump1090-fa
+
+status=0
+
+/bin/systemctl --quiet start generate-receiver-config || status=1
+/bin/systemctl --quiet start beast-splitter || status=1
+/bin/systemctl --quiet start dump1090-fa || status=1
+
+exit $status

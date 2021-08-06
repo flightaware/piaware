@@ -1,0 +1,20 @@
+status=0
+
+if [ -f /etc/init.d/ifplugd ]; then
+	/bin/systemctl --quiet stop ifplugd || status=1
+fi
+
+/bin/systemctl --quiet stop networking || status=1
+/bin/systemctl --quiet restart set-rfkill || status=1
+/bin/systemctl --quiet restart generate-network-config || status=1
+/bin/systemctl --quiet daemon-reload || status=1
+/bin/systemctl --quiet restart dhcpcd || status=1
+/bin/systemctl --quiet restart rsyslog || status=1
+
+/bin/systemctl --quiet start networking || status=1
+
+if [ -f /etc/init.d/ifplugd ]; then
+        /bin/systemctl --quiet start ifplugd || status=1
+fi
+
+exit $status

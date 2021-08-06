@@ -9,6 +9,16 @@
 package require fa_sudo
 
 namespace eval ::fa_services {
+	set helperDir [file join [file dirname [info script]] "helpers"]
+
+	proc restart_receiver {} {
+		::fa_sudo::exec_as -root -- [file join $::fa_services::helperDir "restart-receiver"]
+	}
+
+	proc restart_network {} {
+		::fa_sudo::exec_as -root -- [file join $::fa_services::helperDir "restart-network"]
+	}
+
 	# return 1 if we have invoke-rc.d
 	proc has_invoke_rcd {} {
 		if {![info exists ::invoke_rcd_path]} {
