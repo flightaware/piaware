@@ -35,6 +35,14 @@ case "$action" in
         ;;
 
     upgrade-package)
+        for package in "$@"
+        do
+            case "$package" in
+                [a-zA-Z]*) ;;
+                *) echo "bad package name: $package" >&2; exit 2 ;;
+            esac
+        done
+
         dpkg --configure -a --force-confdef --force-confold || true
         apt-get -q -y $options -f install || true
         apt-get -q -y $options install "$@" || exit 1
