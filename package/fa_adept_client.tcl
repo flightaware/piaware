@@ -18,7 +18,9 @@ set caDir [file join [file dirname [info script]] "ca"]
 
 ::itcl::class AdeptClient {
 	public variable sock
-	public variable hosts [list piaware.flightaware.com piaware.flightaware.com [list 70.42.6.228 70.42.6.224 70.42.6.198 70.42.6.156 70.42.6.225]] shuffle_hosts
+	public variable hosts [list piaware.flightaware.com piaware.flightaware.com \
+							   [list 206.253.80.196 206.253.80.197 206.253.80.198 206.253.80.199 206.253.80.200 206.253.80.201] \
+							   [list 206.253.84.193 206.253.84.194 206.253.84.195 206.253.84.196 206.253.84.197 206.253.84.198]] shuffle_hosts
 	public variable port 1200
 	public variable loginTimeoutSeconds 15
 	public variable connectRetryIntervalSeconds 60
@@ -63,23 +65,13 @@ set caDir [file join [file dirname [info script]] "ca"]
 		catch { {*}$logCommand $text }
     }
 
-	# shuffle - random shuffle of a list, used to randomize the order of fallback IPs
-	# we just brute-force this since the lists are small
-	proc shuffle {l} {
-		set result [list]
-		while {[llength $l] > 0} {
-			set i [expr {int(rand() * [llength $l])}]
-			lappend result [lindex $l $i]
-			set l [lreplace $l $i $i]
-		}
-		return $result
-	}
-
 	# shuffle_hosts - populate shuffledHosts from hosts
 	method shuffle_hosts {} {
 		set shuffledHosts [list]
 		foreach hostList $hosts {
-			lappend shuffledHosts {*}[shuffle $hostList]
+			# pick one host from each sub-list randomly
+			set i [expr {int(rand() * [llength $hostList])}]
+			lappend shuffledHosts [lindex $hostList $i]
 		}
 	}
 
