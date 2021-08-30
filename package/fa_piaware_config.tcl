@@ -1036,7 +1036,8 @@ namespace eval ::fa_piaware_config {
 			{"http-proxy-user"       -network 1}
 			{"http-proxy-password"   -protect 1 -network 1}
 
-			{"adept-serverhosts"     -default {piaware.flightaware.com piaware.flightaware.com {70.42.6.156 70.42.6.232 70.42.6.224 70.42.6.228 70.42.6.198 70.42.6.225}}}
+			{"adept-serverhosts"     -default {piaware.flightaware.com piaware.flightaware.com {206.253.80.196 206.253.80.197 206.253.80.198 206.253.80.199 206.253.80.200 206.253.80.201} {206.253.84.193 206.253.84.194 206.253.84.195 206.253.84.196 206.253.84.197 206.253.84.198}}}
+
 			{"adept-serverport"      -type integer -default 1200}
 
 			{"rfkill"                -type boolean -default no -sdonly 1}
