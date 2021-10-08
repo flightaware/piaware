@@ -1,7 +1,7 @@
 #
 # piaware - status file creation
 #
-# Copyright (C) 2016 FlightAware LLC, All Rights Reserved
+# Copyright (C) 2016-2021 FlightAware LLC, All Rights Reserved
 #
 
 package require json::write
@@ -171,13 +171,30 @@ proc build_status {} {
 
 	# System information
 	catch {set data(piaware_version) [::json::write string $::piawareVersionFull]}
-	set dump1090_version [query_dpkg_names_and_versions "*dump1090-fa*"]
-	catch {set data(dump1090_version) [::json::write string $dump1090_version]}
-	set dump978_version [query_dpkg_names_and_versions "*dump978-fa*"]
-	catch {set data(dump978_version) [::json::write string $dump978_version]}
+
+	set dump1090_version [cached_package_version "*dump1090-fa*"]
+	if {$dump1090_version ne ""} {
+		set data(dump1090_version) [::json::write string $dump1090_version]
+	}
+
+	set dump978_version [cached_package_version "*dump978-fa*"]
+	if {$dump978_version ne ""} {
+		set data(dump978_version) [::json::write string $dump978_version]
+	}
+
 	catch {set data(cpu_temp_celcius) [::fa_sysinfo::cpu_temperature]}
 	catch {set data(cpu_load_percent) [::fa_sysinfo::cpu_load]}
 	catch {set data(system_uptime) [::fa_sysinfo::uptime]}
 
 	return [::json::write object {*}[array get data]]
+}
+
+proc cached_package_version {pattern} {
+	if {![info exists ::package_cache($pattern)]} {
+		set ::package_cache($pattern) ""
+		catch { set ::package_cache($pattern) [query_dpkg_names_and_versions $pattern] }
+		after 3600000 {unset -nocomplain ::package_cache($pattern)}
+	}
+
+	return $::package_cache($pattern)
 }
