@@ -193,7 +193,7 @@ proc cached_package_version {pattern} {
 	if {![info exists ::package_cache($pattern)]} {
 		set ::package_cache($pattern) ""
 		catch { set ::package_cache($pattern) [query_dpkg_names_and_versions $pattern] }
-		after 3600000 {unset -nocomplain ::package_cache($pattern)}
+		after 3600000 [list unset -nocomplain ::package_cache($pattern)]
 	}
 
 	return $::package_cache($pattern)
