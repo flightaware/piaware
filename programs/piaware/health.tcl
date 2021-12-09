@@ -69,32 +69,31 @@ proc gps_location_update {lat lon alt} {
 
 proc handle_location_update {src lat lon alt altref {override ""}} {
 	if {$lat eq "" || $lon eq ""} {
-		unset -nocomplain ::locationData($src)
-	} else {
-		set lat [format "%.5f" $lat]
-		set lon [format "%.5f" $lon]
-		set alt [format "%.0f" $alt]
-
-		if {![info exists ::locationData($src)]} {
-			# first time
-			if {$altref ne ""} {
-				switch -- $altref {
-					wgs84_feet { set unit "ft (WGS84)" }
-					wgs84_meters { set unit "m (WGS84)" }
-					egm96_feet { set unit "ft AMSL" }
-					egm96_meters { set unit "m AMSL" }
-					default { set unit " (unknown unit)" }
-				}
-
-				logger "$src reported location: $lat, $lon, $alt$unit"
-			} else {
-				logger "$src reported location: $lat, $lon"
-			}
-		}
-
-		set ::locationData($src) [list $lat $lon $alt $altref $override]
+		return
 	}
 
+	set lat [format "%.5f" $lat]
+	set lon [format "%.5f" $lon]
+	set alt [format "%.0f" $alt]
+
+	if {![info exists ::locationData($src)]} {
+		# first time
+		if {$altref ne ""} {
+			switch -- $altref {
+				wgs84_feet { set unit "ft (WGS84)" }
+				wgs84_meters { set unit "m (WGS84)" }
+				egm96_feet { set unit "ft AMSL" }
+				egm96_meters { set unit "m AMSL" }
+				default { set unit " (unknown unit)" }
+			}
+
+			logger "$src reported location: $lat, $lon, $alt$unit"
+		} else {
+			logger "$src reported location: $lat, $lon"
+		}
+	}
+
+	set ::locationData($src) [list $lat $lon $alt $altref $override]
 	location_data_changed
 }
 
