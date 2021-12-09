@@ -109,6 +109,7 @@ proc location_data_changed {} {
 
 	set newloc ""
 	set newprio -99
+	set newsrc ""
 	foreach {src srcData} [array get ::locationData] {
 		lassign $srcData lat lon alt altref override
 		if {$override ne ""} {
@@ -122,6 +123,7 @@ proc location_data_changed {} {
 		if {$priority > $newprio} {
 			set newloc $srcData
 			set newprio $priority
+			set newsrc $src
 		}
 	}
 
@@ -137,7 +139,7 @@ proc location_data_changed {} {
 
 	# tell adept about the new location
 	# (unless the location already came from adept)
-	if {$src ne "adept"} {
+	if {$newsrc ne "adept"} {
 		set last [adept last_reported_location]
 		if {$last ne ""} {
 			lassign $last lastLat lastLon lastAlt lastAltref
