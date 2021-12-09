@@ -60,7 +60,6 @@ proc periodically_send_health_information {} {
 
 proc gps_location_update {lat lon alt} {
 	if {$lat eq "" || $lon eq "" || $alt eq ""} {
-		handle_location_update gpsd "" "" "" ""
 		return
 	}
 
