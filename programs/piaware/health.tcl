@@ -60,7 +60,6 @@ proc periodically_send_health_information {} {
 
 proc gps_location_update {lat lon alt} {
 	if {$lat eq "" || $lon eq "" || $alt eq ""} {
-		handle_location_update gpsd "" "" "" ""
 		return
 	}
 
@@ -70,32 +69,31 @@ proc gps_location_update {lat lon alt} {
 
 proc handle_location_update {src lat lon alt altref {override ""}} {
 	if {$lat eq "" || $lon eq ""} {
-		unset -nocomplain ::locationData($src)
-	} else {
-		set lat [format "%.5f" $lat]
-		set lon [format "%.5f" $lon]
-		set alt [format "%.0f" $alt]
-
-		if {![info exists ::locationData($src)]} {
-			# first time
-			if {$altref ne ""} {
-				switch -- $altref {
-					wgs84_feet { set unit "ft (WGS84)" }
-					wgs84_meters { set unit "m (WGS84)" }
-					egm96_feet { set unit "ft AMSL" }
-					egm96_meters { set unit "m AMSL" }
-					default { set unit " (unknown unit)" }
-				}
-
-				logger "$src reported location: $lat, $lon, $alt$unit"
-			} else {
-				logger "$src reported location: $lat, $lon"
-			}
-		}
-
-		set ::locationData($src) [list $lat $lon $alt $altref $override]
+		return
 	}
 
+	set lat [format "%.5f" $lat]
+	set lon [format "%.5f" $lon]
+	set alt [format "%.0f" $alt]
+
+	if {![info exists ::locationData($src)]} {
+		# first time
+		if {$altref ne ""} {
+			switch -- $altref {
+				wgs84_feet { set unit "ft (WGS84)" }
+				wgs84_meters { set unit "m (WGS84)" }
+				egm96_feet { set unit "ft AMSL" }
+				egm96_meters { set unit "m AMSL" }
+				default { set unit " (unknown unit)" }
+			}
+
+			logger "$src reported location: $lat, $lon, $alt$unit"
+		} else {
+			logger "$src reported location: $lat, $lon"
+		}
+	}
+
+	set ::locationData($src) [list $lat $lon $alt $altref $override]
 	location_data_changed
 }
 
@@ -110,6 +108,7 @@ proc location_data_changed {} {
 
 	set newloc ""
 	set newprio -99
+	set newsrc ""
 	foreach {src srcData} [array get ::locationData] {
 		lassign $srcData lat lon alt altref override
 		if {$override ne ""} {
@@ -123,6 +122,7 @@ proc location_data_changed {} {
 		if {$priority > $newprio} {
 			set newloc $srcData
 			set newprio $priority
+			set newsrc $src
 		}
 	}
 
@@ -138,7 +138,7 @@ proc location_data_changed {} {
 
 	# tell adept about the new location
 	# (unless the location already came from adept)
-	if {$src ne "adept"} {
+	if {$newsrc ne "adept"} {
 		set last [adept last_reported_location]
 		if {$last ne ""} {
 			lassign $last lastLat lastLon lastAlt lastAltref

@@ -266,13 +266,16 @@ proc upgrade_dump978 {} {
 # single_package_upgrade: update a single FA package
 #
 proc single_package_upgrade {pkg} {
-	# run the update/upgrade
-    if {![run_apt_get upgrade-package $pkg]} {
-		logger "aborting upgrade..."
-		return 0
-    }
+	try {
+		# run the update/upgrade
+		if {![run_apt_get upgrade-package $pkg]} {
+			logger "aborting upgrade..."
+			return 0
+		}
 
-	logger "upgrade of $pkg seemed to go OK"
-	return 1
+		logger "upgrade of $pkg seemed to go OK"
+		return 1
+	} finally {
+		array unset ::package_cache
+	}
 }
-

@@ -1062,6 +1062,7 @@ namespace eval ::fa_piaware_config {
 			{"adaptive-max-gain"     -type double -sdonly 1}
 
 			{"enable-firehose"       -type boolean -default no}
+			{"allow-ble-setup"       -default "auto" -sdonly 1}
 
 			{"uat-receiver-type"     -type uat_receiver -default none}
 			{"uat-receiver-host"}
