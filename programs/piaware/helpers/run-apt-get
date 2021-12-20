@@ -18,9 +18,9 @@ shift
 
 . /etc/os-release
 case "$ID:$VERSION_ID" in
-    raspbian:8) ;;
     raspbian:9) ;;
     raspbian:10) ;;
+    raspbian:11) ;;
 
     *)
         echo "Automatic updates not officially supported for OS $ID:$VERSION_ID ($PRETTY_NAME)" >&2
