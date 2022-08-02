@@ -9,8 +9,8 @@
 
 set serverRetryIntervalSeconds 60
 
-set piawareVersion 7.2
-set piawareVersionFull 7.2
+set piawareVersion 8.0~dev
+set piawareVersionFull 8.0~dev
 
 # how many seconds with no messages received from the ADS-B receiver before
 # we will attempt to restart dump1090
