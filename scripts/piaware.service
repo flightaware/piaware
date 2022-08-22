@@ -18,6 +18,9 @@ RestartSec=30
 # exit code 4 means login failed
 # exit code 6 means startup failed (bad args or missing MAC)
 RestartPreventExitStatus=4 6
+WatchdogSec=120
+WatchdogSignal=SIGKILL
+NotifyAccess=all
 
 [Install]
 WantedBy=default.target
