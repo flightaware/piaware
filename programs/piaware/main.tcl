@@ -30,6 +30,7 @@ source $::launchdir/pirehose.tcl
 source $::launchdir/update.tcl
 source $::launchdir/login.tcl
 source $::launchdir/statusfile.tcl
+source $::launchdir/systemd.tcl
 
 #
 # main - the main program
@@ -69,6 +70,9 @@ proc main {{argv ""}} {
 	interp bgerror {} log_bgerror
 
 	setup_config
+
+	# if we are running under systemd start sending watchdog resets if configured
+	systemd_start_watchdog
 
 	# setup adept client early so logger command won't trace back
 	# (this does not initiate a connection, it just creates the object)
