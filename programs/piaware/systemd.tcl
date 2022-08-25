@@ -24,10 +24,10 @@ proc systemd_start_watchdog {} {
 	set ::systemd_watchdog_interval_ms [expr {round($::env(WATCHDOG_USEC) * 0.8 / 1000.0)}]
 	unset ::env(WATCHDOG_USEC)	 ;# ensure that child processes don't think they need to do a watchdog
 
-	systemd_peridically_reset_watchdog
+	systemd_periodically_reset_watchdog
 }
 
-proc systemd_peridically_reset_watchdog {} {
-	after $::systemd_watchdog_interval_ms systemd_peridically_reset_watchdog
+proc systemd_periodically_reset_watchdog {} {
+	after $::systemd_watchdog_interval_ms systemd_periodically_reset_watchdog
 	catch {exec -- {*}$::systemd_notify --pid=[pid] WATCHDOG=1}
 }
