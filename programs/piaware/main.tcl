@@ -69,6 +69,7 @@ proc main {{argv ""}} {
 
 	interp bgerror {} log_bgerror
 
+	set ::wideAreaMode 0
 	setup_config
 
 	# if we are running under systemd start sending watchdog resets if configured

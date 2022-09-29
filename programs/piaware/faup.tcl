@@ -425,7 +425,7 @@ proc update_location {lat lon} {
 	# if the location moves by more than about 250m since
 	# the last time we updated
 
-	if {$::receiverLat ne "" && $::receiverLon ne ""} {
+	if {$::receiverLat ne "" && $::receiverLon ne "" && $lat ne "" && $lon ne ""} {
 		# approx distances in km along lat/lon axes, don't bother with the full GC distance
 		set dLat [expr {111 * ($::receiverLat - $lat)}]
 		set dLon [expr {111 * ($::receiverLon - $lon) * cos($lat * 3.1415927 / 180.0)}]

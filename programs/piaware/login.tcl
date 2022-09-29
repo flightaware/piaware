@@ -118,6 +118,16 @@ proc handle_login_result {data} {
 			unset -nocomplain ::siteURL
 		}
 
+		if {[info exists row(widearea)]} {
+			set ::wideAreaMode $row(widearea)
+		} else {
+			set ::wideAreaMode 0
+		}
+
+		if {$::wideAreaMode} {
+			# force a location update to remove any old cached location
+			update_location "" ""
+		}
 	} else {
 		# NB do more here, like UI stuff
 		log_locally "*******************************************"
