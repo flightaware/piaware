@@ -349,6 +349,12 @@ proc create_cache_dir {} {
 proc try_save_location_info {lat lon} {
 	create_cache_dir
 
+	if {$lat eq "" || $lon eq ""} {
+		file delete -- $::params(cachedir)/location
+		file delete -- $::params(cachedir)/location.env
+		return
+	}
+
 	set fp [open "$::params(cachedir)/location.new" w]
 	puts $fp $lat
 	puts $fp $lon

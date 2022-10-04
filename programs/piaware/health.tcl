@@ -126,9 +126,10 @@ proc location_data_changed {} {
 		}
 	}
 
-	if {$newloc eq ""} {
+	if {$newloc eq "" || $::wideAreaMode} {
 		# no valid position
 		adept set_location ""
+		update_location "" ""
 		return
 	}
 

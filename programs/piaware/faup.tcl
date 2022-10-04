@@ -425,7 +425,7 @@ proc update_location {lat lon} {
 	# if the location moves by more than about 250m since
 	# the last time we updated
 
-	if {$::receiverLat ne "" && $::receiverLon ne ""} {
+	if {$::receiverLat ne "" && $::receiverLon ne "" && $lat ne "" && $lon ne ""} {
 		# approx distances in km along lat/lon axes, don't bother with the full GC distance
 		set dLat [expr {111 * ($::receiverLat - $lat)}]
 		set dLon [expr {111 * ($::receiverLon - $lon) * cos($lat * 3.1415927 / 180.0)}]
@@ -435,21 +435,40 @@ proc update_location {lat lon} {
 		}
 	}
 
-	# changed nontrivially; restart dump1090 / faup1090 / skyaware978 to use the new values
+	# changed nontrivially; save new values and restart dump1090 / faup1090 / skyaware978 to use them
 	set ::receiverLat $lat
 	set ::receiverLon $lon
+	save_location_info $::receiverLat $::receiverLon
+
+	# .. but rate-limit how frequently we may restart
+	if {![info exists ::locationRestartTimer]} {
+		# If we have a pending restart, just let that happen normally.
+		# Otherwise, schedule a restart in a few seconds, but no sooner than 60 seconds after the last restart happened
+
+		if {![info exists ::lastLocationRestartTime]} {
+			set delay 5000
+		} else {
+			set delay [expr {max(5000, $::lastLocationRestartTime + 60000 - [clock milliseconds])}]
+		}
+
+		set ::locationRestartTimer [after $delay do_location_restart]
+	}
+}
+
+proc do_location_restart {} {
+	# Called from update_location via "after"
+	unset -nocomplain ::locationRestartTimer
+	set ::lastLocationRestartTime [clock milliseconds]
 
 	# speculatively restart dump1090/skyaware978 even if we are not using it as a receiver;
 	# it may be used for display.
-	if {[save_location_info $lat $lon]} {
-		logger "Receiver location changed, restarting dump1090 and skyaware978"
-		::fa_services::attempt_service_restart dump1090 restart
-		::fa_services::attempt_service_restart skyaware978 restart
-	}
+	logger "Receiver location changed, restarting dump1090 and skyaware978"
+	::fa_services::attempt_service_restart dump1090 restart
+	::fa_services::attempt_service_restart skyaware978 restart
 
 	if {[info exists ::faup1090] && [$::faup1090 is_connected]} {
 		logger "Restarting faup1090"
-		restart_faup1090 5
+		restart_faup1090 now
 	}
 }
 
