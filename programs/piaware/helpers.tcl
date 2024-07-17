@@ -67,7 +67,7 @@ proc greetings {} {
 #
 proc setup_adept_client {} {
     ::fa_adept::AdeptClient adept \
-		-mac [get_mac_address_or_quit] \
+		-mac [get_mac_address] \
 		-showTraffic $::params(showtraffic) \
 		-logCommand ::log_locally \
 		-loginCommand ::gather_login_info \
@@ -375,12 +375,7 @@ proc try_save_location_info {lat lon} {
 #  to, emit a message to stderr and exit
 #
 proc get_mac_address_or_quit {} {
-	set mac [::fa_sysinfo::mac_address]
-	if {$mac == ""} {
-		puts stderr "software failed to determine MAC address of the device.  cannot proceed without it."
-		exit 6
-	}
-	return $mac
+	return [::fa_sysinfo::mac_address]
 }
 
 #
