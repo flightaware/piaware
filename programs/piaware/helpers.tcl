@@ -371,8 +371,7 @@ proc try_save_location_info {lat lon} {
 
 
 #
-# get_mac_address_or_quit - return the mac address of eth0 or if unable
-#  to, emit a message to stderr and exit
+# get_mac_address - return mac address regardless if empty or valid
 #
 proc get_mac_address {} {
 	return [::fa_sysinfo::mac_address]
