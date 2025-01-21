@@ -23,6 +23,11 @@ case "$1" in
         TEMPFILE=/etc/piaware.conf.new
         ;;
 
+    /boot/piaware-config.txt)
+        TARGET=/boot/piaware-config.txt
+        TEMPFILE=/boot/piaware-config.txt.new
+        ;;
+
     /boot/firmware/piaware-config.txt)
         TARGET=/boot/firmware/piaware-config.txt
         TEMPFILE=/boot/firmware/piaware-config.txt.new

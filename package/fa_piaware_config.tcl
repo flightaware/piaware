@@ -1100,6 +1100,7 @@ namespace eval ::fa_piaware_config {
 			$combined add [new ConfigFile #auto -filename $extraConfigFile -metadata $metadata -priority 100]
 		} else {
 			$combined add [new ConfigFile #auto -filename "/etc/piaware.conf" -metadata $metadata -priority 40 -writeHelper $::fa_piaware_config::helperPath]
+			$combined add [new ConfigFile #auto -filename "/boot/piaware-config.txt" -metadata $metadata -priority 50 -writeHelper $::fa_piaware_config::helperPath -eol crlf]
 			$combined add [new ConfigFile #auto -filename "/boot/firmware/piaware-config.txt" -metadata $metadata -priority 50 -writeHelper $::fa_piaware_config::helperPath -eol crlf]
 		}
 
