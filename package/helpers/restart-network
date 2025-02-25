@@ -1,3 +1,8 @@
+#
+# Calls the piaware-restart-network executable to appropriately apply and restart networking
+# for the appropriate OS distribution
+#
+
 status=0
 
 if [ -f /usr/bin/piaware-restart-network ]; then
