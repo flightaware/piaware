@@ -1,7 +1,7 @@
 status=0
 
-if [ -f /bin/piaware-restart-network ]; then
-	/bin/piaware-restart-network
+if [ -f /usr/bin/piaware-restart-network ]; then
+	/usr/bin/piaware-restart-network
 else
 	status=1
 	echo "Missing service to restart networking. Try rebooting device to apply changes."
