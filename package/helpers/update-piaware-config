@@ -3,7 +3,7 @@
 # This script is intended to be run via sudo by the config package when
 # less-privileged processes need to update a piaware config file. It is
 # invoked with one argument: the config file path that the caller wants to
-# update, either /etc/piaware.conf or /boot/piaware-config.txt. The new
+# update, either /etc/piaware.conf or in piaware-config.txt. The new
 # contents are read from stdin.
 
 # bail if anything goes even slightly wrong
@@ -26,6 +26,11 @@ case "$1" in
     /boot/piaware-config.txt)
         TARGET=/boot/piaware-config.txt
         TEMPFILE=/boot/piaware-config.txt.new
+        ;;
+
+    /boot/firmware/piaware-config.txt)
+        TARGET=/boot/firmware/piaware-config.txt
+        TEMPFILE=/boot/firmware/piaware-config.txt.new
         ;;
 
     /boot/flightfeeder-config.txt)
