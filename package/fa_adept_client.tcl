@@ -26,6 +26,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 	public variable connectRetryIntervalSeconds 60
 	public variable fastRetryIntervalSeconds 5
 	public variable showTraffic 0
+	public variable debugTLS 0
 	public variable mac
 
 	# configuration hooks for actions the client wants to trigger
@@ -124,6 +125,14 @@ set caDir [file join [file dirname [info script]] "ca"]
 				}
 			}
 
+			message {
+				lassign $args direction version
+				if {$debugTLS} {
+				        logger "TLS version: $version"
+				        logger "$direction TLS message: $message"
+			        }
+			}
+
 			default {
 				logger "unhandled TLS callback: $cmd $channel $args"
 			}
@@ -215,7 +224,10 @@ set caDir [file join [file dirname [info script]] "ca"]
 						-cadir $::fa_adept::caDir \
 						-ssl2 0 \
 						-ssl3 0 \
-						-tls1 1 \
+						-tls1 0 \
+						-tls1.1 1 \
+						-tls1.2 1 \
+						-tls1.3 1 \
 						-require 1 \
 						-command [list $this tls_callback]} catchResult] == 1} {
 			logger "TLS initialization with adept server at $host/$port failed: $catchResult"
