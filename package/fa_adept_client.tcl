@@ -116,16 +116,24 @@ set caDir [file join [file dirname [info script]] "ca"]
 			}
 
 			info {
-				lassign $args major minor message
+				set type unknown
+				lassign $args major minor message type
 				if {$major eq "alert" && $message ne "close notify"} {
 					logger "TLS alert ($minor): $message"
-				} elseif {$major eq "error"} {
-					logger "TLS error ($minor): $message"
+				} else {
+					logger "TLS $major $minor ($type): $message"
+				}
+			}
+
+			message {
+				lassign $args direction version content_type message
+				if {$debugTLS} {
+					logger "TLS message ($direction): $message"
 				}
 			}
 
 			default {
-				logger "unhandled TLS callback: $cmd $channel $args"
+				# Not an error
 			}
 		}
     }
@@ -210,14 +218,18 @@ set caDir [file join [file dirname [info script]] "ca"]
 		# attempt to connect with TLS negotiation.  Use the included
 		# CA cert file to confirm the cert's signature on the certificate
 		# the server sends us
-		if {[catch {tls::import $sock \
-						-cipher ALL \
-						-cadir $::fa_adept::caDir \
-						-ssl2 0 \
-						-ssl3 0 \
-						-tls1 1 \
-						-require 1 \
-						-command [list $this tls_callback]} catchResult] == 1} {
+		if {[package vsatisfies [package require tls] 1.8-]} {
+			# TLS 1.8+ defaults to only -tls1.2 and -tls1.3 enabled
+			set cmd [list tls::import $sock -cadir $::fa_adept::caDir \
+				-require 1 -command [list $this tls_callback] \
+				-validatecommand [list $this tls_callback]]
+		} else {
+			# TLS 1.7 defaults to -tls1 and -tls1.1 enabled, so disable
+			set cmd [list tls::import $sock -cadir $::fa_adept::caDir \
+				-tls1 0 -tls1.1 0 \
+				-require 1 -command [list $this tls_callback]]
+		}
+		if {[catch $cmd catchResult] == 1} {
 			logger "TLS initialization with adept server at $host/$port failed: $catchResult"
 			close_socket_and_reopen
 			return
@@ -260,6 +272,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 		#logger "TLS status: $tlsStatus"
 
 		# validate the certificate.  error out if it fails.
+		# Not needed since this is done as part of the TLS negotiation now.
 		if {![validate_certificate_status $tlsStatus reason]} {
 			logger "Certificate validation with adept server at $host/$port failed: $reason"
 			close_socket_and_reopen
@@ -300,7 +313,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 	#  else 0
     #
     method validate_certificate_status {statusList _reason} {
-        upvar $_reason reason
+	upvar $_reason reason
 
 		array set status $statusList
 
