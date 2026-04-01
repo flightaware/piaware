@@ -128,7 +128,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 
 			message {
 				lassign $args direction version content_type message
-+                if {[info exists debugTLS] && $debugTLS} {
+                if {[info exists debugTLS] && $debugTLS} {
                      logger "TLS message ($direction): $message"
                  }
 
