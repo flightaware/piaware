@@ -27,6 +27,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 	public variable fastRetryIntervalSeconds 5
 	public variable showTraffic 0
 	public variable mac
+	public variable debugTLS 0
 
 	# configuration hooks for actions the client wants to trigger
 	public variable logCommand "puts stderr"
@@ -127,9 +128,10 @@ set caDir [file join [file dirname [info script]] "ca"]
 
 			message {
 				lassign $args direction version content_type message
-				if {$debugTLS} {
-					logger "TLS message ($direction): $message"
-				}
++                if {[info exists debugTLS] && $debugTLS} {
+                     logger "TLS message ($direction): $message"
+                 }
+
 			}
 
 			default {
@@ -313,7 +315,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 	#  else 0
     #
     method validate_certificate_status {statusList _reason} {
-	upvar $_reason reason
+		upvar $_reason reason
 
 		array set status $statusList
 
