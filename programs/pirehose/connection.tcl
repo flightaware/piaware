@@ -8,17 +8,16 @@ proc handle_client_connection {sock} {
 		fcntl $sock KEEPALIVE 1
 		chan configure $sock -blocking 1 -translation binary
 
-		set cipherlist "ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:AES:CAMELLIA:DES-CBC3-SHA:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!aECDH:!EDH-DSS-DES-CBC3-SHA:!EDH-RSA-DES-CBC3-SHA:!KRB5-DES-CBC3-SHA:!EDH"
-		if {[package vsatisfies [package require tls] 1.8-]} {
-			# TLS 1.8+ defaults to only -tls1.2 and -tls1.3 enabled
-			tls::import $sock -server 1 \
-				-certfile $::params(certfile) -keyfile $::params(keyfile)
-		} else {
-			# TLS 1.7 defaults to -tls1 and -tls1.1 enabled, so disable
-			tls::import $sock -server 1 \
-				-tls1 0 -tls1.1 0 -cipher $cipherlist \
-				-certfile $::params(certfile) -keyfile $::params(keyfile)
-		}
+		::tls::import $sock \
+			-ssl2 0 \
+			-ssl3 0 \
+			-tls1 0 \
+			-tls1.1 0 \
+			-tls1.2 0 \
+			-tls1.3 1 \
+			-server 1 \
+			-certfile $::params(certfile) \
+			-keyfile $::params(keyfile)
 
 		::tls::handshake $sock
 	} on error {result} {
