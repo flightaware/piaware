@@ -119,16 +119,14 @@ set caDir [file join [file dirname [info script]] "ca"]
 			info {
 				set type unknown
 				lassign $args major minor message type
-				if {$major eq "alert" && $message ne "close notify"} {
-					logger "TLS alert ($minor): $message"
-				} else {
+				if {$debugTLS > 0 || ($major eq "alert" && $message ne "close notify")} {
 					logger "TLS $major $minor ($type): $message"
 				}
 			}
 
 			message {
 				lassign $args direction version content_type message
-                if {$debugTLS} {
+                if {$debugTLS > 1} {
                      logger "TLS message ($direction): $message"
                  }
 
