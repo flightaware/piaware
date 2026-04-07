@@ -274,7 +274,6 @@ set caDir [file join [file dirname [info script]] "ca"]
 		#logger "TLS status: $tlsStatus"
 
 		# validate the certificate.  error out if it fails.
-		# Not needed since this is done as part of the TLS negotiation now.
 		if {![validate_certificate_status $tlsStatus reason]} {
 			logger "Certificate validation with adept server at $host/$port failed: $reason"
 			close_socket_and_reopen
