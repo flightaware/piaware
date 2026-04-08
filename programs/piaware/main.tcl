@@ -44,6 +44,7 @@ proc main {{argv ""}} {
 		{serverport.arg "" "specify alternate server port (for FA testing)"}
 		{plainlog "log to stderr without timestamps"}
 		{debug "log to stderr, maybe enable more debugging messages"}
+		{debug-tls.arg 0 "set tcltls debug level (0 = no extra debug, 1 = info, 2 = all messages)"}
 		{logfile.arg "/var/log/piaware.log" "set logfile location (not used if -debug or -plainlog are given)"}
 		{showtraffic  "emit traffic to stdout (for debugging)"}
 		{statusfile.arg "" "periodically write json status to this location"}

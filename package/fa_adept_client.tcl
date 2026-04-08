@@ -27,6 +27,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 	public variable fastRetryIntervalSeconds 5
 	public variable showTraffic 0
 	public variable mac
+	public variable debugTLS 0
 
 	# configuration hooks for actions the client wants to trigger
 	public variable logCommand "puts stderr"
@@ -116,16 +117,23 @@ set caDir [file join [file dirname [info script]] "ca"]
 			}
 
 			info {
-				lassign $args major minor message
-				if {$major eq "alert" && $message ne "close notify"} {
-					logger "TLS alert ($minor): $message"
-				} elseif {$major eq "error"} {
-					logger "TLS error ($minor): $message"
+				set type unknown
+				lassign $args major minor message type
+				if {$debugTLS > 0 || ($major eq "alert" && $message ne "close notify")} {
+					logger "TLS $major $minor ($type): $message"
 				}
 			}
 
+			message {
+				lassign $args direction version content_type message
+                if {$debugTLS > 1} {
+                     logger "TLS message ($direction): $message"
+                 }
+
+			}
+
 			default {
-				logger "unhandled TLS callback: $cmd $channel $args"
+				# Not an error
 			}
 		}
     }
@@ -211,11 +219,13 @@ set caDir [file join [file dirname [info script]] "ca"]
 		# CA cert file to confirm the cert's signature on the certificate
 		# the server sends us
 		if {[catch {tls::import $sock \
-						-cipher ALL \
 						-cadir $::fa_adept::caDir \
-						-ssl2 0 \
-						-ssl3 0 \
-						-tls1 1 \
+						-ssl2 0	   \
+						-ssl3 0	   \
+						-tls1 0	   \
+						-tls1.1 0  \
+						-tls1.2 0  \
+						-tls1.3 1  \
 						-require 1 \
 						-command [list $this tls_callback]} catchResult] == 1} {
 			logger "TLS initialization with adept server at $host/$port failed: $catchResult"
@@ -300,7 +310,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 	#  else 0
     #
     method validate_certificate_status {statusList _reason} {
-        upvar $_reason reason
+		upvar $_reason reason
 
 		array set status $statusList
 
