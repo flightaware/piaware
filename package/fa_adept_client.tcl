@@ -19,8 +19,8 @@ set caDir [file join [file dirname [info script]] "ca"]
 ::itcl::class AdeptClient {
 	public variable sock
 	public variable hosts [list piaware.flightaware.com piaware.flightaware.com \
-							   [list 206.253.80.196 206.253.80.197 206.253.80.198 206.253.80.199 206.253.80.200 206.253.80.201] \
-							   [list 206.253.84.193 206.253.84.194 206.253.84.195 206.253.84.196 206.253.84.197 206.253.84.198]] shuffle_hosts
+							   [list 206.253.80.207 206.253.80.203 206.253.80.205 206.253.84.205 206.253.84.202 206.253.80.206] \
+							   [list 206.253.80.204 206.253.84.204 206.253.80.202 206.253.84.201 206.253.84.200 206.253.84.203]] shuffle_hosts
 	public variable port 1200
 	public variable loginTimeoutSeconds 15
 	public variable connectRetryIntervalSeconds 60
