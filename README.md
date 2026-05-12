@@ -29,7 +29,7 @@ piaware program
 ---
 
 The piaware program establishes a compressed, encrypted TLS connection to FlightAware and authenticates
-either by MAC address, or by a registered FlightAware username (or email address) and password.
+by MAC address.
 
 It then starts faup1090 to translate ADS-B data from a raw Beast-format feed on port 30005 to a filtered
 ADS-B format. The filtered data is uploaded to FlightAware over the previously established TLS
