@@ -1072,6 +1072,8 @@ namespace eval ::fa_piaware_config {
 			{"uat-sdr-device"        -default "driver=rtlsdr" -sdonly 1}
 
 			{"use-gpsd"              -type boolean -default yes}
+			{"gpsd-host"             -default "localhost"}
+			{"gpsd-port"             -type integer -default 2947}
 		}
 
 		return [uplevel 1 ::fa_piaware_config::new ::fa_piaware_config::ConfigMetadata [list $name] [list $settings]]
