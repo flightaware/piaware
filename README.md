@@ -28,8 +28,9 @@ release packages that FlightAware provides. It should also work on other Debian-
 piaware program
 ---
 
-The piaware program establishes a compressed, encrypted TLS connection to FlightAware and authenticates
-by MAC address.
+The piaware program establishes a compressed, encrypted TLS connection to FlightAware. On initial login, the
+piaware client is assigned a UUID that is used to identify the piaware instance and associate with a FlightAware
+account.
 
 It then starts faup1090 to translate ADS-B data from a raw Beast-format feed on port 30005 to a filtered
 ADS-B format. The filtered data is uploaded to FlightAware over the previously established TLS
