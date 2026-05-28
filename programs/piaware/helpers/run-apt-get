@@ -21,6 +21,9 @@ case "$ID:$VERSION_ID" in
     raspbian:11) ;;
     raspbian:12) ;;
     raspbian:13) ;;
+    debian:11) ;;
+    debian:12) ;;
+    debian:13) ;;
 
     *)
         echo "Automatic updates not officially supported for OS $ID:$VERSION_ID ($PRETTY_NAME)" >&2
