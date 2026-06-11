@@ -57,7 +57,7 @@ namespace eval ::fa_piaware_config {
 		SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ
 		VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW 00
 	}
-	set enum_values(receiver) {rtlsdr sdr bladerf beast relay radarcape radarcape-local other none}
+	set enum_values(receiver) {rtlsdr sdr bladerf beast relay radarcape radarcape-local pg2sdr other none}
 	set enum_values(uat_receiver) {sdr stratuxv3 other none}
 	set enum_values(network_config_style) {jessie stretch buster manual}
 	set enum_values(network_type) {static dhcp}
@@ -1047,6 +1047,8 @@ namespace eval ::fa_piaware_config {
 			{"rtlsdr-gain"           -type gain -default max -sdonly 1}
 			{"beast-baudrate"        -type integer -sdonly 1}
 			{"radarcape-host"        -sdonly 1}
+			{"pg2sdr-gain"	         -type gain -default 60 -sdonly 1}
+			{"pg2sdr-serial"         -sdonly 1}
 			"receiver-host"
 			{"receiver-port"         -type integer -default 30005}
 			{"allow-modeac"          -type boolean -default yes -sdonly 1}
