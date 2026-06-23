@@ -263,6 +263,7 @@ proc receiver_local_service {config message_type} {
 		ES {
 			switch -- [$config get receiver-type] {
 				sdr - rtlsdr { return "dump1090" }
+				pg2sdr     { return "dump1090" }
 				bladerf    { return "dump1090" }
 				beast      { return "beast-splitter" }
 				relay      { return "beast-splitter" }
@@ -297,7 +298,7 @@ proc receiver_description {config message_type} {
 		# 1090
 		ES {
 			switch -- [$config get receiver-type] {
-				sdr - rtlsdr - bladerf {
+				sdr - rtlsdr - bladerf - pg2sdr {
 					return "dump1090"
 				}
 				beast {
@@ -347,6 +348,7 @@ proc receiver_host_and_port {config message_type} {
 		ES {
 			switch -- [$config get receiver-type] {
 				sdr - rtlsdr { return [list localhost 30005] }
+				pg2sdr     { return [list localhost 30005] }
 				bladerf    { return [list localhost 30005] }
 				beast      { return [list localhost 30005] }
 				relay      { return [list localhost 30005] }
@@ -384,6 +386,7 @@ proc receiver_underlying_host_and_port {config message_type} {
 		ES {
 			switch -- [$config get receiver-type] {
 				sdr - rtlsdr { return [list localhost 30005] }
+				pg2sdr     { return [list localhost 30005] }
 				bladerf    { return [list localhost 30005] }
 				beast      { return [list localhost 30005] }
 				relay      { return [list [$config get receiver-host] [$config get receiver-port]] }
@@ -420,6 +423,7 @@ proc receiver_data_format {config message_type} {
 		ES {
 			switch -- [$config get receiver-type] {
 				sdr - rtlsdr { return "dump1090" }
+				pg2sdr     { return "dump1090" }
 				bladerf    { return "dump1090" }
 				beast      { return "beast" }
 				relay      { return "auto" }
