@@ -164,7 +164,9 @@ proc adept_location_changed {lat lon alt altref override} {
 }
 
 proc connect_to_gpsd {} {
-	set ::gpsd [::fa_gps::GpsdClient #auto -callback gps_location_update]
+	set gpsdHost [piawareConfig get gpsd-host]
+	set gpsdPort [piawareConfig get gpsd-port]
+	set ::gpsd [::fa_gps::GpsdClient #auto -host $gpsdHost -port $gpsdPort -callback gps_location_update]
 	$::gpsd connect
 }
 
