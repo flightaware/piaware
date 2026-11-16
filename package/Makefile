@@ -18,5 +18,9 @@ install: pkgIndex.tcl
 	$(MAKE) -C helpers install
 	$(MAKE) -C fa_adept_codec install
 
+test:
+	$(TCLSH) ./fa_gps.test
+	$(MAKE) -C fa_adept_codec test
+
 clean:
 	$(MAKE) -C helpers clean

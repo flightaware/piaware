@@ -1,0 +1,79 @@
+# -*- tcl -*-
+
+package require tcltest 2.2
+package require Itcl
+
+# fa_gps logs through these global procs, which piaware normally provides
+proc ::debug {msg} {}
+proc ::logger {msg} {}
+
+source [file join [file dirname [info script]] "fa_gps.tcl"]
+
+::tcltest::configure {*}$argv
+
+namespace eval ::fa_gps::tests {
+	namespace import ::tcltest::*
+
+	# Expose the protected message handler so tests can feed it gpsd JSON
+	# without a socket.
+	::itcl::class TestGpsdClient {
+		inherit ::fa_gps::GpsdClient
+
+		method feed {line} {
+			handle_message [::json::json2dict $line]
+		}
+	}
+
+	proc record_position {lat lon alt} {
+		set ::fa_gps::tests::lastPosition [list $lat $lon $alt]
+	}
+
+	proc feed_tpv {line} {
+		set ::fa_gps::tests::lastPosition ""
+		# Itcl 3 does not forward constructor args to the base class when the
+		# derived class has no constructor, so set the callback afterwards.
+		set client [TestGpsdClient #auto]
+		$client configure -callback ::fa_gps::tests::record_position
+		set rc [catch {$client feed $line} result options]
+		::itcl::delete object $client
+		if {$rc} {
+			return -options $options $result
+		}
+		return $::fa_gps::tests::lastPosition
+	}
+
+	# Altitude fields from the gpsd 3.25 / Quectel LC29H TPV quoted in issue
+	# #129 (lat/lon made up): "alt" is the deprecated field and equals altMSL,
+	# not the ellipsoid height.
+	test tpv-3d-prefers-altHAE "3D fix reports altHAE, not the deprecated alt (= altMSL)" -body {
+		feed_tpv {{"class":"TPV","mode":3,"lat":35.1,"lon":139.2,"alt":40.664,"altHAE":79.088,"altMSL":40.664,"geoidSep":38.424}}
+	} -result {35.1 139.2 79.088}
+
+	test tpv-3d-derives-hae-from-msl "3D fix without altHAE derives it from altMSL + geoidSep" -body {
+		feed_tpv {{"class":"TPV","mode":3,"lat":35.1,"lon":139.2,"alt":40.0,"altMSL":40.0,"geoidSep":38.5}}
+	} -result {35.1 139.2 78.5}
+
+	test tpv-3d-old-gpsd-alt "3D fix from pre-3.20 gpsd (alt only) still reports alt" -body {
+		feed_tpv {{"class":"TPV","mode":3,"lat":35.1,"lon":139.2,"alt":40.0}}
+	} -result {35.1 139.2 40.0}
+
+	# A client with no previous fix reports nothing. (A client that already has
+	# a fix keeps re-reporting it; that behaviour is unchanged here.)
+	test tpv-3d-no-altitude "3D fix with no altitude field does not set a position" -body {
+		feed_tpv {{"class":"TPV","mode":3,"lat":35.1,"lon":139.2}}
+	} -result {{} {} {}}
+
+	test tpv-2d "2D fix reports position without altitude" -body {
+		feed_tpv {{"class":"TPV","mode":2,"lat":35.1,"lon":139.2,"alt":40.0,"altHAE":78.5}}
+	} -result {35.1 139.2 {}}
+
+	test tpv-no-fix "no-fix TPV clears the position" -body {
+		feed_tpv {{"class":"TPV","mode":1}}
+	} -result {{} {} {}}
+
+	# cleanupTests resets the counters, so read the failure count first and
+	# exit non-zero on failure so "make test" can fail.
+	set failed $::tcltest::numTests(Failed)
+	cleanupTests
+	exit [expr {$failed > 0}]
+}

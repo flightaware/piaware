@@ -179,11 +179,23 @@ namespace eval ::fa_gps {
 							}
 
 							"3" {
-								if {[info exists j_lat] && [info exists j_lon] && [info exists j_alt]} {
-									debug "3D fix at $j_lat $j_lon $j_alt"
+								# The caller treats altitude as WGS84 (height above
+								# ellipsoid). gpsd >= 3.20 reports that as altHAE; its
+								# "alt" is deprecated and in practice equals altMSL.
+								# Only fall back to "alt" for older gpsd versions.
+								if {[info exists j_altHAE]} {
+									set fixAlt $j_altHAE
+								} elseif {[info exists j_altMSL] && [info exists j_geoidSep]} {
+									set fixAlt [expr {$j_altMSL + $j_geoidSep}]
+								} elseif {[info exists j_alt]} {
+									set fixAlt $j_alt
+								}
+
+								if {[info exists j_lat] && [info exists j_lon] && [info exists fixAlt]} {
+									debug "3D fix at $j_lat $j_lon $fixAlt"
 									set lat $j_lat
 									set lon $j_lon
-									set alt $j_alt
+									set alt $fixAlt
 								}
 							}
 
