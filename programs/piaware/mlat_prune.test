@@ -1,0 +1,98 @@
+# -*- tcl -*-
+
+package require tcltest 2.2
+
+set testDir [file dirname [file normalize [info script]]]
+set packageDir [file normalize [file join $testDir .. .. package]]
+
+# mlat.tcl requires fa_sudo, which requires Tclx; nothing here calls into it.
+if {[catch {package require Tclx}]} {
+	package provide Tclx 0
+}
+foreach f {tryfinallyshim fa_sudo} {
+	source [file join $packageDir $f.tcl]
+}
+proc ::logger {msg} {}
+source [file join $testDir mlat.tcl]
+
+::tcltest::configure {*}$argv
+
+namespace eval ::mlat_prune::tests {
+	namespace import ::tcltest::*
+
+	# Make "clock seconds" return $::fakeNow; everything else is the real clock.
+	rename ::clock ::mlat_prune::tests::real_clock
+	proc ::clock {args} {
+		if {$args eq "seconds"} {
+			return $::fakeNow
+		}
+		return [::mlat_prune::tests::real_clock {*}$args]
+	}
+
+	proc reset {} {
+		array unset ::mlatSawResult
+		unset -nocomplain ::mlatSawResultLastPrune
+		set ::mlatReady 0
+	}
+
+	# deliver an mlat_result for hexid at time now, the way the server does
+	proc result_at {now hexid} {
+		set ::fakeNow $now
+		set row(type) mlat_result
+		set row(hexid) $hexid
+		forward_to_mlat_client row
+	}
+
+	proc saw {} {
+		return [lsort [array names ::mlatSawResult]]
+	}
+
+	test recent-kept "recent results are kept" -body {
+		reset
+		result_at 1000 aaaaaa
+		result_at 1100 bbbbbb
+		saw
+	} -result {aaaaaa bbbbbb}
+
+	test old-dropped "results from long ago are dropped" -body {
+		reset
+		result_at 1000 aaaaaa
+		result_at 1400 bbbbbb
+		saw
+	} -result {bbbbbb}
+
+	# The loopback filter uses entries up to 45 s old. Arrange for a sweep to
+	# run while an entry is 44 s old: the sweep at 980, then none until 1044.
+	test filter-window-safe "a sweep never drops an entry the loopback filter could still use" -body {
+		reset
+		result_at 980 wwwwww
+		result_at 1000 aaaaaa
+		result_at 1044 bbbbbb
+		list [info exists ::mlatSawResultLastPrune] $::mlatSawResultLastPrune [info exists ::mlatSawResult(aaaaaa)]
+	} -result {1 1044 1}
+
+	test bounded "a new aircraft every second for an hour stays bounded" -body {
+		reset
+		for {set i 0} {$i < 3600} {incr i} {
+			result_at [expr {10000 + $i}] [format %06x $i]
+		}
+		set n [array size ::mlatSawResult]
+		list [expr {$n <= 361}] [info exists ::mlatSawResult([format %06x 3599])]
+	} -result {1 1}
+
+	test clock-stepped-back "after the clock steps back, entries stamped in the future are dropped" -body {
+		reset
+		result_at 100000 aaaaaa
+		result_at 1000 bbbbbb
+		saw
+	} -result {bbbbbb}
+
+	rename ::clock {}
+	rename ::mlat_prune::tests::real_clock ::clock
+
+	# cleanupTests resets the counters, so read the failure count first and
+	# exit non-zero on failure.
+	set failed $::tcltest::numTests(Failed)
+	cleanupTests
+	exit [expr {$failed > 0}]
+}
