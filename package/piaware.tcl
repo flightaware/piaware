@@ -112,18 +112,42 @@ proc is_piaware_running {} {
 # invokes the callback with a 0 for no data received or a 1 for data recv'd
 #
 proc test_port_for_traffic {host port callback {waitSeconds 60}} {
-	if {[catch {set sock [socket $host $port]} catchResult] == 1} {
+	# connect asynchronously, so an unreachable host can't block for the
+	# kernel's TCP connect timeout (minutes); the timer below bounds the
+	# whole check, connect included
+	if {[catch {set sock [socket -async $host $port]} catchResult] == 1} {
 		puts "got '$catchResult'"
 		{*}$callback 0
 		return
 	}
 
-	fconfigure $sock -buffering none \
+	fconfigure $sock -blocking 0 \
+		-buffering none \
 		-translation binary \
 		-encoding binary
 
 	set timer [after [expr {$waitSeconds * 1000}] [list test_port_callback "" $sock 0 $callback]]
-	fileevent $sock readable [list test_port_callback $timer $sock 1 $callback]
+	fileevent $sock readable [list test_port_readable $timer $sock $callback]
+}
+
+#
+# test_port_readable - the socket became readable: that means data, but also
+#  EOF or a failed connect, which aren't data
+#
+proc test_port_readable {timer sock callback} {
+	if {[catch {read $sock 1} data]} {
+		# connect failed, or a read error
+		test_port_callback $timer $sock 0 $callback
+		return
+	}
+
+	if {$data ne ""} {
+		test_port_callback $timer $sock 1 $callback
+	} elseif {[eof $sock]} {
+		# closed without sending anything
+		test_port_callback $timer $sock 0 $callback
+	}
+	# otherwise nothing yet; keep waiting until data or the timer
 }
 
 #

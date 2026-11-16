@@ -1,0 +1,107 @@
+# -*- tcl -*-
+
+package require tcltest 2.2
+
+set packageDir [file dirname [file normalize [info script]]]
+
+# piaware.tcl requires these for code not exercised here; let the tests load
+# on systems that don't have them.
+foreach pkg {Tclx tls} {
+	if {[catch {package require $pkg}]} {
+		package provide $pkg 0
+	}
+}
+foreach f {tryfinallyshim fa_sudo piaware} {
+	source [file join $packageDir $f.tcl]
+}
+
+::tcltest::configure {*}$argv
+
+namespace eval ::test_port::tests {
+	namespace import ::tcltest::*
+
+	# A local server on an ephemeral port. "mode" decides what it does with
+	# each connection: send (write a byte), close (close at once), silent
+	# (accept and say nothing).
+	proc start_server {mode} {
+		set srv [socket -server [list ::test_port::tests::accept $mode] -myaddr 127.0.0.1 0]
+		return $srv
+	}
+	proc accept {mode sock addr port} {
+		variable clients
+		switch -- $mode {
+			send { fconfigure $sock -translation binary; puts -nonewline $sock "\x1a"; flush $sock; lappend clients $sock }
+			close { close $sock }
+			silent { lappend clients $sock }
+		}
+	}
+	proc server_port {srv} {
+		return [lindex [fconfigure $srv -sockname] 2]
+	}
+	proc stop_server {srv} {
+		variable clients
+		foreach c $clients { catch {close $c} }
+		set clients {}
+		close $srv
+	}
+	variable clients {}
+
+	# Run the real test_port_for_traffic and wait for its callback (or give up
+	# after 30 s). Returns {status elapsedSeconds}.
+	proc check {host port waitSeconds} {
+		set ::portResult ""
+		set start [clock milliseconds]
+		set guard [after 30000 {set ::portResult guard-timeout}]
+		test_port_for_traffic $host $port {apply {{status} {set ::portResult $status}}} $waitSeconds
+		if {$::portResult eq ""} {
+			vwait ::portResult
+		}
+		after cancel $guard
+		return [list $::portResult [expr {([clock milliseconds] - $start) / 1000.0}]]
+	}
+
+	test data "a port that sends data counts as producing data" -body {
+		set srv [start_server send]
+		lassign [check 127.0.0.1 [server_port $srv] 5] status elapsed
+		stop_server $srv
+		list $status [expr {$elapsed < 2}]
+	} -result {1 1}
+
+	# readable also fires on EOF: that isn't data
+	test closes-without-data "a port that accepts and closes without data is not producing data" -body {
+		set srv [start_server close]
+		lassign [check 127.0.0.1 [server_port $srv] 5] status elapsed
+		stop_server $srv
+		list $status [expr {$elapsed < 2}]
+	} -result {0 1}
+
+	test silent "a port that accepts but sends nothing times out as not producing data" -body {
+		set srv [start_server silent]
+		lassign [check 127.0.0.1 [server_port $srv] 1] status elapsed
+		stop_server $srv
+		list $status [expr {$elapsed >= 0.9 && $elapsed < 3}]
+	} -result {0 1}
+
+	test refused "a closed port is reported promptly as not producing data" -body {
+		set srv [start_server silent]
+		set port [server_port $srv]
+		stop_server $srv
+		lassign [check 127.0.0.1 $port 5] status elapsed
+		list $status [expr {$elapsed < 2}]
+	} -result {0 1}
+
+	# 192.0.2.1 (TEST-NET-1) never answers. A blocking connect waits for the
+	# kernel's TCP connect timeout (over 2 minutes on Linux, ~75 s on macOS);
+	# the check must give up at its own timeout instead. (If the network
+	# rejects the address outright, it simply fails sooner.)
+	test unreachable-host "an unreachable host gives up at the check's timeout, not the kernel's" -body {
+		lassign [check 192.0.2.1 30005 2] status elapsed
+		list $status [expr {$elapsed < 4}]
+	} -result {0 1}
+
+	# cleanupTests resets the counters, so read the failure count first and
+	# exit non-zero on failure.
+	set failed $::tcltest::numTests(Failed)
+	cleanupTests
+	exit [expr {$failed > 0}]
+}
