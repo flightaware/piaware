@@ -75,6 +75,7 @@ proc handle_update_request {type _row} {
 				# several times
 				if {!$updatedPackageLists} {
 					set ok [update_package_lists]
+					set updatedPackageLists 1
 				}
 			}
 
@@ -99,9 +100,14 @@ proc handle_update_request {type _row} {
 						set restartPiaware 1
 					}
 
-					set ok [upgrade_piaware_gui]
-					if {$ok} {
-						set restartPiaware 1
+					# piaware-gui-release is optional: not having it isn't
+					# a failure, but failing to upgrade it is
+					if {[query_dpkg_names_and_versions "piaware-gui-release"] ne ""} {
+						if {[upgrade_piaware_gui]} {
+							set restartPiaware 1
+						} else {
+							set ok 0
+						}
 					}
 				}
 

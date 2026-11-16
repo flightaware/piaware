@@ -62,8 +62,10 @@ namespace eval ::update::tests {
 		if {$::update::tests::aptError ne ""} {
 			error $::update::tests::aptError
 		}
-		# the apt-get helper's subcommands listed in aptFails report failure
-		return [expr {[lindex $args 0] ni $::update::tests::aptFails}]
+		# a call matching an entry in aptFails, by subcommand alone or by its
+		# whole argument list, reports failure
+		set fails $::update::tests::aptFails
+		return [expr {[lindex $args 0] ni $fails && $args ni $fails}]
 	}
 	proc ::query_dpkg_names_and_versions {pattern} {
 		if {$pattern in $::update::tests::installed} {
@@ -166,6 +168,28 @@ namespace eval ::update::tests {
 		set events [request auto "packages dump1090 restart_piaware" {variable aptFails update}]
 		list [lsearch -all -inline -not -exact $events {apt update}] [expr {{apt update} in $events}]
 	} -result {{{pidfile-create /run/piaware/upgrader.pid} {pidfile-cleanup /run/piaware/upgrader.pid}} 1}
+
+	test package-lists-refreshed-once "package lists are refreshed once per request, not once per action" -body {
+		config "allow-auto-updates yes\n"
+		set events [request auto "packages piaware dump1090 dump978"]
+		llength [lsearch -all -exact $events {apt update}]
+	} -result 1
+
+	# piaware-gui-release is optional: its absence isn't a failure. But a
+	# failed piaware upgrade is, even if the GUI upgrade then succeeds, and
+	# so is a failed GUI upgrade.
+	test piaware-gui-optional "a piaware update continues without piaware-gui, but stops if piaware or an installed piaware-gui fails to upgrade" -body {
+		config "allow-auto-updates yes\n"
+		list [request auto "piaware restart_dump1090"] \
+			[request auto "piaware restart_dump1090" {
+				variable installed piaware-gui-release
+				variable aptFails {{upgrade-package piaware}}
+			}] \
+			[request auto "piaware restart_dump1090" {
+				variable installed piaware-gui-release
+				variable aptFails {{upgrade-package piaware-gui-release}}
+			}]
+	} -result {{{pidfile-create /run/piaware/upgrader.pid} {apt update} {apt upgrade-package piaware} {service restart dump1090} {pidfile-cleanup /run/piaware/upgrader.pid} restart-piaware} {{pidfile-create /run/piaware/upgrader.pid} {apt update} {apt upgrade-package piaware} {apt upgrade-package piaware-gui-release} {pidfile-cleanup /run/piaware/upgrader.pid} restart-piaware} {{pidfile-create /run/piaware/upgrader.pid} {apt update} {apt upgrade-package piaware} {apt upgrade-package piaware-gui-release} {pidfile-cleanup /run/piaware/upgrader.pid} restart-piaware}}
 
 	test reboot-ends-the-request "nothing after a reboot or a halt in the action list runs" -body {
 		config "allow-auto-updates yes\n"
