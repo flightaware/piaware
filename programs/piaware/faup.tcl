@@ -407,7 +407,7 @@ proc adsb_local_program_name {adsbLocalPort} {
 	}
 
 	lassign $::netstatus($adsbLocalPort) prog pid
-	if {$prog eq "unknown"} {
+	if {$pid eq "unknown"} {
 		return ""
 	}
 
