@@ -211,7 +211,8 @@ namespace eval ::fa_services {
 
 		if {$result eq ""} {
 			# I'm not dead!
-			after 5000 [list try_to_reap_child $childpid]
+			# (after scripts run at global level, so the name must be qualified)
+			after 5000 [list ::fa_services::try_to_reap_child $childpid]
 			return
 		}
 

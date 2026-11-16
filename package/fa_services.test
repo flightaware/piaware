@@ -1,0 +1,82 @@
+# -*- tcl -*-
+
+package require tcltest 2.2
+
+set packageDir [file dirname [file normalize [info script]]]
+
+# fa_sudo requires Tclx; nothing here calls into it, so let the tests load on
+# systems that don't have it.
+if {[catch {package require Tclx}]} {
+	package provide Tclx 0
+}
+foreach f {tryfinallyshim fa_sudo fa_services} {
+	source [file join $packageDir $f.tcl]
+}
+
+proc ::logger {msg} {
+	lappend ::loggedMessages $msg
+}
+
+::tcltest::configure {*}$argv
+
+namespace eval ::fa_services::tests {
+	namespace import ::tcltest::*
+
+	# Run the background reaper for a child whose "wait -nohang" results are
+	# given in order ("" = still running). Scheduled "after" callbacks are
+	# captured and run at global level, which is how Tcl runs them, without
+	# waiting 5 seconds each time. Returns {waitCalls errors logged}.
+	proc run_reaper {childpid waitResults} {
+		set ::waitResults $waitResults
+		set ::waitCalls 0
+		set ::scheduled {}
+		set ::loggedMessages {}
+		set errors {}
+
+		# "wait" resolves in ::fa_services before the global (Tclx) command
+		proc ::fa_services::wait {args} {
+			incr ::waitCalls
+			set ::waitResults [lassign $::waitResults result]
+			return $result
+		}
+
+		rename ::after ::fa_services::tests::real_after
+		proc ::after {ms script} {
+			lappend ::scheduled $script
+		}
+
+		try {
+			::fa_services::reap_child_later $childpid
+			while {[llength $::scheduled] > 0} {
+				set ::scheduled [lassign $::scheduled script]
+				if {[catch {uplevel #0 $script} result]} {
+					lappend errors $result
+				}
+			}
+		} finally {
+			rename ::after {}
+			rename ::fa_services::tests::real_after ::after
+			rename ::fa_services::wait {}
+		}
+
+		return [list $::waitCalls $errors $::loggedMessages]
+	}
+
+	test reap-first-try "a child that has exited by the first check is reaped" -body {
+		run_reaper 123 {{123 EXIT 0}}
+	} -result {1 {} {}}
+
+	test reap-after-retries "a child still running at the first checks is reaped on a later retry" -body {
+		run_reaper 123 [list "" "" {123 EXIT 0}]
+	} -result {3 {} {}}
+
+	test reap-reports-status "a non-zero exit found on a retry is logged" -body {
+		run_reaper 123 [list "" {123 EXIT 3}]
+	} -result {2 {} {{child pid 123 exited with status 3}}}
+
+	# cleanupTests resets the counters, so read the failure count first and
+	# exit non-zero on failure.
+	set failed $::tcltest::numTests(Failed)
+	cleanupTests
+	exit [expr {$failed > 0}]
+}
