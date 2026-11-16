@@ -44,7 +44,7 @@ proc handle_update_request {type _row} {
 	# see if we are allowed to do this
 	if {![piawareConfig get $key]} {
 		# no
-		logger "update denied by local configuration ([piaware origin $key])"
+		logger "update denied by local configuration ([piawareConfig origin $key])"
 		return
 	}
 

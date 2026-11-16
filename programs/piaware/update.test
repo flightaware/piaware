@@ -44,7 +44,10 @@ namespace eval ::update::tests {
 
 	# --- stand-ins for everything that touches the system ---
 
-	proc ::logger {msg} {}
+	variable logs {}
+	proc ::logger {msg} {
+		lappend ::update::tests::logs $msg
+	}
 	proc ::reread_piaware_config {} {
 		piawareConfig read_config
 	}
@@ -89,7 +92,8 @@ namespace eval ::update::tests {
 	# image could change the defaults under test.
 	proc config {contents} {
 		catch {itcl::delete object ::piawareConfig}
-		set path [::tcltest::makeFile $contents piaware-update-test.conf]
+		variable configPath [::tcltest::makeFile $contents piaware-update-test.conf]
+		set path $configPath
 		set metadata [::fa_piaware_config::piaware_standard_settings #auto]
 		::fa_piaware_config::new ::fa_piaware_config::ConfigGroup ::piawareConfig -metadata $metadata
 		::piawareConfig add [::fa_piaware_config::new ::fa_piaware_config::ConfigFile #auto \
@@ -98,6 +102,7 @@ namespace eval ::update::tests {
 
 	proc reset {} {
 		variable events {}
+		variable logs {}
 		variable aptFails {}
 		variable aptError ""
 		variable installed {}
@@ -117,31 +122,31 @@ namespace eval ::update::tests {
 		return $events
 	}
 
-	# A denied request must do nothing. Today the denial path also raises
-	# 'invalid command name "piaware"' (update.tcl logs via a "piaware origin"
-	# command that doesn't exist), so that one error, or none, is accepted;
-	# any other error is returned so the test fails.
-	proc denied {events} {
-		set other {}
-		foreach e $events {
-			if {$e ne {error {invalid command name "piaware"}}} {
-				lappend other $e
-			}
+	# The "update denied" log lines, with the test config file's path
+	# replaced by FILE
+	proc denial_log {} {
+		variable logs
+		variable configPath
+		set out {}
+		foreach l [lsearch -all -inline $logs "update denied*"] {
+			lappend out [string map [list $configPath FILE] $l]
 		}
-		return $other
+		return $out
 	}
 
 	# --- permission: the config decides, and the default is no ---
 
+	# A denied request does nothing, raises no error (an error makes the
+	# client disconnect from FlightAware), and logs where the setting came from.
 	test auto-denied-by-default "an auto update does nothing when the config doesn't allow it (the default)" -body {
 		config ""
-		denied [request auto full]
-	} -result {}
+		list [request auto full] [denial_log]
+	} -result {{} {{update denied by local configuration (defaults)}}}
 
 	test manual-denied-when-only-auto-allowed "a manual update needs allow-manual-updates, not allow-auto-updates" -body {
 		config "allow-auto-updates yes\nallow-manual-updates no\n"
-		denied [request manual "full reboot"]
-	} -result {}
+		list [request manual "full reboot"] [denial_log]
+	} -result {{} {{update denied by local configuration (FILE:2)}}}
 
 	test unknown-request-type-ignored "an update request of an unknown type does nothing, even with both allowed" -body {
 		config "allow-auto-updates yes\nallow-manual-updates yes\n"
