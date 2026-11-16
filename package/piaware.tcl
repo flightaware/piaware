@@ -106,6 +106,28 @@ proc is_piaware_running {} {
 }
 
 #
+# avoid_unusable_ipv6 - if this system can't make IPv6 sockets (for example
+#  booted with ipv6.disable=1), make Tcl use only IPv4 addresses.
+#
+#  Tcl 8.6 aborts the whole process when an asynchronous connect fails over
+#  from an IPv4 address to an IPv6 one that can't be used: glibc reports
+#  "buffer overflow detected" or "bit out of range 0 - FD_SETSIZE on fd_set".
+#  "localhost" has both 127.0.0.1 and ::1 in /etc/hosts, so connecting to a
+#  local port that isn't listening (gpsd, a receiver that's down) is enough.
+#
+#  probeAddr is the address to try binding to; tests pass one that can never
+#  be bound. Returns 1 if it switched Tcl to IPv4 only, 0 otherwise.
+#
+proc avoid_unusable_ipv6 {{probeAddr ::1}} {
+	if {![catch {close [socket -server {} -myaddr $probeAddr 0]}]} {
+		return 0
+	}
+
+	set ::tcl::unsupported::socketAF inet
+	return 1
+}
+
+#
 # test_port_for_traffic - connect to a port and
 #  see if we can read a byte before a timeout expires.
 #

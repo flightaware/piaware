@@ -95,6 +95,12 @@ proc main {{argv ""}} {
 
 	greetings
 
+	# before any connection: gpsd's and FlightAware's are asynchronous, and
+	# would abort the process on a system with IPv6 disabled
+	if {[avoid_unusable_ipv6]} {
+		logger "IPv6 is not available on this system, so only IPv4 addresses will be used"
+	}
+
 	if {[piawareConfig get use-gpsd]} {
 		connect_to_gpsd
 	}
