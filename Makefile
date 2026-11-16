@@ -8,11 +8,16 @@
 # PREFIX: the base directory to install to, defaults to /usr
 # TCLLAUNCHER: path to a tcllauncher binary to install, defaults to tcllauncher from $PATH
 # TCLSH: path to a tclsh to use to build package indexes, defaults to tclsh/tcl8.5/tcl8.6 from $PATH
+#        ("make test" also uses it to run the tests, default tclsh)
 #
 # (also see scripts/Makefile for systemd/sysvinit install options)
 
 all:
 	@echo "'make install' as root to install client package and program"
+
+# run every *.test suite in the tree (see run-tests.sh)
+test:
+	TCLSH="$(TCLSH)" ./run-tests.sh
 
 install:
 	$(MAKE) -C package install

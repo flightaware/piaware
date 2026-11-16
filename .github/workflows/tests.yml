@@ -1,0 +1,31 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: tests (${{ matrix.image }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        # the Debian releases piaware is packaged for
+        image: ["debian:bookworm", "debian:trixie"]
+    container: ${{ matrix.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # the Tcl packages piaware depends on (see piaware_builder's control files)
+      - name: Install Tcl
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends make tcl8.6 tcllib itcl3 tclx8.4 tcl-tls
+
+      - name: Run tests
+        run: make test TCLSH=tclsh8.6
