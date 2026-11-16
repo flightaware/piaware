@@ -5,9 +5,13 @@
 
 PREFIX=/usr
 TCLLAUNCHER := $(shell which tcllauncher)
+TCLSH=$(shell which tclsh || which tclsh8.6)
 
 all:
 	@echo "'make install' to install piaware-status"
+
+test:
+	$(TCLSH) ./gps_status.test
 
 install:
 	install -d $(DESTDIR)$(PREFIX)/bin $(DESTDIR)$(PREFIX)/lib/piaware-status

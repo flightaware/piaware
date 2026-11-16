@@ -34,6 +34,8 @@
 .Sh SYNOPSIS
 .Bk -words
 .Nm piaware-status
+.Op Fl configfile Ar path
+.Op Fl statusfile Ar path
 .Ek
 .Sh DESCRIPTION
 .Nm
@@ -55,6 +57,20 @@ connects itself to ports 10001 and 30005 and listens for a few seconds
 and reports whether the ADS-B program (and possibly the translator)
 is producing data.
 .Pp
+It also reports piaware's GPS status: whether piaware is connected to
+gpsd, and the most recent GPS position piaware has received from it.
+This is read from the status file piaware writes, the same information
+shown on the PiAware web status page.
+.Sh OPTIONS
+.Bl -tag -width indent
+.It Fl configfile Ar path
+Read an additional piaware configuration file.
+.It Fl statusfile Ar path
+Read piaware's status file from
+.Ar path
+instead of the default
+.Pa /run/piaware/status.json .
+.El
 .Sh SEE ALSO
 .Xr piaware 1 ,
 .Xr piaware-config 1 ,

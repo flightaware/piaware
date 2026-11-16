@@ -136,7 +136,7 @@ $ sudo piaware-config mlat-results-format "beast,connect,localhost:30004"
 piaware-status program
 ---
 
-piaware-status will examine your system and try to figure out what's going on.  It will report on whether dump1090, faup1090 and piaware are running or not and it will identify what program, if any, is producing data on port 30005 and whether or not piaware is connected to FlightAware.
+piaware-status will examine your system and try to figure out what's going on.  It will report on whether dump1090, faup1090 and piaware are running or not and it will identify what program, if any, is producing data on port 30005 and whether or not piaware is connected to FlightAware. It also reports piaware's GPS status (whether it is connected to gpsd, and the most recent position it received), read from piaware's status file at /run/piaware/status.json.
 
 log file
 ---
