@@ -156,6 +156,46 @@ proc process_netstat_socket_line {line} {
 		lassign [split $pidProg "/"] pid prog
 	}
 
+	record_socket $state $localAddress $foreignAddress $prog $pid
+}
+
+#
+# process_ss_socket_line - process a line of output from
+#   "ss --tcp --all --numeric --processes", e.g.
+#
+#   LISTEN 0 4096 0.0.0.0:30005 0.0.0.0:* users:(("dump1090-fa",pid=123,fd=5))
+#   ESTAB  0 0    [::1]:45120   [::1]:30005 users:(("faup1090",pid=456,fd=3))
+#
+proc process_ss_socket_line {line} {
+	if {![regexp {^(\S+)\s+\d+\s+\d+\s+(\S+)\s+(\S+)\s*(.*)$} $line -> state localAddress foreignAddress process]} {
+		# header line, or something we don't understand
+		return
+	}
+
+	# without root, other users' sockets have no process information.
+	# If several processes share a socket (e.g. after a fork), use the lowest
+	# pid, which is the one netstat reports; ss may list a child first.
+	set pid "unknown"
+	set prog "unknown process"
+	foreach {- name owner} [regexp -all -inline {\("([^"]*)",pid=(\d+)} $process] {
+		if {$pid eq "unknown" || $owner < $pid} {
+			set pid $owner
+			set prog $name
+		}
+	}
+
+	# ss abbreviates this state; use netstat's name
+	if {$state eq "ESTAB"} {
+		set state "ESTABLISHED"
+	}
+
+	record_socket $state $localAddress $foreignAddress $prog $pid
+}
+
+#
+# record_socket - record one TCP socket reported by netstat or ss
+#
+proc record_socket {state localAddress foreignAddress prog pid} {
 	if {$state == "LISTEN" && [regexp {(.*):(\d+)} $localAddress -> addr port]} {
 		set ::netstatus($port) [list $prog $pid]
 	}
@@ -182,7 +222,24 @@ proc process_netstat_socket_line {line} {
 }
 
 #
-# inspect_sockets_with_netstat - run netstat and make a report
+# socket_inspection_command - return {command parser headerLines} for listing
+#   TCP sockets: netstat if it is installed, otherwise ss (iproute2), for
+#   systems that no longer ship net-tools. Returns "" if neither exists.
+#
+proc socket_inspection_command {} {
+	if {[auto_execok netstat] ne ""} {
+		return [list [list netstat --program --tcp --wide --all --numeric] process_netstat_socket_line 2]
+	}
+
+	if {[auto_execok ss] ne ""} {
+		return [list [list ss --tcp --all --numeric --processes] process_ss_socket_line 1]
+	}
+
+	return ""
+}
+
+#
+# inspect_sockets_with_netstat - run netstat (or ss) and make a report
 #
 proc inspect_sockets_with_netstat {} {
 	array unset ::netstatus
@@ -191,9 +248,15 @@ proc inspect_sockets_with_netstat {} {
 	set ::netstatus_piaware 0
 	set ::netstatus_reliable 0
 
+	set inspection [socket_inspection_command]
+	if {$inspection eq ""} {
+		warn_once "neither netstat nor ss is installed, so piaware can't check which programs are listening on which ports"
+		return
+	}
+	lassign $inspection command parser headerLines
+
 	# try to run as root if we can, to get the program names
 	if {[catch {
-		set command [list netstat --program --tcp --wide --all --numeric]
 		if {[::fa_sudo::can_sudo root {*}$command]} {
 			set ::netstatus_reliable 1
 			set fp [open_nolocale -root "|$command 2>/dev/null"]
@@ -202,15 +265,16 @@ proc inspect_sockets_with_netstat {} {
 			set fp [open_nolocale "|$command 2>/dev/null"]
 		}
 
-		# discard two header lines
-		gets $fp
-		gets $fp
+		# discard header lines
+		for {set i 0} {$i < $headerLines} {incr i} {
+			gets $fp
+		}
 		while {[gets $fp line] >= 0} {
-			process_netstat_socket_line $line
+			$parser $line
 		}
 		close $fp
 	} result]} {
-		logger "failed to run netstat: $result"
+		logger "failed to run [lindex $command 0]: $result"
 		set ::netstatus_reliable 0
 	}
 }

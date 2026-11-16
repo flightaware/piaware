@@ -7,8 +7,11 @@
 # if it can run the upgrade helper script as root.
 
 # piaware prefers to run netstat as root so it can see the process names that
-# are listening on specific ports.
+# are listening on specific ports. If netstat isn't installed it uses ss.
+# ss is limited to exactly these arguments: its -D option writes a file and -K
+# closes sockets, which must not be available as root.
 piaware ALL = NOPASSWD: /bin/netstat
+piaware ALL = NOPASSWD: /bin/ss --tcp --all --numeric --processes
 
 # piaware wants to be able to start/stop/restart services such as dump1090
 # when things get stuck.

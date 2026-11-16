@@ -1,0 +1,234 @@
+# -*- tcl -*-
+
+package require tcltest 2.2
+
+set packageDir [file dirname [file normalize [info script]]]
+
+# piaware.tcl requires these for code not exercised here; let the tests load
+# on systems that don't have them.
+foreach pkg {Tclx tls} {
+	if {[catch {package require $pkg}]} {
+		package provide $pkg 0
+	}
+}
+foreach f {tryfinallyshim fa_sudo piaware} {
+	source [file join $packageDir $f.tcl]
+}
+
+proc ::logger {msg} {
+	lappend ::loggedMessages $msg
+}
+
+::tcltest::configure {*}$argv
+
+namespace eval ::socket_inspection::tests {
+	namespace import ::tcltest::*
+
+	# Captured 2026-11-16 from the same sockets via both tools, as a non-root
+	# user (Ubuntu 26.04, iproute2 6.19 / net-tools 2.10). Sockets of other
+	# users have no process information.
+	set netstatLines {
+		{Active Internet connections (servers and established)}
+		{Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name    }
+		{tcp        0      0 127.0.0.1:39005         0.0.0.0:*               LISTEN      2441647/python3     }
+		{tcp        0      0 127.0.0.1:44040         127.0.0.1:39005         ESTABLISHED 2441647/python3     }
+		{tcp        0      0 127.0.0.1:39005         127.0.0.1:44040         ESTABLISHED 2441647/python3     }
+		{tcp6       0      0 :::39006                :::*                    LISTEN      2441647/python3     }
+		{tcp6       0      0 :::39007                :::*                    LISTEN      2443505/python3     }
+		{tcp6       0      0 ::1:39007               ::1:45120               ESTABLISHED 2443505/python3     }
+		{tcp        0      0 127.0.0.1:631           0.0.0.0:*               LISTEN      -                   }
+	}
+	set ssLines {
+		{State     Recv-Q Send-Q Local Address:Port  Peer Address:Port Process                              }
+		{LISTEN    0      128        127.0.0.1:39005      0.0.0.0:*     users:(("python3",pid=2441647,fd=3))}
+		{ESTAB     0      0          127.0.0.1:44040    127.0.0.1:39005 users:(("python3",pid=2441647,fd=5))}
+		{ESTAB     0      0          127.0.0.1:39005    127.0.0.1:44040 users:(("python3",pid=2441647,fd=6))}
+		{LISTEN    0      128                *:39006            *:*     users:(("python3",pid=2441647,fd=4))}
+		{LISTEN    0      128             [::]:39007         [::]:*     users:(("python3",pid=2443505,fd=3))}
+		{ESTAB     0      0              [::1]:39007        [::1]:45120 users:(("python3",pid=2443505,fd=5))}
+		{LISTEN    0      4096       127.0.0.1:631        0.0.0.0:*                                         }
+	}
+
+	proc reset {} {
+		array unset ::netstatus
+		set ::netstatus_faup1090 0
+		set ::netstatus_faup978 0
+		set ::netstatus_piaware 0
+	}
+
+	# parse lines with a parser and return everything it recorded
+	proc parse {parser lines} {
+		reset
+		foreach line $lines {
+			$parser $line
+		}
+		return [list [lsort -stride 2 [array get ::netstatus]] \
+					$::netstatus_faup1090 $::netstatus_faup978 $::netstatus_piaware]
+	}
+
+	set expected {{39005 {python3 2441647} 39006 {python3 2441647} 39007 {python3 2443505} 631 {{unknown process} unknown}} 0 0 0}
+
+	test netstat-parse "netstat output is parsed as before" -body {
+		parse process_netstat_socket_line $netstatLines
+	} -result $expected
+
+	test ss-parse "ss output for the same sockets gives the same result as netstat" -body {
+		parse process_ss_socket_line $ssLines
+	} -result $expected
+
+	# Lines in the captured format, with piaware's programs as the owners
+
+	test ss-faup1090-connected "an established faup1090 socket is seen" -body {
+		parse process_ss_socket_line {
+			{ESTAB 0 0 127.0.0.1:44040 127.0.0.1:30005 users:(("faup1090",pid=123,fd=3))}
+		}
+	} -result {{} 1 0 0}
+
+	test ss-faup978-connected "an established faup978 socket over IPv6 is seen" -body {
+		parse process_ss_socket_line {
+			{ESTAB 0 0 [::1]:44041 [::1]:30978 users:(("faup978",pid=124,fd=3))}
+		}
+	} -result {{} 0 1 0}
+
+	test ss-piaware-connected "piaware's connection to port 1200 is seen" -body {
+		parse process_ss_socket_line {
+			{ESTAB 0 0 192.168.1.2:50000 206.253.80.196:1200 users:(("piaware",pid=99,fd=8))}
+		}
+	} -result {{} 0 0 1}
+
+	test ss-piaware-other-port "a piaware connection to another port doesn't count" -body {
+		parse process_ss_socket_line {
+			{ESTAB 0 0 127.0.0.1:50001 127.0.0.1:30005 users:(("piaware",pid=99,fd=9))}
+		}
+	} -result {{} 0 0 0}
+
+	# Shape captured on Debian 13 after a fork: ss lists the child first, while
+	# netstat reports the parent (lower pid). Use the lowest pid, like netstat.
+	test ss-shared-socket "a socket shared by several processes reports the lowest pid, like netstat" -body {
+		parse process_ss_socket_line {
+			{LISTEN 0 4096 0.0.0.0:30005 0.0.0.0:* users:(("faup1090",pid=2816507,fd=3),("dump1090-mutabi",pid=2816506,fd=3))}
+		}
+	} -result {{30005 {dump1090-mutabi 2816506}} 0 0 0}
+
+	test ss-other-states "sockets in other states are ignored" -body {
+		parse process_ss_socket_line {
+			{TIME-WAIT 0 0 127.0.0.1:44040 127.0.0.1:30005}
+			{SYN-SENT 0 1 127.0.0.1:44042 127.0.0.1:30005 users:(("faup1090",pid=123,fd=3))}
+		}
+	} -result {{} 0 0 0}
+
+	# Which tool is used, by what is installed
+
+	proc fake_path {tools} {
+		set dir [::tcltest::makeDirectory fakebin-[join $tools -]]
+		foreach tool $tools {
+			set path [file join $dir $tool]
+			set f [open $path w]
+			puts $f "#!/bin/sh\nexit 0"
+			close $f
+			file attributes $path -permissions 0755
+		}
+		return $dir
+	}
+
+	proc with_path {dir script} {
+		set oldPath $::env(PATH)
+		set ::env(PATH) $dir
+		array unset ::auto_execs
+		try {
+			uplevel 1 $script
+		} finally {
+			set ::env(PATH) $oldPath
+			array unset ::auto_execs
+		}
+	}
+
+	test select-netstat "netstat is used when it is installed" -body {
+		with_path [fake_path {netstat ss}] {
+			lrange [socket_inspection_command] 1 end
+		}
+	} -result {process_netstat_socket_line 2}
+
+	test select-ss "ss is used when netstat is not installed" -body {
+		with_path [fake_path {ss}] {
+			lrange [socket_inspection_command] 1 end
+		}
+	} -result {process_ss_socket_line 1}
+
+	test select-none "neither installed" -body {
+		with_path [fake_path {}] {
+			socket_inspection_command
+		}
+	} -result {}
+
+	# End to end with ss as the only tool: a fake ss prints the captured output.
+	# sudo is not available, as for a normal user, and fa_sudo's fork/exec
+	# (which needs Tclx) is replaced by a plain open of the same pipeline.
+
+	test inspect-with-ss "inspect_sockets_with_netstat runs ss and parses it" -setup {
+		set dir [::tcltest::makeDirectory fakebin-ss-output]
+		set out [::tcltest::makeFile [join $ssLines "\n"] ss-output.txt]
+		set f [open [file join $dir ss] w]
+		puts $f "#!/bin/sh\ncat '$out'"
+		close $f
+		file attributes [file join $dir ss] -permissions 0755
+		# the fake ss needs cat; link it in rather than adding its directory
+		# to PATH, which on Linux (/usr/bin) would also expose a real netstat
+		file link -symbolic [file join $dir cat] [auto_execok cat]
+		rename ::fa_sudo::can_sudo ::fa_sudo::can_sudo_real
+		proc ::fa_sudo::can_sudo {args} {
+			# record what sudo would be asked to allow (must match etc/piaware.sudoers)
+			lappend ::sudoQueries $args
+			return 0
+		}
+		set ::sudoQueries {}
+		rename ::fa_sudo::open_as ::fa_sudo::open_as_real
+		proc ::fa_sudo::open_as {args} {
+			lappend ::openedPipelines $args
+			return [open {*}$args]
+		}
+		set ::openedPipelines {}
+	} -body {
+		with_path $dir {
+			reset
+			inspect_sockets_with_netstat
+		}
+		list [lsort -stride 2 [array get ::netstatus]] $::netstatus_reliable $::openedPipelines $::sudoQueries
+	} -cleanup {
+		rename ::fa_sudo::can_sudo {}
+		rename ::fa_sudo::can_sudo_real ::fa_sudo::can_sudo
+		rename ::fa_sudo::open_as {}
+		rename ::fa_sudo::open_as_real ::fa_sudo::open_as
+	} -result [list [lindex $expected 0] 0 {{{|ss --tcp --all --numeric --processes 2>/dev/null}}} {{root ss --tcp --all --numeric --processes}}]
+
+	# The sudoers rule for ss is pinned to exact arguments (ss -D writes files,
+	# -K kills sockets), so the command piaware runs must match it word for word.
+	test sudoers-ss-rule-matches-command "the sudoers ss rule allows exactly the command piaware runs" -body {
+		set f [open [file join $::packageDir .. etc piaware.sudoers]]
+		set rules [read $f]
+		close $f
+		set ssRules [regexp -all -inline -line {^piaware ALL = NOPASSWD: (/bin/ss\M.*)$} $rules]
+		set command [with_path [fake_path {ss}] {
+			lindex [socket_inspection_command] 0
+		}]
+		# one rule (regexp returns match + group), and its arguments are exactly the command's
+		list [llength $ssRules] [lindex $ssRules 1] [join [lrange $command 1 end] " "]
+	} -result {2 {/bin/ss --tcp --all --numeric --processes} {--tcp --all --numeric --processes}}
+
+	test inspect-with-nothing "with neither tool, it warns once and records nothing" -body {
+		set ::loggedMessages {}
+		array unset ::warnOnceWarnings
+		with_path [fake_path {}] {
+			inspect_sockets_with_netstat
+			inspect_sockets_with_netstat
+		}
+		list [array size ::netstatus] $::netstatus_reliable [llength $::loggedMessages] \
+			[string match "*neither netstat nor ss*" [lindex $::loggedMessages 0]]
+	} -result {0 0 1 1}
+
+	# cleanupTests resets the counters, so read the failure count first and
+	# exit non-zero on failure.
+	set failed $::tcltest::numTests(Failed)
+	cleanupTests
+	exit [expr {$failed > 0}]
+}
