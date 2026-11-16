@@ -463,10 +463,13 @@ proc subprocess_logger {name channel closeScript} {
 	}
 }
 
-# wait for a child to die with a timeout
-proc timed_waitpid {timeout childpid} {
-	set deadline [expr {[clock milliseconds] + $timeout}]
-	while {[clock milliseconds] < $deadline} {
+# poll a child every 50ms for up to timeout ms; return its wait status,
+# or "" if it is still running
+proc poll_waitpid {timeout childpid} {
+	# count polls rather than comparing clock readings, so a change to the
+	# system clock can't shorten or stretch the wait
+	set polls [expr {max(1, $timeout / 50)}]
+	for {set i 0} {$i <= $polls} {incr i} {
 		if {[catch {wait -nohang $childpid} result options]} {
 			lassign $::errorCode type subtype
 			if {$type eq "POSIX" && $subtype eq "ECHILD"} {
@@ -483,9 +486,39 @@ proc timed_waitpid {timeout childpid} {
 			return $result
 		}
 
-		# still waiting
-		sleep 1
+		if {$i < $polls} {
+			# still waiting. This blocks (callers don't expect the event loop
+			# to run here), so keep each step short.
+			after 50
+		}
 	}
+
+	return ""
+}
+
+# wait for a child to die with a timeout (ms). If it is still running at the
+# timeout, kill it and reap it, so it doesn't keep running alongside its
+# replacement. Returns the wait status (pid type code), or
+# "pid TIMEOUT unknown" if even that failed.
+proc timed_waitpid {timeout childpid} {
+	set result [poll_waitpid $timeout $childpid]
+	if {$result ne ""} {
+		return $result
+	}
+
+	logger "child pid $childpid did not exit within $timeout ms, killing it"
+	catch {kill KILL $childpid}
+
+	set result [poll_waitpid 1000 $childpid]
+	if {$result ne ""} {
+		return $result
+	}
+
+	# still not reaped (stuck in the kernel?); keep trying in the background
+	# so it doesn't become a zombie
+	logger "child pid $childpid still has not exited, will reap it later"
+	after 5000 [list ::fa_sudo::try_to_reap_child $childpid]
+	return "$childpid TIMEOUT unknown"
 }
 
 # called on SIGUSR1
