@@ -19,9 +19,7 @@ proc construct_health_array {_row} {
     catch {set row(cpuload) [::fa_sysinfo::cpu_load]}
     catch {set row(uptime) [::fa_sysinfo::uptime]}
 
-	if {[info exists ::netstatus(program_30005)]} {
-		set row(adsbprogram) $::netstatus(program_30005)
-	}
+	report_adsb_program row
 
 	catch {
 		if {[::fa_sysinfo::route_to_flightaware gateway iface ip]} {

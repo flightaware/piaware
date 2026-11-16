@@ -1,0 +1,121 @@
+# -*- tcl -*-
+
+package require tcltest 2.2
+package require Itcl
+
+set testDir [file dirname [file normalize [info script]]]
+set packageDir [file normalize [file join $testDir .. .. package]]
+
+# These packages are required for code not exercised here; let the tests load
+# on systems that don't have them.
+foreach pkg {Tclx tls} {
+	if {[catch {package require $pkg}]} {
+		package provide $pkg 0
+	}
+}
+foreach f {tryfinallyshim fa_sudo fa_sysinfo fa_piaware_config piaware} {
+	source [file join $packageDir $f.tcl]
+}
+proc ::logger {msg} {}
+source [file join $testDir config.tcl]
+source [file join $testDir faup.tcl]
+source [file join $testDir health.tcl]
+source [file join $testDir login.tcl]
+
+# gather_login_info refreshes the config and sockets and queries dpkg; the
+# tests load the config and sockets themselves, and there are no packages.
+proc ::reread_piaware_config {} {}
+proc ::inspect_sockets_with_netstat {} {}
+proc ::query_dpkg_names_and_versions {pattern} { return {} }
+proc ::read_feeder_id {} { return "" }
+
+::tcltest::configure {*}$argv
+
+namespace eval ::adsbprogram::tests {
+	namespace import ::tcltest::*
+
+	# Build piawareConfig the same way piaware does, from a config file.
+	proc load_config {configText} {
+		catch {::itcl::delete object ::piawareConfig}
+		set path [::tcltest::makeFile $configText adsbprogram-test-piaware.conf]
+		::fa_piaware_config::new_combined_config ::piawareConfig $path
+		set problems [::piawareConfig read_config]
+		if {$problems ne ""} {
+			error "config problems: $problems"
+		}
+	}
+
+	# Load the config, feed netstat lines through the real parser, then build
+	# the health message and return its adsbprogram element (or "absent").
+	proc health_adsbprogram {configText netstatLines} {
+		load_config $configText
+		array unset ::netstatus
+		foreach line $netstatLines {
+			process_netstat_socket_line $line
+		}
+		array set row {}
+		construct_health_array row
+		if {[info exists row(adsbprogram)]} {
+			return $row(adsbprogram)
+		}
+		return "absent"
+	}
+
+	set dump1090on30005 {{tcp        0      0 0.0.0.0:30005           0.0.0.0:*               LISTEN      812/dump1090-fa     }}
+
+	test health-reports-program "the health message names the program on the receiver port" -body {
+		health_adsbprogram "" $dump1090on30005
+	} -result dump1090-fa
+
+	# netstat without root: another user's socket has no process information
+	test health-unknown-owner "an unknown owner is left out, not sent as a placeholder" -body {
+		health_adsbprogram "" {
+			{tcp        0      0 0.0.0.0:30005           0.0.0.0:*               LISTEN      -                   }
+		}
+	} -result absent
+
+	test health-no-listener "no listener on the receiver port, no adsbprogram" -body {
+		health_adsbprogram "" {}
+	} -result absent
+
+	test health-configured-port "the configured receiver port is used, not 30005" -body {
+		health_adsbprogram "receiver-type radarcape-local\n" [list \
+			{tcp        0      0 127.0.0.1:10006         0.0.0.0:*               LISTEN      901/radarcape-dump  } \
+			[lindex $dump1090on30005 0]]
+	} -result radarcape-dump
+
+	test health-remote-receiver "a remote receiver has no local program to report" -body {
+		health_adsbprogram "receiver-type other\nreceiver-host 192.0.2.10\nreceiver-port 30005\n" $dump1090on30005
+	} -result absent
+
+	# The login message uses the same helper; check that call site too.
+	proc login_adsbprogram {configText netstatLines} {
+		load_config $configText
+		array unset ::netstatus
+		foreach line $netstatLines {
+			process_netstat_socket_line $line
+		}
+		array set message {}
+		gather_login_info message
+		if {[info exists message(adsbprogram)]} {
+			return $message(adsbprogram)
+		}
+		return "absent"
+	}
+
+	test login-reports-program "the login message names the program on the receiver port" -body {
+		login_adsbprogram "" $dump1090on30005
+	} -result dump1090-fa
+
+	test login-unknown-owner "the login message leaves out an unknown owner" -body {
+		login_adsbprogram "" {
+			{tcp        0      0 0.0.0.0:30005           0.0.0.0:*               LISTEN      -                   }
+		}
+	} -result absent
+
+	# cleanupTests resets the counters, so read the failure count first and
+	# exit non-zero on failure.
+	set failed $::tcltest::numTests(Failed)
+	cleanupTests
+	exit [expr {$failed > 0}]
+}

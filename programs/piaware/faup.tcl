@@ -414,6 +414,22 @@ proc adsb_local_program_name {adsbLocalPort} {
 	return $prog
 }
 
+#
+# report_adsb_program - for the login and health messages: if the program
+#   listening on the local 1090 receiver port is known, store its name in
+#   the "adsbprogram" element of the given array
+#
+proc report_adsb_program {_message} {
+	upvar $_message message
+
+	catch {
+		set prog [adsb_local_program_name [receiver_local_port piawareConfig ES]]
+		if {$prog ne ""} {
+			set message(adsbprogram) $prog
+		}
+	}
+}
+
 # Proc to record new receiver location and restart necessary programs
 proc update_location {lat lon} {
 	if {$lat eq $::receiverLat && $lon eq $::receiverLon} {
