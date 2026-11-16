@@ -30,7 +30,7 @@ namespace eval ::fa_sudo {
 	set audit 0
 
 	proc _shellquote_arg {arg} {
-		return [concat \" [string map {\\ {\\} ` {\`} \$ {\$} \" {\"}} $arg] \"]
+		return "\"[string map {\\ {\\} ` {\`} \$ {\$} \" {\"}} $arg]\""
 	}
 
 	proc _shellquote {args} {
@@ -61,8 +61,10 @@ namespace eval ::fa_sudo {
 
 		set path [auto_execok "su"]
 		if {$path ne ""} {
-			# su will pass the args to a shell, make sure it's suitably quoted
-			return [list {*}path $user -- -c [_shellquote {*}$args]]
+			# su will pass the args to a shell, make sure it's suitably quoted;
+			# use /bin/sh, as the user's own shell may be nologin (it is for
+			# "nobody", the default unprivileged user)
+			return [list {*}$path -s /bin/sh $user -- -c [_shellquote {*}$args]]
 		}
 
 		error "can't work out a way to drop root privileges (no droproot, chpst, or sudo found)"
