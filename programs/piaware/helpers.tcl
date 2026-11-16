@@ -97,7 +97,7 @@ proc setup_adept_client {} {
 proc setup_config {} {
 	::fa_piaware_config::new_combined_config piawareConfig $::params(configfile)
 
-	lassign [load_location_info] ::receiverLat ::receiverLon
+	startup_location
 	reread_piaware_config
 }
 
@@ -347,27 +347,99 @@ proc create_cache_dir {} {
 	return 1
 }
 
+#
+# write_file_atomically - replace path with contents so that a crash or power
+#   loss leaves either the old file or the new one, never a partial one:
+#   write path.new, fsync it, then rename it over path
+#
+proc write_file_atomically {path contents} {
+	set temppath "$path.new"
+	if {[catch {
+		set f [open $temppath w]
+		try {
+			puts -nonewline $f $contents
+			flush $f
+			sync $f
+		} finally {
+			close $f
+		}
+		file rename -force -- $temppath $path
+	} result options]} {
+		catch {file delete -- $temppath}
+		return -options $options $result
+	}
+}
+
+# what location.env (read by dump1090) should contain for a location
+proc location_env_contents {lat lon} {
+	return "PIAWARE_LAT=\"$lat\"\nPIAWARE_LON=\"$lon\"\nPIAWARE_DUMP1090_LOCATION_OPTIONS=\"--lat $lat --lon $lon\"\n"
+}
+
+# location.env is read by dump1090; location is what piaware reloads at
+# startup, and is the record of what was saved. They are updated one after
+# the other, so a crash in between can leave them disagreeing; at startup,
+# reconcile_location_env brings location.env back in line with location.
 proc try_save_location_info {lat lon} {
 	create_cache_dir
 
 	if {$lat eq "" || $lon eq ""} {
-		file delete -- $::params(cachedir)/location
 		file delete -- $::params(cachedir)/location.env
+		file delete -- $::params(cachedir)/location
 		return
 	}
 
-	set fp [open "$::params(cachedir)/location.new" w]
-	puts $fp $lat
-	puts $fp $lon
-	close $fp
-	file rename -force -- "$::params(cachedir)/location.new" "$::params(cachedir)/location"
+	write_file_atomically "$::params(cachedir)/location.env" [location_env_contents $lat $lon]
+	write_file_atomically "$::params(cachedir)/location" "$lat\n$lon\n"
+}
 
-	set fp [open "$::params(cachedir)/location.env.new" w]
-	puts $fp "PIAWARE_LAT=\"$lat\""
-	puts $fp "PIAWARE_LON=\"$lon\""
-	puts $fp "PIAWARE_DUMP1090_LOCATION_OPTIONS=\"--lat $lat --lon $lon\""
-	close $fp
-	file rename -force -- "$::params(cachedir)/location.env.new" "$::params(cachedir)/location.env"
+#
+# reconcile_location_env - make location.env (dump1090's copy) match the
+#   saved location, after a crash may have left them disagreeing. If it had
+#   to change location.env, restart dump1090 (which started before us and
+#   read the wrong one), the same way a location change does.
+#
+proc reconcile_location_env {lat lon} {
+	if {$::params(cachedir) eq ""} {
+		return
+	}
+
+	set envPath "$::params(cachedir)/location.env"
+	set current ""
+	set exists [file exists $envPath]
+	if {$exists} {
+		set f [open $envPath]
+		try {
+			set current [read $f]
+		} finally {
+			close $f
+		}
+	}
+
+	if {$lat eq "" || $lon eq ""} {
+		if {!$exists} {
+			return
+		}
+		file delete -- $envPath
+	} else {
+		set wanted [location_env_contents $lat $lon]
+		if {$exists && $current eq $wanted} {
+			return
+		}
+		write_file_atomically $envPath $wanted
+	}
+
+	logger "location.env did not match the saved receiver location; corrected it"
+	if {![info exists ::locationRestartTimer]} {
+		set ::locationRestartTimer [after 5000 do_location_restart]
+	}
+}
+
+# load the saved location at startup and repair dump1090's copy if needed
+proc startup_location {} {
+	lassign [load_location_info] ::receiverLat ::receiverLon
+	if {[catch {reconcile_location_env $::receiverLat $::receiverLon} result]} {
+		logger "could not check location.env: $result"
+	}
 }
 
 
