@@ -1,0 +1,92 @@
+# -*- tcl -*-
+#
+# Tests for avoid_unusable_ipv6 (piaware.tcl). On a system that can't make
+# IPv6 sockets, Tcl 8.6 aborts the whole process when an async connect to
+# "localhost" is refused on 127.0.0.1 and falls over to ::1. Each test runs in
+# a child tclsh, so an abort can't take down the test run and the global
+# Tcl setting the helper changes can't leak between tests.
+
+package require tcltest 2.2
+
+set packageDir [file dirname [file normalize [info script]]]
+
+::tcltest::configure {*}$argv
+
+namespace eval ::ipv6::tests {
+	namespace import ::tcltest::*
+
+	# Run a script in a child tclsh that has piaware.tcl loaded. Returns
+	# {exitcode output}; an abort shows up as a non-zero exit code.
+	proc child {script} {
+		set path [makeFile "
+			foreach pkg {Tclx tls} {
+				if {\[catch {package require \$pkg}\]} {
+					package provide \$pkg 0
+				}
+			}
+			foreach f {tryfinallyshim fa_sudo piaware} {
+				source [list [file join $::packageDir]]/\$f.tcl
+			}
+			$script
+		" ipv6-child.tcl]
+		set code 0
+		if {[catch {exec [info nameofexecutable] $path 2>@1} out opts]} {
+			set code [lindex [dict get $opts -errorcode] end]
+			if {![string is integer -strict $code]} {
+				# killed by a signal (an abort): {CHILDKILLED pid SIGABRT msg}
+				set code [lindex [dict get $opts -errorcode] 2]
+			}
+		}
+		return [list $code [string trim $out]]
+	}
+
+	# a 127.0.0.1 port nothing listens on
+	proc refused_port {} {
+		set srv [socket -server {} -myaddr 127.0.0.1 0]
+		set port [lindex [fconfigure $srv -sockname] 2]
+		close $srv
+		return $port
+	}
+
+	set canBindIpv6 [expr {![catch {close [socket -server {} -myaddr ::1 0]}]}]
+	testConstraint ipv6Usable $canBindIpv6
+
+	test unusable-forces-ipv4 "when IPv6 can't be used, Tcl is switched to IPv4 addresses only" -constraints ipv6Usable -body {
+		# 2001:db8::1 (documentation range) can't be bound anywhere, so this
+		# behaves as on a system with IPv6 disabled. On this system ::1
+		# works, so a ::1 listener shows whether Tcl still tries IPv6.
+		child {
+			set srv [socket -server {apply {{s a p} {close $s}}} -myaddr ::1 0]
+			set port [lindex [fconfigure $srv -sockname] 2]
+			set before [expr {![catch {close [socket ::1 $port]}]}]
+			set switched [avoid_unusable_ipv6 2001:db8::1]
+			set after [expr {![catch {close [socket ::1 $port]}]}]
+			puts [list $before $switched $after]
+		}
+	} -result {0 {1 1 0}}
+
+	test usable-left-alone "when IPv6 works, nothing is changed" -constraints ipv6Usable -body {
+		child {
+			puts [list [avoid_unusable_ipv6] [info exists ::tcl::unsupported::socketAF]]
+		}
+	} -result {0 {0 0}}
+
+	# The crash itself. On a system with IPv6 disabled this aborts without
+	# avoid_unusable_ipv6; elsewhere it passes either way.
+	test refused-localhost-survives "an async connect to a refused localhost port reports the refusal instead of aborting" -body {
+		child [string map [list PORT [refused_port]] {
+			avoid_unusable_ipv6
+			set s [socket -async localhost PORT]
+			fileevent $s writable {set ::result [fconfigure $s -error]}
+			after 5000 {set ::result timeout}
+			vwait ::result
+			puts $::result
+		}]
+	} -result {0 {connection refused}}
+
+	# cleanupTests resets the counters, so read the failure count first and
+	# exit non-zero on failure.
+	set failed $::tcltest::numTests(Failed)
+	cleanupTests
+	exit [expr {$failed > 0}]
+}
