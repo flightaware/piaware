@@ -1,0 +1,141 @@
+# -*- tcl -*-
+
+package require tcltest 2.2
+package require Itcl
+
+set testDir [file dirname [file normalize [info script]]]
+set packageDir [file normalize [file join $testDir .. .. package]]
+
+# fa_piaware_config requires fa_sudo, which requires Tclx. Nothing here calls
+# into Tclx, so let the tests load on systems without it.
+if {[catch {package require Tclx}]} {
+	package provide Tclx 8.4
+}
+foreach f {tryfinallyshim fa_sudo fa_piaware_config} {
+	source [file join $packageDir $f.tcl]
+}
+
+# piaware provides these globally
+proc ::logger {msg} {}
+proc ::debug {msg} {}
+namespace eval ::fa_services {}
+proc ::fa_services::attempt_service_restart {service action} {
+	lappend ::faup::tests::actions "service-$action $service"
+}
+
+source [file join $testDir faup.tcl]
+
+::tcltest::configure {*}$argv
+
+namespace eval ::faup::tests {
+	namespace import ::tcltest::*
+
+	# Stub out the methods with side effects and record what check_traffic asks for.
+	::itcl::class TestFaupConnection {
+		inherit FaupConnection
+
+		method faup_disconnect {} {
+			lappend ::faup::tests::actions "disconnect"
+		}
+
+		method schedule_adsb_connect_attempt {inSeconds} {
+			lappend ::faup::tests::actions "reconnect-in $inSeconds"
+		}
+
+		# pretend faup is running and the last message was secondsAgo ago
+		method simulate_running {secondsAgo} {
+			set faupPipe "fake-pipe"
+			set lastFaupMessageClock [expr {[clock seconds] - $secondsAgo}]
+		}
+	}
+
+	# Build piawareConfig the same way piaware does (helpers.tcl), from a config
+	# file holding configText, so the real option name, type and default are used.
+	proc load_config {configText} {
+		catch {::itcl::delete object ::piawareConfig}
+		set path [::tcltest::makeFile $configText faup-test-piaware.conf]
+		::fa_piaware_config::new_combined_config ::piawareConfig $path
+		set problems [::piawareConfig read_config]
+		if {$problems ne ""} {
+			error "config problems: $problems"
+		}
+	}
+
+	# Run one traffic check with the given config, after secondsAgo of silence.
+	proc check_after_silence {configText secondsAgo {service dump1090-fa}} {
+		load_config $configText
+		set ::faup::tests::actions {}
+		set faup [TestFaupConnection #auto]
+		$faup configure -adsbDataService $service
+		$faup simulate_running $secondsAgo
+		set rc [catch {$faup check_traffic} result options]
+		# capture before deleting: the destructor calls faup_disconnect too
+		set actions $::faup::tests::actions
+		::itcl::delete object $faup
+		if {$rc} {
+			return -options $options $result
+		}
+		return $actions
+	}
+
+	set restartActions {disconnect {service-restart dump1090-fa} {reconnect-in 10}}
+
+	test default-is-3600 "option defaults to one hour" -body {
+		load_config ""
+		::piawareConfig get no-message-restart-interval
+	} -result 3600
+
+	test default-restarts-after-an-hour "default: restart after an hour of silence" -body {
+		check_after_silence "" 3700
+	} -result $restartActions
+
+	# Exactly at the interval must restart. The clock can only move forward between
+	# setting up the silence and the check, so this can't fail spuriously; a ">"
+	# instead of ">=" fails it unless the second happens to tick over in between.
+	test restarts-at-exact-interval "restart when the silence equals the interval" -body {
+		check_after_silence "no-message-restart-interval 600\n" 600
+	} -result $restartActions
+
+	test no-local-service "with no local receiver service, only faup is reconnected" -body {
+		check_after_silence "" 3700 ""
+	} -result {disconnect {reconnect-in 10}}
+
+	test default-quiet-under-an-hour "default: no restart before an hour of silence" -body {
+		check_after_silence "" 3500
+	} -result {}
+
+	test longer-interval-waits "a longer interval is respected" -body {
+		check_after_silence "no-message-restart-interval 7200\n" 3700
+	} -result {}
+
+	test longer-interval-restarts "a longer interval still restarts once exceeded" -body {
+		check_after_silence "no-message-restart-interval 7200\n" 7300
+	} -result $restartActions
+
+	test shorter-interval "a shorter interval restarts sooner" -body {
+		check_after_silence "no-message-restart-interval 600\n" 700
+	} -result $restartActions
+
+	test zero-disables "0 disables the restart" -body {
+		check_after_silence "no-message-restart-interval 0\n" 1000000
+	} -result {}
+
+	test negative-disables "a negative value disables the restart" -body {
+		check_after_silence "no-message-restart-interval -1\n" 1000000
+	} -result {}
+
+	test invalid-value-uses-default "a non-integer value is reported and ignored" -body {
+		catch {::itcl::delete object ::piawareConfig}
+		set path [::tcltest::makeFile "no-message-restart-interval soon\n" faup-test-piaware.conf]
+		::fa_piaware_config::new_combined_config ::piawareConfig $path
+		set problems [::piawareConfig read_config]
+		list [string match "*invalid value for option no-message-restart-interval*" $problems] \
+			[::piawareConfig get no-message-restart-interval]
+	} -result {1 3600}
+
+	# cleanupTests resets the counters, so read the failure count first and
+	# exit non-zero on failure.
+	set failed $::tcltest::numTests(Failed)
+	cleanupTests
+	exit [expr {$failed > 0}]
+}

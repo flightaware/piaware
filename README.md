@@ -133,6 +133,24 @@ shouldn't, you can return to the older behaviour by:
 $ sudo piaware-config mlat-results-format "beast,connect,localhost:30004"
 ```
 
+Configuring the no-messages restart
+---
+
+If piaware receives no messages from the receiver for an hour, it assumes something is stuck. It reconnects
+faup1090 (or faup978), and if piaware manages a local service for that receiver type it restarts that too
+(dump1090 or dump978 for an SDR, beast-splitter for a Beast or Radarcape). In a quiet area that hour may be
+normal, and some SDR setups do not cope well with being restarted.
+
+The interval is in seconds and applies to both the 1090 and 978 connections; 0 disables the restart.
+piaware checks every 5 minutes, so the restart happens up to 5 minutes after the interval has passed.
+
+```
+# wait four hours instead of one:
+$ sudo piaware-config no-message-restart-interval 14400
+# never restart for lack of messages:
+$ sudo piaware-config no-message-restart-interval 0
+```
+
 piaware-status program
 ---
 

@@ -1074,6 +1074,8 @@ namespace eval ::fa_piaware_config {
 			{"uat-sdr-device"        -default "driver=rtlsdr" -sdonly 1}
 
 			{"use-gpsd"              -type boolean -default yes}
+
+			{"no-message-restart-interval" -type integer -default 3600}
 		}
 
 		return [uplevel 1 ::fa_piaware_config::new ::fa_piaware_config::ConfigMetadata [list $name] [list $settings]]

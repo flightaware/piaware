@@ -12,10 +12,6 @@ set serverRetryIntervalSeconds 60
 set piawareVersion 11.1
 set piawareVersionFull 11.1
 
-# how many seconds with no messages received from the ADS-B receiver before
-# we will attempt to restart dump1090
-set noMessageActionIntervalSeconds 3600
-
 # perform ADS-B traffic check and report every this-many-seconds
 set adsbTrafficCheckIntervalSeconds 300
 
