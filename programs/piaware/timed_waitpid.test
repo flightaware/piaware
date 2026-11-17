@@ -1,0 +1,170 @@
+# -*- tcl -*-
+
+package require tcltest 2.2
+package require Itcl
+
+set testDir [file dirname [file normalize [info script]]]
+set packageDir [file normalize [file join $testDir .. .. package]]
+
+# Real Tclx is needed for the real-process tests; without it, stub the
+# packages helpers.tcl requires but these tests don't use.
+set realTclx [expr {![catch {package require Tclx}]}]
+foreach pkg {Tclx tls} {
+	if {[catch {package require $pkg}]} {
+		package provide $pkg 0
+	}
+}
+foreach f {tryfinallyshim fa_sudo fa_sysinfo fa_piaware_config fa_services} {
+	source [file join $packageDir $f.tcl]
+}
+source [file join $testDir helpers.tcl]
+
+proc ::logger {msg} {
+	lappend ::loggedMessages $msg
+}
+
+::tcltest::configure {*}$argv
+::tcltest::testConstraint realTclx $realTclx
+
+namespace eval ::timed_waitpid::tests {
+	namespace import ::tcltest::*
+
+	# Run timed_waitpid against a simulated child. "behaviour" decides what
+	# "wait -nohang" sees:
+	#   {exits N status}  - still running for N checks, then reports status
+	#   ignores-stop      - running until SIGKILL, then reports SIG SIGKILL
+	#   unkillable        - never reaped, even after SIGKILL
+	#   gone              - wait fails with ECHILD
+	# Sleeps are recorded, not taken. Returns
+	#   {result sleptMs killed scheduled}
+	proc simulate {timeout behaviour} {
+		set ::behaviour $behaviour
+		set ::checks 0
+		set ::sleptMs 0
+		set ::killed {}
+		set ::scheduled {}
+		set ::loggedMessages {}
+
+		set saved {}
+		foreach cmd {wait kill sleep after} {
+			if {[llength [info commands ::$cmd]]} {
+				rename ::$cmd ::timed_waitpid::tests::saved_$cmd
+				lappend saved $cmd
+			}
+		}
+
+		proc ::wait {args} {
+			incr ::checks
+			lassign $::behaviour mode n status
+			switch -- $mode {
+				exits {
+					if {$::checks > $n} { return $status }
+					return ""
+				}
+				ignores-stop {
+					if {[llength $::killed]} { return "123 SIG SIGKILL" }
+					return ""
+				}
+				unkillable {
+					return ""
+				}
+				gone {
+					return -code error -errorcode {POSIX ECHILD {no child processes}} "no child processes"
+				}
+			}
+		}
+		proc ::kill {sig pid} { lappend ::killed [list $sig $pid] }
+		proc ::sleep {secs} { incr ::sleptMs [expr {$secs * 1000}] }
+		proc ::after {ms args} {
+			if {[llength $args] == 0} {
+				incr ::sleptMs $ms
+			} else {
+				lappend ::scheduled [list $ms {*}$args]
+			}
+		}
+
+		try {
+			set result [timed_waitpid $timeout 123]
+		} finally {
+			foreach cmd {wait kill sleep after} {
+				rename ::$cmd {}
+			}
+			foreach cmd $saved {
+				rename ::timed_waitpid::tests::saved_$cmd ::$cmd
+			}
+		}
+
+		return [list $result $::sleptMs $::killed $::scheduled]
+	}
+
+	test exits-at-once "a child that has already exited is returned without sleeping" -body {
+		simulate 15000 {exits 0 {123 SIG SIGHUP}}
+	} -result {{123 SIG SIGHUP} 0 {} {}}
+
+	# The usual case: the child exits just after being told to. Polling in
+	# 1-second steps froze the whole process for a second; this must be short.
+	test exits-quickly "a child that exits shortly after the first check costs well under a second" -body {
+		lassign [simulate 15000 {exits 1 {123 SIG SIGHUP}}] result slept killed
+		list $result [expr {$slept > 0 && $slept <= 100}] $killed
+	} -result {{123 SIG SIGHUP} 1 {}}
+
+	test ignores-stop "a child still running at the timeout is killed and reaped" -body {
+		lassign [simulate 300 ignores-stop] result slept killed scheduled
+		list $result [expr {$slept >= 300 && $slept <= 400}] $killed $scheduled
+	} -result {{123 SIG SIGKILL} 1 {{KILL 123}} {}}
+
+	# waits the timeout, then up to a further second after SIGKILL
+	test unkillable "a child that can't be reaped even after SIGKILL is handed to the background reaper" -body {
+		lassign [simulate 300 unkillable] result slept killed scheduled
+		list $result [expr {$slept >= 1300 && $slept <= 1400}] $killed $scheduled
+	} -result {{123 TIMEOUT unknown} 1 {{KILL 123}} {{5000 {::fa_sudo::try_to_reap_child 123}}}}
+
+	test child-gone "a child that has already been reaped elsewhere is reported, not waited for" -body {
+		lassign [simulate 15000 gone] result slept killed
+		list $result $slept $killed
+	} -result {{123 EXIT unknown} 0 {}}
+
+	# Real processes (needs the real Tclx: fork, execl, kill, wait)
+
+	proc spawn {argv} {
+		set pid [fork]
+		if {$pid == 0} {
+			catch {execl [lindex $argv 0] [lrange $argv 1 end]}
+			exit 127
+		}
+		return $pid
+	}
+
+	test real-exits-on-hup "a real child that exits on SIGHUP is reaped promptly" -constraints realTclx -body {
+		set pid [spawn {/bin/sleep 30}]
+		after 200
+		kill HUP $pid
+		set start [clock milliseconds]
+		lassign [timed_waitpid 15000 $pid] deadpid type code
+		set elapsed [expr {[clock milliseconds] - $start}]
+		list [expr {$deadpid == $pid}] $type $code [expr {$elapsed < 500}]
+	} -result {1 SIG SIGHUP 1}
+
+	test real-ignores-hup "a real child that ignores SIGHUP is killed and reaped at the timeout" -constraints realTclx -body {
+		# the child writes the ready file only after it is ignoring SIGHUP,
+		# so a slow start can't let the signal arrive first
+		set ready [file join [::tcltest::temporaryDirectory] timed_waitpid_ready]
+		file delete $ready
+		set pid [spawn [list /bin/sh -c "trap '' HUP; echo ready > '$ready'; while :; do sleep 1; done"]]
+		for {set i 0} {$i < 100 && ![file exists $ready]} {incr i} {
+			after 50
+		}
+		file delete $ready
+		kill HUP $pid
+		lassign [timed_waitpid 500 $pid] deadpid type code
+		# a reaped process no longer exists; a zombie would still accept signal 0
+		set gone [catch {kill 0 $pid}]
+		list [expr {$deadpid == $pid}] $type $code $gone
+	} -result {1 SIG SIGKILL 1}
+
+	# cleanupTests resets the counters, so read the failure count first and
+	# exit non-zero on failure.
+	set failed $::tcltest::numTests(Failed)
+	cleanupTests
+	exit [expr {$failed > 0}]
+}
