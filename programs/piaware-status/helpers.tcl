@@ -5,6 +5,14 @@
 
 set ::nRunning 0
 
+#
+# logger - shared code in the piaware package reports problems with
+#  "logger" (the piaware daemon's log); here they go to stderr
+#
+proc logger {text} {
+	puts stderr $text
+}
+
 # message types
 set ::message_types [list ES UAT]
 
