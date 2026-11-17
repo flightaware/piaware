@@ -172,16 +172,22 @@ proc write_feeder_id {id} {
 	}
 
 	set path "$::params(cachedir)/feeder_id"
-	if {[catch {
-		create_cache_dir
-		set f [open "$path.new" "w"]
+
+	# this is called on every login; only rewrite the file when the ID changes
+	if {![catch {
+		set f [open $path "r"]
 		try {
-			puts $f $id
+			gets $f current
 		} finally {
 			close $f
 		}
+	}] && $current eq $id} {
+		return
+	}
 
-		file rename -force -- "$path.new" $path
+	if {[catch {
+		create_cache_dir
+		write_file_atomically $path "$id\n"
 	} result]} {
 		logger "Failed to update feeder ID file at $path: $result"
 	}

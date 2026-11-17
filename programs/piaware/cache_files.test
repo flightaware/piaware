@@ -1,0 +1,267 @@
+# -*- tcl -*-
+
+package require tcltest 2.2
+package require Itcl
+
+set testDir [file dirname [file normalize [info script]]]
+set packageDir [file normalize [file join $testDir .. .. package]]
+
+# helpers.tcl requires these for code not exercised here; let the tests load
+# on systems that don't have them. Tclx's "sync" (fsync) gets a stand-in.
+set realTclx [expr {![catch {package require Tclx}]}]
+foreach pkg {Tclx tls} {
+	if {[catch {package require $pkg}]} {
+		package provide $pkg 0
+	}
+}
+foreach f {tryfinallyshim fa_sudo fa_sysinfo fa_piaware_config fa_services} {
+	source [file join $packageDir $f.tcl]
+}
+source [file join $testDir helpers.tcl]
+source [file join $testDir login.tcl]
+source [file join $testDir faup.tcl]
+
+proc ::logger {msg} {}
+proc ::log_locally {msg} {}
+if {!$realTclx} {
+	# Tclx "sync fileId" is fsync; piaware always has Tclx
+	proc ::sync {args} {}
+}
+
+::tcltest::configure {*}$argv
+
+namespace eval ::cache_files::tests {
+	namespace import ::tcltest::*
+
+	variable events {}
+
+	# Record fsyncs, renames and deletes in order, and optionally "crash"
+	# (raise an error) at the Nth rename or delete, leaving earlier ones done.
+	proc instrument {{crashAt ""}} {
+		variable events
+		variable crash $crashAt
+		variable count 0
+		set events {}
+
+		if {[llength [info commands ::sync]]} {
+			rename ::sync ::cache_files::tests::real_sync
+		}
+		proc ::sync {args} {
+			lappend ::cache_files::tests::events [list sync]
+			if {[llength [info commands ::cache_files::tests::real_sync]]} {
+				::cache_files::tests::real_sync {*}$args
+			}
+		}
+
+		rename ::file ::cache_files::tests::real_file
+		proc ::file {sub args} {
+			variable ::cache_files::tests::crash
+			variable ::cache_files::tests::count
+			if {$sub in {rename delete}} {
+				incr count
+				if {$crash ne "" && $count == $crash} {
+					error "simulated crash before $sub [lindex $args end]"
+				}
+				lappend ::cache_files::tests::events [list $sub [::cache_files::tests::real_file tail [lindex $args end]]]
+			}
+			return [::cache_files::tests::real_file $sub {*}$args]
+		}
+	}
+
+	proc uninstrument {} {
+		rename ::file {}
+		rename ::cache_files::tests::real_file ::file
+		rename ::sync {}
+		if {[llength [info commands ::cache_files::tests::real_sync]]} {
+			rename ::cache_files::tests::real_sync ::sync
+		}
+	}
+
+	proc fresh_cachedir {} {
+		set dir [::tcltest::makeDirectory cache-[incr ::cache_files::tests::dirs]]
+		set ::params(cachedir) $dir
+		return $dir
+	}
+
+	proc read_file {path} {
+		if {![file exists $path]} { return MISSING }
+		set f [open $path]
+		set data [read $f]
+		close $f
+		return $data
+	}
+
+	proc clear_restart_timer {} {
+		if {[info exists ::locationRestartTimer]} {
+			after cancel $::locationRestartTimer
+			unset ::locationRestartTimer
+		}
+		unset -nocomplain ::lastLocationRestartTime
+	}
+
+	# piaware starting up: the real startup step that reloads the saved
+	# location and repairs dump1090's copy. Returns whether it scheduled a
+	# dump1090 restart.
+	proc restart_piaware {} {
+		clear_restart_timer
+		set ::receiverLat ""; set ::receiverLon ""
+		startup_location
+		set scheduled [info exists ::locationRestartTimer]
+		clear_restart_timer
+		return $scheduled
+	}
+
+	# run update_location with a crash at the Nth rename/delete
+	proc update_with_crash {n lat lon} {
+		instrument $n
+		try {
+			update_location $lat $lon
+		} finally {
+			uninstrument
+		}
+	}
+
+	proc env_location {dir} {
+		set data [read_file [file join $dir location.env]]
+		if {$data eq "MISSING"} { return MISSING }
+		regexp {PIAWARE_LAT="([^"]*)"} $data -> lat
+		regexp {PIAWARE_LON="([^"]*)"} $data -> lon
+		return [list $lat $lon]
+	}
+
+	# --- location: dump1090 reads location.env; piaware reads location ---
+
+	test location-saved "a new location is saved for piaware and for dump1090" -body {
+		set dir [fresh_cachedir]
+		set ::receiverLat ""; set ::receiverLon ""
+		update_location 51.50000 -0.10000
+		list [string trim [read_file [file join $dir location]]] [env_location $dir]
+	} -result [list "51.50000\n-0.10000" {51.50000 -0.10000}]
+
+	# Power lost between the two files, then piaware restarts and gets a
+	# location (or none). Whatever arrives, dump1090's copy must end up
+	# matching it. (The crash is at the 2nd rename/delete of the update.)
+
+	test location-crash-same-location-again "update crashed, then the new location arrives again" -body {
+		set dir [fresh_cachedir]
+		set ::receiverLat ""; set ::receiverLon ""
+		update_location 51.00000 0.00000
+		update_with_crash 2 52.00000 1.00000
+		restart_piaware
+		update_location 52.00000 1.00000
+		env_location $dir
+	} -result {52.00000 1.00000}
+
+	test location-crash-old-location-back "update crashed, then the old location arrives" -body {
+		set dir [fresh_cachedir]
+		set ::receiverLat ""; set ::receiverLon ""
+		update_location 51.00000 0.00000
+		update_with_crash 2 52.00000 1.00000
+		restart_piaware
+		update_location 51.00000 0.00000
+		env_location $dir
+	} -result {51.00000 0.00000}
+
+	test location-crash-first-then-wide-area "first location crashed, then wide-area mode (no location)" -body {
+		set dir [fresh_cachedir]
+		set ::receiverLat ""; set ::receiverLon ""
+		update_with_crash 2 52.00000 1.00000
+		restart_piaware
+		update_location "" ""
+		env_location $dir
+	} -result MISSING
+
+	test location-clear-crash "clearing crashed, then wide-area mode again" -body {
+		set dir [fresh_cachedir]
+		set ::receiverLat ""; set ::receiverLon ""
+		update_location 51.00000 0.00000
+		update_with_crash 2 "" ""
+		restart_piaware
+		update_location "" ""
+		env_location $dir
+	} -result MISSING
+
+	test location-clear-crash-location-back "clearing crashed, then the same location arrives" -body {
+		set dir [fresh_cachedir]
+		set ::receiverLat ""; set ::receiverLon ""
+		update_location 51.00000 0.00000
+		update_with_crash 2 "" ""
+		restart_piaware
+		update_location 51.00000 0.00000
+		env_location $dir
+	} -result {51.00000 0.00000}
+
+	# dump1090 started before piaware with whatever location.env held, so a
+	# repair must restart it; a consistent pair must not.
+	test startup-repair-restarts-dump1090 "a startup repair schedules a dump1090 restart; a consistent state doesn't" -body {
+		set dir [fresh_cachedir]
+		set ::receiverLat ""; set ::receiverLon ""
+		update_location 51.00000 0.00000
+		set consistent [restart_piaware]
+		update_with_crash 2 52.00000 1.00000
+		set repaired [restart_piaware]
+		list $consistent $repaired [env_location $dir]
+	} -result {0 1 {51.00000 0.00000}}
+
+	test location-fsync-before-rename "each location file is fsynced before it replaces the old one" -body {
+		set dir [fresh_cachedir]
+		set ::receiverLat ""; set ::receiverLon ""
+		instrument
+		try {
+			update_location 53.00000 2.00000
+		} finally {
+			uninstrument
+		}
+		set ::cache_files::tests::events
+	} -result {sync {rename location.env} sync {rename location}}
+
+	# --- feeder ID ---
+
+	test feeder-id-written "a new feeder ID is written, fsynced before the rename" -body {
+		set dir [fresh_cachedir]
+		instrument
+		try {
+			write_feeder_id 11111111-2222-3333-4444-555555555555
+		} finally {
+			uninstrument
+		}
+		list [string trim [read_file [file join $dir feeder_id]]] $::cache_files::tests::events
+	} -result {11111111-2222-3333-4444-555555555555 {sync {rename feeder_id}}}
+
+	test feeder-id-unchanged "an unchanged feeder ID isn't rewritten on every login" -body {
+		set dir [fresh_cachedir]
+		write_feeder_id 11111111-2222-3333-4444-555555555555
+		instrument
+		try {
+			write_feeder_id 11111111-2222-3333-4444-555555555555
+		} finally {
+			uninstrument
+		}
+		set ::cache_files::tests::events
+	} -result {}
+
+	test feeder-id-changed "a changed feeder ID replaces the old one" -body {
+		set dir [fresh_cachedir]
+		write_feeder_id 11111111-2222-3333-4444-555555555555
+		write_feeder_id 11111111-2222-3333-4444-555555555556
+		string trim [read_file [file join $dir feeder_id]]
+	} -result 11111111-2222-3333-4444-555555555556
+
+	test feeder-id-crash "a crash while replacing the feeder ID leaves the old one intact" -body {
+		set dir [fresh_cachedir]
+		write_feeder_id 11111111-2222-3333-4444-555555555555
+		instrument 1
+		try {
+			write_feeder_id 66666666-7777-8888-9999-000000000000
+		} finally {
+			uninstrument
+		}
+		string trim [read_file [file join $dir feeder_id]]
+	} -result 11111111-2222-3333-4444-555555555555
+
+	# cleanupTests resets the counters, so read the failure count first and
+	# exit non-zero on failure.
+	set failed $::tcltest::numTests(Failed)
+	cleanupTests
+	exit [expr {$failed > 0}]
+}
