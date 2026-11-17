@@ -234,9 +234,13 @@ package require Itcl
 	method check_traffic {} {
 		set secondsSinceLastMessage [expr {[clock seconds] - $lastFaupMessageClock}]
 
+		# how long with no messages before restarting everything;
+		# zero or negative disables the restart
+		set restartInterval [piawareConfig get no-message-restart-interval]
+
 		if {[info exists faupPipe]} {
 			# faup program is running, check we are hearing some messages
-			if {$secondsSinceLastMessage >= $::noMessageActionIntervalSeconds} {
+			if {$restartInterval > 0 && $secondsSinceLastMessage >= $restartInterval} {
 				# force a restart
 				logger "no new messages received in $secondsSinceLastMessage seconds, it might just be that there haven't been any aircraft nearby but I'm going to try to restart everything, just in case..."
 				faup_disconnect
