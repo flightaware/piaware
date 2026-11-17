@@ -1,0 +1,216 @@
+# -*- tcl -*-
+#
+# Tests for handle_update_request (update.tcl): FlightAware's servers can ask
+# piaware to upgrade packages, restart services or reboot. Nothing may happen
+# unless the local config allows it.
+#
+# Nothing here runs apt-get, restarts a service or reboots: every command that
+# would is replaced by a stand-in that records what it was asked to do.
+
+package require tcltest 2.2
+package require Itcl
+
+set testDir [file dirname [file normalize [info script]]]
+set packageDir [file normalize [file join $testDir .. .. package]]
+
+# update.tcl needs these for code replaced below; let the tests load on
+# systems that don't have them.
+foreach pkg {Tclx tls} {
+	if {[catch {package require $pkg}]} {
+		package provide $pkg 0
+	}
+}
+foreach f {tryfinallyshim fa_sudo fa_sysinfo fa_services fa_piaware_config} {
+	source [file join $packageDir $f.tcl]
+}
+source [file join $testDir update.tcl]
+
+::tcltest::configure {*}$argv
+
+namespace eval ::update::tests {
+	namespace import ::tcltest::*
+
+	variable events {}
+	proc record {args} {
+		variable events
+		lappend events $args
+	}
+
+	# what the stand-ins report back
+	variable aptFails {}
+	variable aptError ""
+	variable installed {}
+	variable pidfileOk 1
+
+	# --- stand-ins for everything that touches the system ---
+
+	proc ::logger {msg} {}
+	proc ::reread_piaware_config {} {
+		piawareConfig read_config
+	}
+	proc ::create_named_pidfile {path} {
+		if {!$::update::tests::pidfileOk} {
+			error "already locked"
+		}
+		::update::tests::record pidfile-create $path
+	}
+	proc ::cleanup_named_pidfile {path} {
+		::update::tests::record pidfile-cleanup $path
+	}
+	proc ::run_command_as_root_log_output {script args} {
+		::update::tests::record apt {*}$args
+		if {$::update::tests::aptError ne ""} {
+			error $::update::tests::aptError
+		}
+		# a call matching an entry in aptFails, by subcommand alone or by its
+		# whole argument list, reports failure
+		set fails $::update::tests::aptFails
+		return [expr {[lindex $args 0] ni $fails && $args ni $fails}]
+	}
+	proc ::query_dpkg_names_and_versions {pattern} {
+		if {$pattern in $::update::tests::installed} {
+			return [list $pattern 1.0]
+		}
+		return ""
+	}
+	proc ::fa_services::attempt_service_restart {service action} {
+		::update::tests::record service $action $service
+	}
+	proc ::fa_sudo::exec_as {args} {
+		::update::tests::record exec_as {*}$args
+	}
+	proc ::restart_piaware {} {
+		::update::tests::record restart-piaware
+	}
+	set ::adsbDataService dump1090-fa
+
+	# A real config object with piaware's real option definitions and
+	# defaults, read from a real file holding $contents. It reads only that
+	# file: piaware's own combined config would also read the system's
+	# /usr/share/piaware-support/piaware-image-config.txt, which on a PiAware
+	# image could change the defaults under test.
+	proc config {contents} {
+		catch {itcl::delete object ::piawareConfig}
+		set path [::tcltest::makeFile $contents piaware-update-test.conf]
+		set metadata [::fa_piaware_config::piaware_standard_settings #auto]
+		::fa_piaware_config::new ::fa_piaware_config::ConfigGroup ::piawareConfig -metadata $metadata
+		::piawareConfig add [::fa_piaware_config::new ::fa_piaware_config::ConfigFile #auto \
+			-filename $path -metadata $metadata -priority 100]
+	}
+
+	proc reset {} {
+		variable events {}
+		variable aptFails {}
+		variable aptError ""
+		variable installed {}
+		variable pidfileOk 1
+	}
+
+	# Run an update request and return what it did. An error is returned as
+	# {error message} after the events, so a test can assert both.
+	proc request {type action {setup {}}} {
+		reset
+		uplevel 1 $setup
+		set row(action) $action
+		if {[catch {handle_update_request $type row} result]} {
+			record error $result
+		}
+		variable events
+		return $events
+	}
+
+	# A denied request must do nothing. Today the denial path also raises
+	# 'invalid command name "piaware"' (update.tcl logs via a "piaware origin"
+	# command that doesn't exist), so that one error, or none, is accepted;
+	# any other error is returned so the test fails.
+	proc denied {events} {
+		set other {}
+		foreach e $events {
+			if {$e ne {error {invalid command name "piaware"}}} {
+				lappend other $e
+			}
+		}
+		return $other
+	}
+
+	# --- permission: the config decides, and the default is no ---
+
+	test auto-denied-by-default "an auto update does nothing when the config doesn't allow it (the default)" -body {
+		config ""
+		denied [request auto full]
+	} -result {}
+
+	test manual-denied-when-only-auto-allowed "a manual update needs allow-manual-updates, not allow-auto-updates" -body {
+		config "allow-auto-updates yes\nallow-manual-updates no\n"
+		denied [request manual "full reboot"]
+	} -result {}
+
+	test unknown-request-type-ignored "an update request of an unknown type does nothing, even with both allowed" -body {
+		config "allow-auto-updates yes\nallow-manual-updates yes\n"
+		request forced "full reboot"
+	} -result {}
+
+	# --- what an allowed request does ---
+
+	test dump1090-upgrade "an allowed dump1090 update upgrades and restarts it, but doesn't restart it if the upgrade failed" -body {
+		config "allow-auto-updates yes\n"
+		list [request auto dump1090] [request auto dump1090 {variable aptFails upgrade-package}]
+	} -result {{{pidfile-create /run/piaware/upgrader.pid} {apt update} {apt upgrade-package dump1090-fa} {service restart dump1090} {pidfile-cleanup /run/piaware/upgrader.pid}} {{pidfile-create /run/piaware/upgrader.pid} {apt update} {apt upgrade-package dump1090-fa} {pidfile-cleanup /run/piaware/upgrader.pid}}}
+
+	test piaware-release-preferred "a piaware update upgrades piaware-release when installed, then restarts piaware" -body {
+		config "allow-manual-updates yes\n"
+		request manual piaware {variable installed {piaware-release piaware-gui-release}}
+	} -result {{pidfile-create /run/piaware/upgrader.pid} {apt update} {apt upgrade-package piaware-release} {apt upgrade-package piaware-gui-release} {pidfile-cleanup /run/piaware/upgrader.pid} restart-piaware}
+
+	# (Only "apt update" may run: how many times isn't the point here.)
+	test package-list-failure-stops-upgrades "if refreshing package lists fails, nothing is upgraded or restarted" -body {
+		config "allow-auto-updates yes\n"
+		set events [request auto "packages dump1090 restart_piaware" {variable aptFails update}]
+		list [lsearch -all -inline -not -exact $events {apt update}] [expr {{apt update} in $events}]
+	} -result {{{pidfile-create /run/piaware/upgrader.pid} {pidfile-cleanup /run/piaware/upgrader.pid}} 1}
+
+	test package-lists-refreshed-once "package lists are refreshed once per request, not once per action" -body {
+		config "allow-auto-updates yes\n"
+		set events [request auto "packages piaware dump1090 dump978"]
+		llength [lsearch -all -exact $events {apt update}]
+	} -result 1
+
+	# piaware-gui-release is optional: its absence isn't a failure. But a
+	# failed piaware upgrade is, even if the GUI upgrade then succeeds, and
+	# so is a failed GUI upgrade.
+	test piaware-gui-optional "a piaware update continues without piaware-gui, but stops if piaware or an installed piaware-gui fails to upgrade" -body {
+		config "allow-auto-updates yes\n"
+		list [request auto "piaware restart_dump1090"] \
+			[request auto "piaware restart_dump1090" {
+				variable installed piaware-gui-release
+				variable aptFails {{upgrade-package piaware}}
+			}] \
+			[request auto "piaware restart_dump1090" {
+				variable installed piaware-gui-release
+				variable aptFails {{upgrade-package piaware-gui-release}}
+			}]
+	} -result {{{pidfile-create /run/piaware/upgrader.pid} {apt update} {apt upgrade-package piaware} {service restart dump1090} {pidfile-cleanup /run/piaware/upgrader.pid} restart-piaware} {{pidfile-create /run/piaware/upgrader.pid} {apt update} {apt upgrade-package piaware} {apt upgrade-package piaware-gui-release} {pidfile-cleanup /run/piaware/upgrader.pid} restart-piaware} {{pidfile-create /run/piaware/upgrader.pid} {apt update} {apt upgrade-package piaware} {apt upgrade-package piaware-gui-release} {pidfile-cleanup /run/piaware/upgrader.pid} restart-piaware}}
+
+	test reboot-ends-the-request "nothing after a reboot or a halt in the action list runs" -body {
+		config "allow-auto-updates yes\n"
+		list [request auto "restart_dump1090 reboot restart_piaware halt"] [request auto "restart_receiver halt reboot"]
+	} -result {{{pidfile-create /run/piaware/upgrader.pid} {service restart dump1090} {exec_as -root -- /sbin/reboot &} {pidfile-cleanup /run/piaware/upgrader.pid}} {{pidfile-create /run/piaware/upgrader.pid} {service restart dump1090-fa} {exec_as -root -- /sbin/halt &} {pidfile-cleanup /run/piaware/upgrader.pid}}}
+
+	test lock-held-does-nothing "if another upgrader holds the lock, the request does nothing" -body {
+		config "allow-auto-updates yes\n"
+		request auto "dump1090 reboot" {variable pidfileOk 0}
+	} -result {}
+
+	test lock-released-on-error "the upgrader lock is released even if an action raises an error" -body {
+		config "allow-auto-updates yes\n"
+		request auto dump1090 {variable aptError "apt helper missing"}
+	} -result {{pidfile-create /run/piaware/upgrader.pid} {apt update} {pidfile-cleanup /run/piaware/upgrader.pid} {error {apt helper missing}}}
+
+	catch {itcl::delete object ::piawareConfig}
+
+	# cleanupTests resets the counters, so read the failure count first and
+	# exit non-zero on failure.
+	set failed $::tcltest::numTests(Failed)
+	cleanupTests
+	exit [expr {$failed > 0}]
+}
