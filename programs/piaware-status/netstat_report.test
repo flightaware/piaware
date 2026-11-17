@@ -1,0 +1,79 @@
+# -*- tcl -*-
+#
+# Tests for piaware-status's netstat report when netstat can't be run: it
+# isn't installed by default on newer systems (and without Tclx, as on a
+# development machine, launching it fails too). The report runs in a child
+# tclsh with the real piaware-status helpers, so a crash shows up as a
+# non-zero exit instead of taking down the test run.
+
+package require tcltest 2.2
+
+set testDir [file dirname [file normalize [info script]]]
+set packageDir [file normalize [file join $testDir .. .. package]]
+
+::tcltest::configure {*}$argv
+
+namespace eval ::netstat_report::tests {
+	namespace import ::tcltest::*
+
+	# Run netstat_report with a config holding $contents and with PATH set
+	# to a directory containing only the programs in $programs (as symlinks
+	# to the real ones). Returns {exitcode output}, stdout and stderr
+	# combined.
+	proc report {contents programs} {
+		set bin [makeDirectory report-bin]
+		foreach p $programs {
+			file link -symbolic [file join $bin $p] [auto_execok $p]
+		}
+		set conf [makeFile $contents report-test.conf]
+		set script [makeFile [string map [list \
+				PACKAGEDIR [list $::packageDir] \
+				TESTDIR [list $::testDir] \
+				CONF [list $conf] \
+				BIN [list $bin]] {
+			package require Itcl
+			foreach pkg {Tclx tls} {
+				if {[catch {package require $pkg}]} {
+					package provide $pkg 0
+				}
+			}
+			foreach f {tryfinallyshim fa_sudo fa_piaware_config piaware} {
+				source [file join PACKAGEDIR $f.tcl]
+			}
+			source [file join TESTDIR helpers.tcl]
+
+			# a config read from the test file only (not the system's)
+			set metadata [::fa_piaware_config::piaware_standard_settings #auto]
+			set ::config [::fa_piaware_config::new ::fa_piaware_config::ConfigGroup #auto -metadata $metadata]
+			$::config add [::fa_piaware_config::new ::fa_piaware_config::ConfigFile #auto \
+				-filename CONF -metadata $metadata -priority 100]
+			$::config read_config
+
+			set ::env(PATH) BIN
+			netstat_report
+		}] report-child.tcl]
+
+		set code 0
+		if {[catch {exec [info nameofexecutable] $script 2>@1} out opts]} {
+			set code [lindex [dict get $opts -errorcode] end]
+		}
+		removeDirectory report-bin
+		return [list $code [string trim $out]]
+	}
+
+	# (with the ss fallback from flightaware/piaware#135 the message names
+	# whichever command was tried, or says neither is installed)
+	test netstat-missing "when netstat can't be run, the report says so instead of crashing" -body {
+		lassign [report "receiver-type rtlsdr\n" {}] code out
+		list $code \
+			[regexp {failed to run (netstat|ss): |neither netstat nor ss is installed} $out] \
+			[string match "*ES connections on port 30005*" $out] \
+			[string match {*invalid command name "logger"*} $out]
+	} -result {0 1 1 0}
+
+	# cleanupTests resets the counters, so read the failure count first and
+	# exit non-zero on failure.
+	set failed $::tcltest::numTests(Failed)
+	cleanupTests
+	exit [expr {$failed > 0}]
+}
