@@ -195,6 +195,26 @@ proc close_and_restart_mlat_client {} {
 	schedule_mlat_client_restart
 }
 
+#
+# prune_mlat_saw_result - forget mlat results the loopback filter in
+#   faup1090.tcl (45 s) can no longer use, so ::mlatSawResult doesn't grow
+#   for the life of the process. Runs at most once a minute, and keeps
+#   entries for 300 s, well past the filter window. An entry stamped in the
+#   future (the clock stepped back) is treated as stale too.
+#
+proc prune_mlat_saw_result {now} {
+	if {[info exists ::mlatSawResultLastPrune] && $now >= $::mlatSawResultLastPrune && $now - $::mlatSawResultLastPrune < 60} {
+		return
+	}
+	set ::mlatSawResultLastPrune $now
+
+	foreach {hexid stamp} [array get ::mlatSawResult] {
+		if {abs($now - $stamp) > 300} {
+			unset ::mlatSawResult($hexid)
+		}
+	}
+}
+
 proc forward_to_mlat_client {_row} {
 	upvar $_row row
 
@@ -218,7 +238,9 @@ proc forward_to_mlat_client {_row} {
 			# remember we got a mlat result for this hexid
 			# so we can filter any spurious looped-back results
 			# for a while
-			set ::mlatSawResult($row(hexid)) [clock seconds]
+			set now [clock seconds]
+			set ::mlatSawResult($row(hexid)) $now
+			prune_mlat_saw_result $now
 		}
 
 		"mlat_status" {
