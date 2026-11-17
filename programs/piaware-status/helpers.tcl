@@ -26,7 +26,75 @@ proc report_status {} {
 	check_ports_for_data
 	puts ""
 
+	report_gps
+	puts ""
+
 	report_feeder_id
+}
+
+#
+# report_gps - report piaware's GPS status, as shown on the web status page
+#
+proc report_gps {} {
+	foreach line [gps_status_lines $::config $::params(statusfile) [clock milliseconds]] {
+		puts $line
+	}
+}
+
+#
+# gps_status_lines - return a list of lines describing piaware's GPS status.
+#  piaware-status can't see piaware's gpsd connection directly, so this reads
+#  the status file piaware writes every few seconds (see statusfile.tcl in
+#  piaware), which has a "gps" entry only while piaware is connected to gpsd.
+#
+proc gps_status_lines {config statusFile nowMs} {
+	if {![$config get use-gpsd]} {
+		return [list "GPS is disabled by configuration (use-gpsd is off)."]
+	}
+
+	if {![file exists $statusFile]} {
+		return [list "piaware's status file $statusFile does not exist, so GPS status is unknown (is piaware running?)."]
+	}
+
+	if {[catch {
+		set f [open $statusFile "r"]
+		try {
+			set contents [read $f]
+		} finally {
+			close $f
+		}
+	} result]} {
+		return [list "Can't read piaware's status file, so GPS status is unknown: $result"]
+	}
+
+	# piaware always writes "time" and "expiry" (milliseconds); anything else
+	# is not a status file we understand
+	if {[catch {
+		set status [::json::json2dict $contents]
+		set written [dict get $status time]
+		set expiry [dict get $status expiry]
+		if {![string is wide -strict $written] || ![string is wide -strict $expiry]} {
+			error "time/expiry are not timestamps"
+		}
+	} result]} {
+		return [list "piaware's status file $statusFile is not in the expected format, so GPS status is unknown: $result"]
+	}
+
+	if {$expiry < $nowMs} {
+		set age [expr {($nowMs - $written) / 1000}]
+		return [list "piaware's status file $statusFile was last updated $age seconds ago, so GPS status is unknown (is piaware running?)."]
+	}
+
+	if {![dict exists $status gps]} {
+		# piaware only reports GPS status while it is connected to gpsd
+		return [list "piaware is not connected to gpsd (that is normal unless you have a GPS receiver)."]
+	}
+
+	if {[catch {dict get $status gps message} message]} {
+		return [list "piaware's status file $statusFile has an unexpected GPS entry, so GPS status is unknown: $message"]
+	}
+
+	return [list "$message."]
 }
 
 #

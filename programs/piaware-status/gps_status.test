@@ -1,0 +1,148 @@
+# -*- tcl -*-
+
+package require tcltest 2.2
+package require Itcl
+package require json
+package require json::write
+
+set testDir [file dirname [file normalize [info script]]]
+set packageDir [file normalize [file join $testDir .. .. package]]
+set piawareDir [file normalize [file join $testDir .. piaware]]
+
+# fa_piaware_config requires fa_sudo, which requires Tclx. Nothing here calls
+# into Tclx, so let the tests load on systems without it.
+if {[catch {package require Tclx}]} {
+	package provide Tclx 8.4
+}
+foreach f {tryfinallyshim fa_sudo fa_piaware_config} {
+	source [file join $packageDir $f.tcl]
+}
+
+# piaware's status file writer, used to produce fixtures in the real format
+source [file join $piawareDir statusfile.tcl]
+
+source [file join $testDir helpers.tcl]
+
+::tcltest::configure {*}$argv
+
+namespace eval ::piaware_status::tests {
+	namespace import ::tcltest::*
+
+	set now [clock milliseconds]
+
+	# Build a config the same way piaware-status does, from a config file.
+	proc make_config {configText} {
+		set path [::tcltest::makeFile $configText gps-status-test-piaware.conf]
+		set config [::fa_piaware_config::new_combined_config #auto $path]
+		set problems [$config read_config]
+		if {$problems ne ""} {
+			error "config problems: $problems"
+		}
+		return $config
+	}
+
+	# A status file as piaware writes it (see build_status in statusfile.tcl),
+	# written at time $writtenMs, with an optional gps entry. The expiry uses
+	# build_status's formula unless one is given.
+	proc write_status {writtenMs {gpsEntry ""} {expiryMs ""}} {
+		set data(time) $writtenMs
+		set data(interval) $::statusFileInterval
+		if {$expiryMs eq ""} {
+			set expiryMs [expr {$writtenMs + $::statusFileInterval * 2 + 1000}]
+		}
+		set data(expiry) $expiryMs
+		set data(piaware) [status_entry "green" "PiAware is running"]
+		if {$gpsEntry ne ""} {
+			set data(gps) $gpsEntry
+		}
+		return [write_raw [::json::write object {*}[array get data]]]
+	}
+
+	proc write_raw {contents} {
+		return [::tcltest::makeFile $contents gps-status-test.json]
+	}
+
+	proc lines {configText statusFile now} {
+		set config [make_config $configText]
+		set result [gps_status_lines $config $statusFile $now]
+		::itcl::delete object $config
+		return $result
+	}
+
+	set fix [status_entry "green" "GPS 3D fix at 1.000,2.000"]
+
+	# What piaware reports
+
+	test gps-fix "reports the GPS fix piaware has" -body {
+		set f [write_status $now [status_entry "green" [format "GPS 3D fix at %.3f,%.3f" 35.1 139.2]]]
+		lines "" $f $now
+	} -result {{GPS 3D fix at 35.100,139.200.}}
+
+	test gps-no-position "reports when gpsd is connected but has no position" -body {
+		set f [write_status $now [status_entry "red" "GPS position information not available"]]
+		lines "" $f $now
+	} -result {{GPS position information not available.}}
+
+	test gps-not-connected "no gps entry means piaware has no gpsd connection" -body {
+		set f [write_status $now]
+		lines "" $f $now
+	} -result {{piaware is not connected to gpsd (that is normal unless you have a GPS receiver).}}
+
+	test gps-disabled "use-gpsd no is reported without reading the status file" -body {
+		lines "use-gpsd no\n" /nonexistent/status.json $now
+	} -result {{GPS is disabled by configuration (use-gpsd is off).}}
+
+	# Staleness is decided by the "expiry" piaware writes, at the boundary
+
+	test expiry-now-is-fresh "a status file expiring right now is still used" -body {
+		set f [write_status [expr {$now - 11000}] $fix $now]
+		lines "" $f $now
+	} -result {{GPS 3D fix at 1.000,2.000.}}
+
+	test expiry-just-passed-is-stale "a status file that expired 1 ms ago is not trusted" -body {
+		set f [write_status [expr {$now - 11001}] $fix [expr {$now - 1}]]
+		lindex [lines "" $f $now] 0
+	} -match glob -result {*was last updated 11 seconds ago, so GPS status is unknown (is piaware running?).}
+
+	test expiry-decides-not-age "an old write with a future expiry is still used" -body {
+		set f [write_status [expr {$now - 600000}] $fix [expr {$now + 1000}]]
+		lines "" $f $now
+	} -result {{GPS 3D fix at 1.000,2.000.}}
+
+	test status-file-stale "a status file written a minute ago is not trusted" -body {
+		set f [write_status [expr {$now - 60000}] $fix]
+		lindex [lines "" $f $now] 0
+	} -match glob -result {*was last updated 60 seconds ago, so GPS status is unknown (is piaware running?).}
+
+	# Files piaware didn't write, or can't be read, are reported, not guessed at
+
+	test status-file-missing "a missing status file suggests piaware isn't running" -body {
+		lines "" /nonexistent/status.json $now
+	} -result {{piaware's status file /nonexistent/status.json does not exist, so GPS status is unknown (is piaware running?).}}
+
+	test status-file-unreadable "an unreadable status file is reported" -body {
+		lindex [lines "" [::tcltest::temporaryDirectory] $now] 0
+	} -match glob -result {Can't read piaware's status file, so GPS status is unknown: *}
+
+	test status-file-garbage "an unparseable status file is reported" -body {
+		lindex [lines "" [write_raw "not json"] $now] 0
+	} -match glob -result {*is not in the expected format, so GPS status is unknown: *}
+
+	test status-file-array "a JSON array is not a status file" -body {
+		lindex [lines "" [write_raw {[1, 2]}] $now] 0
+	} -match glob -result {*is not in the expected format*}
+
+	test status-file-no-expiry "a status file without expiry is not trusted" -body {
+		lindex [lines "" [write_raw [format {{"time": %s, "gps": {"status": "green", "message": "GPS 3D fix at 1,2"}}} $now]] $now] 0
+	} -match glob -result {*is not in the expected format*}
+
+	test status-file-bad-gps "a gps entry that isn't an object is reported" -body {
+		lindex [lines "" [write_raw [format {{"time": %s, "expiry": %s, "gps": "x"}} $now [expr {$now + 1000}]]] $now] 0
+	} -match glob -result {*has an unexpected GPS entry, so GPS status is unknown: *}
+
+	# cleanupTests resets the counters, so read the failure count first and
+	# exit non-zero on failure.
+	set failed $::tcltest::numTests(Failed)
+	cleanupTests
+	exit [expr {$failed > 0}]
+}

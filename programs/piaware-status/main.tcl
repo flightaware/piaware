@@ -19,6 +19,7 @@ package require piaware
 package require cmdline
 package require Tclx
 package require fa_piaware_config
+package require json
 
 #
 # main - the main program
@@ -26,9 +27,10 @@ package require fa_piaware_config
 proc main {{argv ""}} {
 	set options {
 		{configfile.arg "" "specify an additional configuration file to read"}
+		{statusfile.arg "/run/piaware/status.json" "piaware's status file, read to report GPS status"}
 	}
 
-	set usage ": $::argv0 ?-configfile path?\n"
+	set usage ": $::argv0 ?-configfile path? ?-statusfile path?\n"
 
 	if {[catch {array set ::params [::cmdline::getoptions argv $options $usage]} catchResult] == 1} {
 		puts stderr $catchResult
