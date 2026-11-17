@@ -35,6 +35,10 @@ proc main {{argv ""}} {
 		exit 1
 	}
 
+	# the receiver port checks connect asynchronously, which would abort the
+	# process on a system with IPv6 disabled
+	avoid_unusable_ipv6
+
 	report_status
 }
 
