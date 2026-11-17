@@ -1,0 +1,124 @@
+# -*- tcl -*-
+
+package require tcltest 2.2
+package require Itcl
+
+set testDir [file dirname [file normalize [info script]]]
+set packageDir [file normalize [file join $testDir .. .. package]]
+set serviceFile [file normalize [file join $testDir .. .. scripts piaware.service]]
+
+# helpers.tcl requires these for code not exercised here; let the tests load
+# on systems that don't have them.
+foreach pkg {Tclx tls} {
+	if {[catch {package require $pkg}]} {
+		package provide $pkg 0
+	}
+}
+foreach f {tryfinallyshim fa_sudo fa_sysinfo fa_piaware_config fa_services} {
+	source [file join $packageDir $f.tcl]
+}
+source [file join $testDir helpers.tcl]
+
+proc ::logger {msg} {
+	lappend ::loggedMessages $msg
+}
+
+::tcltest::configure {*}$argv
+
+namespace eval ::restart_piaware::tests {
+	namespace import ::tcltest::*
+
+	# Run restart_piaware when the service manager doesn't restart us: the
+	# restart request returns $status and no SIGTERM arrives. Its 10 s wait is
+	# shortened and "exit" is recorded instead of taken. Returns the exit code.
+	proc restart_without_being_killed {status} {
+		set ::params(p) ""
+		set ::loggedMessages {}
+		unset -nocomplain ::exitCode ::die ::restartRequests
+
+		rename ::fa_services::invoke_service_action ::restart_piaware::tests::saved_isa
+		proc ::fa_services::invoke_service_action {service action} [format {
+			lappend ::restartRequests "$service $action"
+			return %s
+		} [list $status]]
+		rename ::after ::restart_piaware::tests::saved_after
+		proc ::after {ms args} {
+			return [::restart_piaware::tests::saved_after 0 {*}$args]
+		}
+		rename ::exit ::restart_piaware::tests::saved_exit
+		proc ::exit {{code 0}} {
+			set ::exitCode $code
+			# did restart_piaware wait (for its timer to set ::die) before exiting?
+			set ::waitedBeforeExit [info exists ::die]
+		}
+
+		try {
+			restart_piaware
+		} finally {
+			rename ::exit {}
+			rename ::restart_piaware::tests::saved_exit ::exit
+			rename ::after {}
+			rename ::restart_piaware::tests::saved_after ::after
+			rename ::fa_services::invoke_service_action {}
+			rename ::restart_piaware::tests::saved_isa ::fa_services::invoke_service_action
+		}
+
+		return $::exitCode
+	}
+
+	# Would systemd restart piaware after it exits with this code, given
+	# scripts/piaware.service?
+	proc systemd_would_restart {code} {
+		set f [open $::serviceFile]
+		set unit [read $f]
+		close $f
+
+		if {![regexp -line {^Restart=(.*)$} $unit -> restart]} {
+			return "no Restart= in unit"
+		}
+		set prevent {}
+		regexp -line {^RestartPreventExitStatus=(.*)$} $unit -> prevent
+
+		if {$code in $prevent} {
+			return 0
+		}
+		switch -- $restart {
+			always - on-failure - on-abnormal {
+				# on-failure restarts on any non-zero exit; on-abnormal only on signals
+				if {$restart eq "on-abnormal"} { return 0 }
+				return [expr {$restart eq "always" || $code != 0}]
+			}
+			default {
+				return 0
+			}
+		}
+	}
+
+	test restart-request-failed "when the restart request fails, piaware exits so that systemd restarts it" -body {
+		set code [restart_without_being_killed 1]
+		list $::restartRequests [systemd_would_restart $code]
+	} -result {{{piaware restart}} 1}
+
+	# it must give the service manager time to stop it before giving up
+	test restart-request-ignored "when the restart request succeeds but nothing stops piaware, it waits, then exits so systemd restarts it" -body {
+		set code [restart_without_being_killed 0]
+		list $::waitedBeforeExit [systemd_would_restart $code]
+	} -result {1 1}
+
+	test restart-failure-logged "a failed restart request is logged with its status" -body {
+		restart_without_being_killed SUDOFAILED
+		expr {[lsearch -glob $::loggedMessages "*SUDOFAILED*"] >= 0}
+	} -result 1
+
+	# check the unit-file reader itself, so a "1" above can't come from a
+	# reader that always says yes
+	test unit-reader-control "the unit-file check says no for exit 0 and for 4 and 6" -body {
+		list [systemd_would_restart 0] [systemd_would_restart 4] [systemd_would_restart 6]
+	} -result {0 0 0}
+
+	# cleanupTests resets the counters, so read the failure count first and
+	# exit non-zero on failure.
+	set failed $::tcltest::numTests(Failed)
+	cleanupTests
+	exit [expr {$failed > 0}]
+}

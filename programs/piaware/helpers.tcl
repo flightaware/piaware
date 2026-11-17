@@ -253,15 +253,23 @@ proc restart_piaware {} {
 	unlock_pidfile
 
 	logger "restarting piaware. hopefully i'll be right back..."
-	::fa_services::invoke_service_action piaware restart
+	set status [::fa_services::invoke_service_action piaware restart]
+	if {$status ne "0"} {
+		logger "restart request failed (status $status)"
+	}
 
 	# sleep apparently restarts on signals, we want to process them,
 	# so use after/vwait so the event loop runs.
 	after 10000 [list set ::die 1]
 	vwait ::die
 
+	# If the restart worked, the service manager has already stopped us via
+	# SIGTERM (which exits 0). Getting here means nothing restarted us, so
+	# exit non-zero: systemd's Restart=on-failure then starts piaware again,
+	# where exit 0 would leave it stopped. (Not 4 or 6, which the unit file
+	# lists in RestartPreventExitStatus.)
 	logger "piaware failed to die, pid [pid], that's me, i'm gonna kill myself"
-	exit 0
+	exit 1
 }
 
 
