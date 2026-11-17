@@ -1,0 +1,133 @@
+# -*- tcl -*-
+
+package require tcltest 2.2
+package require Itcl
+
+set packageDir [file dirname [file normalize [info script]]]
+
+# fa_piaware_config needs Tclx (id, fstat, chown, sync) to write files. Without
+# it, use stand-ins that behave the same for a file we own.
+set realTclx [expr {![catch {package require Tclx}]}]
+foreach p {Tclx tls} {
+	if {[catch {package require $p}]} {
+		package provide $p 0
+	}
+}
+foreach f {tryfinallyshim fa_sudo fa_piaware_config} {
+	source [file join $packageDir $f.tcl]
+}
+if {!$realTclx} {
+	proc ::id {what} {
+		switch -- $what {
+			userid { return [exec id -u] }
+			groupid { return [exec id -g] }
+			groupids { return [exec id -G] }
+		}
+	}
+	proc ::fstat {chan opt arrName} {
+		upvar 1 $arrName a
+		file stat $::fa_piaware_config::tests::currentPath st
+		foreach k {uid gid mode} { set a($k) $st($k) }
+	}
+	proc ::chown {args} {}
+	proc ::sync {args} {}
+}
+
+::tcltest::configure {*}$argv
+
+namespace eval ::fa_piaware_config::tests {
+	namespace import ::tcltest::*
+
+	variable currentPath ""
+
+	# Write raw bytes as a config file we own (with our own group, so the
+	# direct write path is used), and return a ConfigFile for it.
+	proc config_file {bytes {eol lf}} {
+		variable currentPath
+		set currentPath [::tcltest::makeFile "" piaware-config-test.txt]
+		set f [open $currentPath wb]
+		puts -nonewline $f $bytes
+		close $f
+		file attributes $currentPath -group [exec id -gn]
+		set c [::fa_piaware_config::ConfigFile #auto -filename $currentPath -eol $eol \
+				   -metadata [::fa_piaware_config::piaware_standard_settings #auto] -readonly 0]
+		$c read_config
+		return $c
+	}
+
+	proc file_bytes {} {
+		variable currentPath
+		set f [open $currentPath rb]
+		set bytes [read $f]
+		close $f
+		return $bytes
+	}
+
+	# write, then restore our group (a rename can give the new file another one)
+	proc write {c} {
+		variable currentPath
+		$c write_config
+		file attributes $currentPath -group [exec id -gn]
+	}
+
+	set ssid "Caf\u00e9 r\u00e9seau"
+	set utf8 [encoding convertto utf-8 "wireless-ssid \"$ssid\"\nallow-mlat yes\n"]
+
+	test read-utf8 "a UTF-8 value is read correctly" -body {
+		[config_file $utf8] get wireless-ssid
+	} -result $ssid
+
+	# (Non-ASCII text in this file is written as \u escapes: tclsh reads its
+	# source in the system encoding, which is ISO-8859-1 under the C locale.)
+
+	# Changing one option rewrites the whole file; other values must survive.
+	test rewrite-preserves-utf8 "changing an unrelated option leaves a UTF-8 value intact" -body {
+		set c [config_file $utf8]
+		$c set_option allow-mlat no
+		write $c
+		string first [encoding convertto utf-8 "wireless-ssid \"$ssid\""] [file_bytes]
+	} -result 0
+
+	test set-non-ascii "setting a non-ASCII value writes it as UTF-8" -body {
+		set c [config_file "allow-mlat yes\n"]
+		$c set_option wireless-ssid $ssid
+		write $c
+		set c2 [config_file [file_bytes]]
+		list [$c2 get wireless-ssid] [expr {[string first [encoding convertto utf-8 $ssid] [file_bytes]] >= 0}]
+	} -result [list $ssid 1]
+
+	# A file saved as Windows-1252 (older Notepad) isn't valid UTF-8. Tcl 8.6
+	# decodes such bytes as their Latin-1 characters, which for e-acute is right, and
+	# a rewrite then stores valid UTF-8.
+	test windows-1252-file "a Windows-1252 file is read as its Latin-1 characters and rewritten as UTF-8" -body {
+		set c [config_file [encoding convertto cp1252 "wireless-ssid \"$ssid\"\nallow-mlat yes\n"]]
+		set read [$c get wireless-ssid]
+		$c set_option allow-mlat no
+		write $c
+		list $read [expr {[string first [encoding convertto utf-8 $ssid] [file_bytes]] >= 0}]
+	} -result [list $ssid 1]
+
+	# /boot/piaware-config.txt is kept with CRLF line endings
+	test crlf-file "a CRLF file keeps CRLF line endings and its UTF-8 value" -body {
+		set c [config_file [encoding convertto utf-8 "wireless-ssid \"$ssid\"\r\nallow-mlat yes\r\n"] crlf]
+		$c set_option allow-mlat no
+		write $c
+		set bytes [file_bytes]
+		list [expr {[string first [encoding convertto utf-8 "wireless-ssid \"$ssid\"\r\n"] $bytes] == 0}] \
+			[regexp {[^\r]\n} $bytes]
+	} -result {1 0}
+
+	test ascii-unchanged "an all-ASCII file round-trips byte for byte" -body {
+		set before "# comment\nallow-mlat yes\nreceiver-type rtlsdr\n"
+		set c [config_file $before]
+		$c set_option allow-mlat yes
+		write $c
+		expr {[file_bytes] eq $before}
+	} -result 1
+
+	# cleanupTests resets the counters, so read the failure count first and
+	# exit non-zero on failure.
+	set failed $::tcltest::numTests(Failed)
+	cleanupTests
+	exit [expr {$failed > 0}]
+}

@@ -410,7 +410,11 @@ namespace eval ::fa_piaware_config {
 			set problems {}
 			if {[catch {
 				set f [open $filename "r"]
-				fconfigure $f -encoding ascii -translation auto
+				# UTF-8, so non-ASCII values (e.g. a wifi SSID) survive a
+				# read/rewrite. Tcl 8.6 decodes bytes that aren't valid
+				# UTF-8 (a file saved as Windows-1252) as their Latin-1
+				# characters rather than failing.
+				fconfigure $f -encoding utf-8 -translation auto
 				while {[gets $f line] >= 0} {
 					lassign [parse_line $line] fileKey value
 					lappend lines $line
@@ -548,7 +552,7 @@ namespace eval ::fa_piaware_config {
 
 			# write the new data
 			try {
-				fconfigure $f -encoding ascii -translation $eol
+				fconfigure $f -encoding utf-8 -translation $eol
 				foreach line $lines {
 					puts $f $line
 				}
