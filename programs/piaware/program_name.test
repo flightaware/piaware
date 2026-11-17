@@ -1,0 +1,64 @@
+# -*- tcl -*-
+
+package require tcltest 2.2
+package require Itcl
+
+set testDir [file dirname [file normalize [info script]]]
+set packageDir [file normalize [file join $testDir .. .. package]]
+
+# piaware.tcl requires these for code not exercised here; let the tests load
+# on systems that don't have them.
+foreach pkg {Tclx tls} {
+	if {[catch {package require $pkg}]} {
+		package provide $pkg 0
+	}
+}
+foreach f {tryfinallyshim fa_sudo piaware} {
+	source [file join $packageDir $f.tcl]
+}
+source [file join $testDir faup.tcl]
+
+::tcltest::configure {*}$argv
+
+namespace eval ::program_name::tests {
+	namespace import ::tcltest::*
+
+	# Feed netstat lines through the real parser, then ask for the program name.
+	proc program_on_port {port lines} {
+		array unset ::netstatus
+		foreach line $lines {
+			process_netstat_socket_line $line
+		}
+		return [adsb_local_program_name $port]
+	}
+
+	test known-program "a listener with a visible process gives its name" -body {
+		program_on_port 30005 {
+			{tcp        0      0 0.0.0.0:30005           0.0.0.0:*               LISTEN      812/dump1090-fa     }
+		}
+	} -result dump1090-fa
+
+	# Captured from netstat without root: another user's socket has no process
+	# information. The caller should keep its configured name, not use a placeholder.
+	test unknown-program "a listener whose process can't be seen gives no name" -body {
+		program_on_port 30005 {
+			{tcp        0      0 0.0.0.0:30005           0.0.0.0:*               LISTEN      -                   }
+		}
+	} -result {}
+
+	test no-listener "no listener gives no name" -body {
+		program_on_port 30005 {}
+	} -result {}
+
+	test remote-receiver "a remote receiver (port 0) gives no name" -body {
+		program_on_port 0 {
+			{tcp        0      0 0.0.0.0:30005           0.0.0.0:*               LISTEN      812/dump1090-fa     }
+		}
+	} -result {}
+
+	# cleanupTests resets the counters, so read the failure count first and
+	# exit non-zero on failure.
+	set failed $::tcltest::numTests(Failed)
+	cleanupTests
+	exit [expr {$failed > 0}]
+}
