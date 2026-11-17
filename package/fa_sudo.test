@@ -1,0 +1,133 @@
+# -*- tcl -*-
+#
+# Tests for fa_sudo's shell quoting. When piaware has to drop root with "su",
+# the command is passed through a shell, quoted by _shellquote: any argument
+# the shell could reinterpret would be a command injection as that user.
+
+package require tcltest 2.2
+
+set packageDir [file dirname [file normalize [info script]]]
+
+# fa_sudo requires Tclx for code not exercised here; let the tests load on
+# systems that don't have it.
+if {[catch {package require Tclx}]} {
+	package provide Tclx 0
+}
+source [file join $packageDir tryfinallyshim.tcl]
+source [file join $packageDir fa_sudo.tcl]
+
+::tcltest::configure {*}$argv
+
+namespace eval ::fa_sudo::tests {
+	namespace import ::tcltest::*
+
+	# Every character a POSIX shell treats specially inside or outside double
+	# quotes, plus command substitution in both forms, globs, separators,
+	# an empty argument and a newline.
+	variable hostile [list \
+		"plain" \
+		"two words" \
+		" padded " \
+		"" \
+		{double " quote} \
+		{single ' quote} \
+		{back\slash} \
+		{trailing backslash\\} \
+		{$HOME} \
+		{${HOME}} \
+		{$(echo injected)} \
+		{`echo injected`} \
+		{; echo injected} \
+		{&& echo injected} \
+		{| echo injected} \
+		{> /dev/null} \
+		{*} \
+		{~} \
+		{!} \
+		"line one\nline two" \
+	]
+
+	# printf prints each argument followed by a NUL byte, so the exact
+	# argument list comes back, empty ones included
+	proc printed_args {out} {
+		return [lrange [split $out \0] 0 end-1]
+	}
+
+	test shellquote-round-trip "_shellquote'd arguments pass through /bin/sh exactly" -body {
+		variable hostile
+		set got [printed_args [exec /bin/sh -c "printf '%s\\0' [::fa_sudo::_shellquote {*}$hostile]"]]
+		if {$got eq $hostile} {
+			return same
+		}
+		return "sent: $hostile\ngot:  $got"
+	} -result same
+
+	# With no droproot helper, chpst or sudo, piaware drops root with
+	# "su -s /bin/sh USER -- -c COMMAND". Here PATH holds only a stand-in su that runs
+	# COMMAND with /bin/sh, as the user's shell would; the arguments must
+	# come through exactly.
+	test su-fallback "the su fallback for dropping root runs the command with its arguments intact" -setup {
+		set bin [::tcltest::makeDirectory su-only-bin]
+		set su [file join $bin su]
+		set f [open $su w]
+		puts $f "#!/bin/sh\n# su ... -c COMMAND: run the last argument\nfor last; do :; done\nexec /bin/sh -c \"\$last\""
+		close $f
+		file attributes $su -permissions 0755
+		set savedPath $::env(PATH)
+		set savedHelper $::fa_sudo::dropRootHelper
+		set ::env(PATH) $bin
+		set ::fa_sudo::dropRootHelper [file join $bin no-such-droproot]
+		unset -nocomplain ::auto_execs
+	} -body {
+		variable hostile
+		set cmd [::fa_sudo::_make_droproot_args nobody myname printf {%s\0} {*}$hostile]
+		set got [printed_args [exec {*}$cmd]]
+		list [lrange $cmd 0 5] [expr {$got eq $hostile ? "same" : "sent: $hostile\ngot:  $got"}]
+	} -cleanup {
+		set ::env(PATH) $savedPath
+		set ::fa_sudo::dropRootHelper $savedHelper
+		unset -nocomplain ::auto_execs
+		::tcltest::removeDirectory su-only-bin
+	} -result [list [list [file join [::tcltest::temporaryDirectory] su-only-bin su] -s /bin/sh nobody -- -c] same]
+
+	# The same through the system's real su, which only root can use without
+	# a password (CI runs as root). "nobody", the default unprivileged user,
+	# usually has /usr/sbin/nologin as its shell, so su must be told to use
+	# /bin/sh.
+	set realSu ""
+	foreach p {/bin/su /usr/bin/su} {
+		if {[file executable $p]} {
+			set realSu $p
+			break
+		}
+	}
+	testConstraint rootWithSu [expr {$realSu ne "" && [exec id -u] == 0}]
+
+	test su-fallback-real-su "the su fallback works with the real su, as nobody" -constraints rootWithSu -setup {
+		set bin [::tcltest::makeDirectory real-su-bin]
+		file link -symbolic [file join $bin su] $realSu
+		set savedPath $::env(PATH)
+		set savedHelper $::fa_sudo::dropRootHelper
+		set ::env(PATH) $bin
+		set ::fa_sudo::dropRootHelper [file join $bin no-such-droproot]
+		unset -nocomplain ::auto_execs
+	} -body {
+		variable hostile
+		set cmd [::fa_sudo::_make_droproot_args nobody myname /bin/sh -c {/usr/bin/id -un; printf '%s\0' "$@"} sh {*}$hostile]
+		set out [exec {*}$cmd]
+		set user [lindex [split $out \n] 0]
+		set got [printed_args [string range $out [string length $user]+1 end]]
+		list $user [expr {$got eq $hostile ? "same" : "sent: $hostile\ngot:  $got"}]
+	} -cleanup {
+		set ::env(PATH) $savedPath
+		set ::fa_sudo::dropRootHelper $savedHelper
+		unset -nocomplain ::auto_execs
+		::tcltest::removeDirectory real-su-bin
+	} -result {nobody same}
+
+	# cleanupTests resets the counters, so read the failure count first and
+	# exit non-zero on failure.
+	set failed $::tcltest::numTests(Failed)
+	cleanupTests
+	exit [expr {$failed > 0}]
+}
