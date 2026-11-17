@@ -1,0 +1,74 @@
+# -*- tcl -*-
+#
+# Tests for fa_sudo's shell quoting. When piaware has to drop root with "su",
+# the command is passed through a shell, quoted by _shellquote: any argument
+# the shell could reinterpret would be a command injection as that user.
+
+package require tcltest 2.2
+
+set packageDir [file dirname [file normalize [info script]]]
+
+# fa_sudo requires Tclx for code not exercised here; let the tests load on
+# systems that don't have it.
+if {[catch {package require Tclx}]} {
+	package provide Tclx 0
+}
+source [file join $packageDir tryfinallyshim.tcl]
+source [file join $packageDir fa_sudo.tcl]
+
+::tcltest::configure {*}$argv
+
+namespace eval ::fa_sudo::tests {
+	namespace import ::tcltest::*
+
+	# Every character a POSIX shell treats specially inside or outside double
+	# quotes, plus command substitution in both forms, globs, separators,
+	# an empty argument and a newline.
+	variable hostile [list \
+		"plain" \
+		"two words" \
+		"" \
+		{double " quote} \
+		{single ' quote} \
+		{back\slash} \
+		{trailing backslash\\} \
+		{$HOME} \
+		{${HOME}} \
+		{$(echo injected)} \
+		{`echo injected`} \
+		{; echo injected} \
+		{&& echo injected} \
+		{| echo injected} \
+		{> /dev/null} \
+		{*} \
+		{~} \
+		{!} \
+		"line one\nline two" \
+	]
+
+	test shellquote-round-trip "_shellquote'd arguments pass through /bin/sh without being split, expanded or substituted" -body {
+		variable hostile
+		# printf prints each argument between NUL bytes, so the exact
+		# argument list comes back, empty ones included
+		set out [exec /bin/sh -c "printf '%s\\0' [::fa_sudo::_shellquote {*}$hostile]"]
+		set got [lrange [split $out \0] 0 end-1]
+		# (_shellquote_arg currently also wraps each argument in a space on
+		# each side; that's a separate bug and not what this test is about,
+		# so only the injection-relevant part is compared: nothing split,
+		# merged, expanded or substituted.)
+		set trimmed {}
+		foreach g $got {
+			lappend trimmed [string trim $g " "]
+		}
+		if {[llength $got] == [llength $hostile] && $trimmed eq $hostile} {
+			return same
+		}
+		return "sent: $hostile\ngot:  $got"
+	} -result same
+
+	# cleanupTests resets the counters, so read the failure count first and
+	# exit non-zero on failure.
+	set failed $::tcltest::numTests(Failed)
+	cleanupTests
+	exit [expr {$failed > 0}]
+}
