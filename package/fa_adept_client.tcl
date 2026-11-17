@@ -343,7 +343,7 @@ set caDir [file join [file dirname [info script]] "ca"]
 		#parray subject
 
 		# validate the common name
-		if {![info exist subject(CN)] || ($subject(CN) != "*.flightaware.com" && $subject(CN) != "piaware.flightaware.com" && $subject(CN) != "adept.flightaware.com" && $subject(CN) != "eyes.flightaware.com")} {
+		if {![info exists subject(CN)] || ($subject(CN) != "*.flightaware.com" && $subject(CN) != "piaware.flightaware.com" && $subject(CN) != "adept.flightaware.com" && $subject(CN) != "eyes.flightaware.com")} {
 			set reason "subject CN is not valid"
 			return 0
 		}

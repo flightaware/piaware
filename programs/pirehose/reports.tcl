@@ -49,7 +49,7 @@ proc handle_report {line} {
 	set hexid $tsv(hexid)
 
 	# match to existing aircraft or create a new one
-	if {[info exist ::aircraftState($hexid)]} {
+	if {[info exists ::aircraftState($hexid)]} {
 		set aircraft $::aircraftState($hexid)
 	} else {
 		set newID "$hexid-[clock seconds]-piaware-[incr ::nextFlightID]"
